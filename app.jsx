@@ -201,31 +201,14 @@ const Icon = ({ n, size=20 }) => {
 };
 
 // ── Ascend PB Logo ────────────────────────────────────────────
-const AscendLogo = ({ size = 32, color = "#111", showText = true }) => (
-  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"4px" }}>
-    <svg width={size} height={size * 0.85} viewBox="0 0 100 85" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Outer triangle */}
-      <path d="M50 2L98 83H2L50 2Z" fill={color} />
-      {/* Inner cutout - inverted triangle */}
-      <path d="M50 22L82 75H18L50 22Z" fill="white" />
-      {/* Inner small triangle pointing up */}
-      <path d="M50 38L66 68H34L50 38Z" fill={color} />
-    </svg>
-    {showText && (
-      <div style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:"800", fontSize: size * 0.28, letterSpacing:"1.5px", color, textTransform:"uppercase", whiteSpace:"nowrap" }}>
-        Ascend Pickleball
-      </div>
-    )}
-  </div>
+const LOGO_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(6).png";
+
+const AscendLogo = ({ height = 60 }) => (
+  <img src={LOGO_URL} alt="Ascend Pickleball" style={{ height, width:"auto", display:"block" }} />
 );
 
-// ── Ascend Nav Mark (icon only) ───────────────────────────────
-const AscendMark = ({ size = 28, color = "#111" }) => (
-  <svg width={size} height={size * 0.85} viewBox="0 0 100 85" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 2L98 83H2L50 2Z" fill={color} />
-    <path d="M50 22L82 75H18L50 22Z" fill="white" />
-    <path d="M50 38L66 68H34L50 38Z" fill={color} />
-  </svg>
+const AscendMark = ({ height = 32 }) => (
+  <img src={LOGO_URL} alt="Ascend Pickleball" style={{ height, width:"auto", display:"block" }} />
 );
 
 // ── Notification Bell ─────────────────────────────────────────
@@ -527,8 +510,8 @@ function AuthScreen() {
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px", background:C.bg }}>
       <div style={{ marginBottom:"28px", display:"flex", flexDirection:"column", alignItems:"center" }}>
-        <AscendLogo size={56} color="#111" showText={true} />
-        <div style={{ fontSize:"12px", color:C.faint, letterSpacing:".5px", marginTop:"10px" }}>Flex League · Charlotte, NC · {SEASON}</div>
+        <AscendLogo height={80} />
+        <div style={{ fontSize:"12px", color:C.faint, letterSpacing:".5px", marginTop:"12px" }}>Flex League · Charlotte, NC · {SEASON}</div>
       </div>
       <div style={{ ...card(), width:"100%", maxWidth:"420px" }}>
         {mode==="login" && <>
@@ -1747,7 +1730,7 @@ export default function AscendLeague() {
   if (loading) return (
     <div style={{ background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ textAlign:"center" }}>
-        <AscendMark size={44} color="#111" />
+        <AscendLogo height={60} />
         <div style={{ fontSize:"12px", color:C.faint, marginTop:"10px" }}>Loading...</div>
       </div>
     </div>
@@ -1761,8 +1744,7 @@ export default function AscendLeague() {
       {/* Top nav */}
       <nav style={{ background:C.white, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", alignItems:"center", gap:"2px", position:"sticky", top:0, zIndex:100, height:"52px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:"8px", marginRight:mobile?"8px":"16px", cursor:"pointer" }} onClick={()=>setTab("dashboard")}>
-          <AscendMark size={26} color="#111" />
-          {!mobile && <span style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:"800", fontSize:"13px", letterSpacing:"1px", textTransform:"uppercase", color:"#111" }}>Ascend PB</span>}
+          <AscendMark height={30} />
         </div>
         {!mobile && <>
           <div style={{ width:"1px", height:"22px", background:C.border, margin:"0 6px" }}/>
