@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.8.0";
+const APP_VERSION   = "v1.8.2";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -842,49 +842,55 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         </Alert>
       ))}
 
-      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:"14px",marginBottom:"20px"}}>
-        {/* Confirmed matches */}
-        <div style={card()}>
-          <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"12px"}}>Confirmed matches</div>
-          {myMatches.length===0?<p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>No confirmed matches yet. Post a match request to get started.</p>:
-          myMatches.map(m=>{
+      {/* Confirmed matches — full width, always on top */}
+      <div style={{...card(),marginBottom:"14px"}}>
+        <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"12px"}}>Confirmed matches</div>
+        {myMatches.length===0
+          ? <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>No confirmed matches yet. Post a match request to get started.</p>
+          : myMatches.map(m=>{
             const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
             const matchToday=isToday(m.match_date);
             return(
-              <div key={m.id} style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
-                <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" 🏓":""}</div>
-                <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{m.match_date} · {m.match_time}</div>
-                <div style={{fontSize:"12px",color:C.muted,marginBottom:"6px"}}>{m.court}</div>
-                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&ct!=="Now"&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {ct}</div>:null;})()}
-                <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
-                  <Tag c="green">Confirmed</Tag>
-                  <div style={{display:"flex",gap:"6px",flex:1,flexWrap:"wrap"}}>
-                    <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 0",minHeight:"36px",flex:1,minWidth:"60px"})} onClick={()=>openChat(m)}>Chat</button>
-                    <button style={btn(C.amber,"#fff",{fontSize:"12px",padding:"6px 0",minHeight:"36px",flex:1,minWidth:"60px"})} onClick={()=>setTab("scores")}>Score</button>
-                    <button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 0",minHeight:"36px",flex:1,minWidth:"60px"})} onClick={()=>openCancel(m)}>Cancel</button>
+              <div key={m.id} style={{padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"8px"}}>
+                  <div>
+                    <div style={{fontWeight:"700",fontSize:"16px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" 🏓":""}</div>
+                    <div style={{fontSize:"13px",color:C.muted,marginBottom:"2px"}}>{fmtDateTime(m.match_date,m.match_time)}</div>
+                    <div style={{fontSize:"12px",color:C.muted}}>{m.court}</div>
+                    {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&ct!=="Now"&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginTop:"4px"}}>⏱ {ct} away</div>:null;})()}
                   </div>
+                  <Tag c={matchToday?"blue":"green"}>{matchToday?"Today":"Confirmed"}</Tag>
+                </div>
+                <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+                  <button style={btn(C.text,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>openChat(m)}>💬 Chat</button>
+                  <button style={btn(C.amber,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>setTab("scores")}>📊 Score</button>
+                  <button style={btn(C.red,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>openCancel(m)}>Cancel</button>
                 </div>
               </div>
             );
-          })}
-        </div>
+          })
+        }
+      </div>
 
-        {/* Open requests */}
-        <div style={card()}>
-          <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"12px"}}>My match requests</div>
-          {myReqs.length===0?<p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>No open requests. Tap "Request Match" to find an opponent.</p>:
-          myReqs.map(r=>(
+      {/* My open requests — full width below confirmed */}
+      <div style={{...card(),marginBottom:"20px"}}>
+        <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"12px"}}>My match requests</div>
+        {myReqs.length===0
+          ? <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>No open requests. Tap "Request Match" to post your availability.</p>
+          : myReqs.map(r=>(
             <div key={r.id} style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
-              <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>{r.proposed_date} at {r.proposed_time}</div>
-              <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{r.proposed_court}</div>
-              <div style={{fontSize:"12px",color:C.faint,marginBottom:"8px"}}>{r.responses?.length||0} response{(r.responses?.length||0)!==1?"s":""} · {timeAgo(r.created_at)}</div>
-              <div style={{display:"flex",gap:"6px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"6px"}}>
+                <div>
+                  <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>{fmtDateTime(r.proposed_date,r.proposed_time)}</div>
+                  <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{r.proposed_court}</div>
+                  <div style={{fontSize:"11px",color:C.faint}}>{r.responses?.length||0} response{(r.responses?.length||0)!==1?"s":""} · {timeAgo(r.created_at)}</div>
+                </div>
                 <Tag c="blue">Open</Tag>
-                <button style={btn(C.text,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"36px"})} onClick={()=>setTab("board")}>View thread</button>
               </div>
+              <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>setTab("board")}>View thread</button>
             </div>
-          ))}
-        </div>
+          ))
+        }
       </div>
 
       {/* Standings */}
@@ -1347,21 +1353,35 @@ function ScoreConfirmFlow({ match: m, myTeam, opp, setMatches, confirmScore }) {
 
 function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
   const mobile = useMobile();
-  const [entry, setEntry] = useState({});
+  const [entry,      setEntry]      = useState({});
+  const [confirmMid, setConfirmMid] = useState(null); // score confirm modal
   const upE=(mid,k,v)=>setEntry(e=>({...e,[mid]:{...(e[mid]||{}),[k]:v}}));
-  const myMatches=matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled);
+
+  // Active matches (not cancelled) — completed ones shown greyed out
+  const myMatches = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled);
+  const active    = myMatches.filter(m=>m.status!=="completed");
+  const completed = myMatches.filter(m=>m.status==="completed");
+
+  const buildGames=(mid)=>{
+    const s=entry[mid]||{};
+    const games=[];
+    for(let i=1;i<=3;i++){
+      const s1=parseInt(s[`g${i}s1`]),s2=parseInt(s[`g${i}s2`]);
+      if(!isNaN(s1)&&!isNaN(s2)&&s[`g${i}s1`]!=="")games.push({s1,s2});
+    }
+    return games;
+  };
 
   const submitScore=async(mid)=>{
-    const s=entry[mid]||{};const games=[];
-    for(let i=1;i<=3;i++){const s1=parseInt(s[`g${i}s1`]),s2=parseInt(s[`g${i}s2`]);if(!isNaN(s1)&&!isNaN(s2)&&s[`g${i}s1`]!=="")games.push({s1,s2});}
-    if(games.length<2)return;
+    const games=buildGames(mid);
+    if(games.length<2){alert("Enter at least 2 game scores.");return;}
     const m=matches.find(x=>x.id===mid);
     const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
     const winner_id=w1>w2?m.t1_id:m.t2_id,loser_id=winner_id===m.t1_id?m.t2_id:m.t1_id;
-    const hasSub=false; // sub disclosure removed per design
     await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,updated_at:new Date().toISOString()}).eq("id",mid);
     setMatches(p=>p.map(m=>m.id===mid?{...m,status:"score_pending",games,winner_id,loser_id,submitted_by:myTeam.id}:m));
     setEntry(e=>{const n={...e};delete n[mid];return n;});
+    setConfirmMid(null);
   };
 
   const confirmScore=async(mid)=>{
@@ -1371,56 +1391,145 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
 
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
 
+  // Score entry game row — used inline in each match card
+  const ScoreEntry=({mid,opp})=>{
+    const s=entry[mid]||{};
+    const games=buildGames(mid);
+    const hasEnough=games.length>=2;
+    return(
+      <div>
+        {/* Team labels */}
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px",padding:"0 4px"}}>
+          <span style={{fontSize:"12px",fontWeight:"700",color:C.text}}>{myTeam?.name}</span>
+          <span style={{fontSize:"12px",color:C.faint}}>vs</span>
+          <span style={{fontSize:"12px",fontWeight:"700",color:C.text}}>{opp?.name}</span>
+        </div>
+
+        {/* Game rows */}
+        {[1,2,3].map(g=>(
+          <div key={g} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px",background:C.bg,borderRadius:"10px",padding:"12px 14px"}}>
+            <span style={{fontSize:"12px",color:C.muted,width:"52px",flexShrink:0}}>Game {g}{g===3?" *":""}</span>
+            <div style={{display:"flex",alignItems:"center",gap:"8px",flex:1}}>
+              {/* My score */}
+              <input
+                type="number" min="0" max="25"
+                placeholder="0"
+                value={s[`g${g}s1`]||""}
+                onChange={e=>upE(mid,`g${g}s1`,e.target.value)}
+                style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"700",background:C.white,border:`2px solid ${s[`g${g}s1`]?"#111":C.border}`,borderRadius:"10px",padding:"10px 6px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0"}}
+              />
+              <span style={{fontSize:"18px",color:"#ccc",fontWeight:"300",flexShrink:0}}>—</span>
+              {/* Opp score */}
+              <input
+                type="number" min="0" max="25"
+                placeholder="0"
+                value={s[`g${g}s2`]||""}
+                onChange={e=>upE(mid,`g${g}s2`,e.target.value)}
+                style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"700",background:C.white,border:`2px solid ${s[`g${g}s2`]?"#111":C.border}`,borderRadius:"10px",padding:"10px 6px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0"}}
+              />
+            </div>
+          </div>
+        ))}
+        <p style={{fontSize:"11px",color:C.faint,marginBottom:"12px"}}>* Game 3 only if needed. Enter your team's score on the left.</p>
+        <button
+          style={btn(hasEnough?C.text:C.faint,"#fff",{width:"100%",minHeight:"48px",fontSize:"15px",opacity:hasEnough?1:0.5})}
+          disabled={!hasEnough}
+          onClick={()=>hasEnough&&setConfirmMid(mid)}
+        >
+          Review &amp; Submit Score
+        </button>
+      </div>
+    );
+  };
+
+  // Score confirm modal
+  const ScoreConfirmModal=()=>{
+    if(!confirmMid)return null;
+    const m=matches.find(x=>x.id===confirmMid);
+    const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
+    const games=buildGames(confirmMid);
+    const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
+    const winner=w1>w2?myTeam?.name:opp?.name;
+    return(
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}} onClick={e=>e.target===e.currentTarget&&setConfirmMid(null)}>
+        <div style={{...card(),width:"100%",maxWidth:"380px",animation:"fadeIn .15s ease"}}>
+          <div style={{fontSize:"20px",fontWeight:"700",marginBottom:"4px"}}>Confirm score</div>
+          <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Review before submitting. Your opponent has 24 hours to confirm.</p>
+
+          {/* Score summary */}
+          <div style={{background:C.bg,borderRadius:"10px",padding:"14px",marginBottom:"16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"10px"}}>
+              <span style={{fontSize:"13px",fontWeight:"700"}}>{myTeam?.name}</span>
+              <span style={{fontSize:"13px",fontWeight:"700"}}>{opp?.name}</span>
+            </div>
+            {games.map((g,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderTop:`1px solid ${C.border}`}}>
+                <span style={{fontSize:"12px",color:C.muted}}>Game {i+1}</span>
+                <span style={{fontSize:"18px",fontWeight:"800"}}>{g.s1} — {g.s2}</span>
+              </div>
+            ))}
+            <div style={{marginTop:"10px",paddingTop:"10px",borderTop:`2px solid ${C.border}`,textAlign:"center"}}>
+              <span style={{fontSize:"13px",color:C.muted}}>Winner: </span>
+              <span style={{fontSize:"14px",fontWeight:"700",color:C.green}}>{winner}</span>
+            </div>
+          </div>
+
+          <div style={{display:"flex",gap:"8px"}}>
+            <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>submitScore(confirmMid)}>Submit</button>
+            <button style={btn(C.gray,"#fff",{flex:1,minHeight:"48px"})} onClick={()=>setConfirmMid(null)}>Edit</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return(
     <div>
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>My Matches</div>
       <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>Submit scores · Confirm results · Full match history</div>
-      {myMatches.length===0&&<div style={{...card(),textAlign:"center",padding:"48px 20px"}}><p style={{color:C.faint}}>No matches yet. Accept a request on the Match Board to get started.</p></div>}
-      {myMatches.map(m=>{
+
+      {active.length===0&&completed.length===0&&(
+        <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
+          <p style={{color:C.faint}}>No matches yet. Accept a request on the Match Board to get started.</p>
+        </div>
+      )}
+
+      {/* Active matches */}
+      {active.map(m=>{
         const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
-        const s=entry[m.id]||{};
         const canSubmit=m.status==="confirmed";
         const canConfirm=m.status==="score_pending"&&m.submitted_by!==myTeam?.id;
-        const scoreSubmitted = m.status==="score_pending";
+        const scoreSubmitted=m.status==="score_pending";
         return(
-          <div key={m.id} style={{...card(),marginBottom:"14px",opacity:scoreSubmitted?0.75:1}}>
+          <div key={m.id} style={{...card(),marginBottom:"14px",opacity:scoreSubmitted?0.8:1}}>
+            {/* Match header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",flexWrap:"wrap",gap:"8px"}}>
               <div>
                 <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"3px"}}>vs {opp?.name}</div>
-                <div style={{fontSize:"12px",color:C.muted}}>{m.match_date} · {m.match_time} · {m.court}</div>
+                <div style={{fontSize:"13px",color:C.muted}}>{fmtDateTime(m.match_date,m.match_time)}</div>
+                <div style={{fontSize:"12px",color:C.muted}}>{m.court}</div>
               </div>
-              <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap",minWidth:"0"}}>
-                <Tag c={m.status==="confirmed"?"green":scoreSubmitted?"amber":m.status==="completed"?"gray":"red"}>{m.status==="confirmed"?"Confirmed":scoreSubmitted?"Score Pending":m.status==="completed"?"Completed":"Disputed"}</Tag>
-                <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",minWidth:"64px"})} onClick={()=>openChat(m)}>Chat</button>
-                {m.status==="confirmed"&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",minWidth:"64px"})} onClick={()=>openCancel(m)}>Cancel</button>}
+              <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}}>
+                <Tag c={canSubmit?"green":scoreSubmitted?"amber":"red"}>{canSubmit?"Confirmed":scoreSubmitted?"Score Pending":"Disputed"}</Tag>
+                <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>openChat(m)}>Chat</button>
+                {canSubmit&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>openCancel(m)}>Cancel</button>}
               </div>
             </div>
-            {canSubmit&&<>
-              <div style={{display:"flex",gap:"10px",flexWrap:"wrap",marginBottom:"14px"}}>
-                {[1,2,3].map(g=>(
-                  <div key={g} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"12px"}}>
-                    <Lbl>Game {g}{g===3?" (if needed)":""}</Lbl>
-                    <div style={{display:"flex",gap:"7px",alignItems:"center"}}>
-                      <input style={{...inp({width:"52px",textAlign:"center",fontSize:"17px"})}} type="number" min="0" max="25" placeholder="—" value={s[`g${g}s1`]||""} onChange={e=>upE(m.id,`g${g}s1`,e.target.value)}/>
-                      <span style={{color:"#ccc",fontSize:"20px"}}>–</span>
-                      <input style={{...inp({width:"52px",textAlign:"center",fontSize:"17px"})}} type="number" min="0" max="25" placeholder="—" value={s[`g${g}s2`]||""} onChange={e=>upE(m.id,`g${g}s2`,e.target.value)}/>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>submitScore(m.id)}>Submit Score</button>
-            </>}
-            {m.status==="score_pending"&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
+
+            {/* Score entry */}
+            {canSubmit&&<ScoreEntry mid={m.id} opp={opp}/>}
+            {scoreSubmitted&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
             {canConfirm&&<ScoreConfirmFlow match={m} myTeam={myTeam} opp={opp} setMatches={setMatches} confirmScore={confirmScore}/>}
-            {/* Game scores history */}
-            {m.games&&m.games.length>0&&(
-              <div style={{marginTop:"12px",background:C.bg,borderRadius:"8px",padding:"10px 12px"}}>
-                <Lbl>Game scores</Lbl>
-                <div style={{display:"flex",gap:"14px"}}>
+
+            {/* Submitted score history */}
+            {m.games&&m.games.length>0&&scoreSubmitted&&(
+              <div style={{marginTop:"12px",background:C.bg,borderRadius:"8px",padding:"10px 14px"}}>
+                <div style={{fontSize:"11px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Submitted scores</div>
+                <div style={{display:"flex",gap:"16px"}}>
                   {m.games.map((g,i)=>(
                     <div key={i} style={{textAlign:"center"}}>
-                      <div style={{fontSize:"11px",color:C.faint,marginBottom:"3px"}}>Game {i+1}</div>
-                      <div style={{fontSize:"16px",fontWeight:"700"}}>{g.s1}–{g.s2}</div>
+                      <div style={{fontSize:"11px",color:C.faint,marginBottom:"2px"}}>G{i+1}</div>
+                      <div style={{fontSize:"18px",fontWeight:"700"}}>{g.s1}–{g.s2}</div>
                     </div>
                   ))}
                 </div>
@@ -1429,6 +1538,31 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
           </div>
         );
       })}
+
+      {/* Completed matches — greyed out */}
+      {completed.length>0&&(
+        <>
+          <div style={{fontSize:"13px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",margin:"24px 0 10px"}}>Completed</div>
+          {completed.map(m=>{
+            const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
+            const won=m.winner_id===myTeam?.id;
+            return(
+              <div key={m.id} style={{...card(),marginBottom:"10px",opacity:0.55}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
+                  <div>
+                    <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"2px"}}>vs {opp?.name}</div>
+                    <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}</div>
+                    {m.games&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{m.games.map(g=>`${g.s1}–${g.s2}`).join("  ")}</div>}
+                  </div>
+                  <Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      <ScoreConfirmModal/>
     </div>
   );
 }
@@ -1545,10 +1679,12 @@ function TeamProfileModal({ team, teams, matches, myTeam, onClose }) {
   );
 }
 
-function Standings({ myTeam, teams, matches, division, setDivision }) {
+function Standings({ myTeam, teams, matches, division, setDivision, isAdmin }) {
   const mobile=useMobile();
   const [profileTeam, setProfileTeam] = useState(null);
-  const dt=[...teams.filter(t=>t.approved&&t.division===division)].sort((a,b)=>b.points-a.points||b.wins-a.wins);
+  // Non-admins locked to their own division
+  const activeDivision = isAdmin ? division : (myTeam?.division || division);
+  const dt=[...teams.filter(t=>t.approved&&t.division===activeDivision)].sort((a,b)=>b.points-a.points||b.wins-a.wins);
   const getStreak=id=>{const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed")].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));let s=0;for(const m of tm){if(m.winner_id===id)s++;else break;}return s;};
   const totalPlayed=id=>matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed").length;
   const maxPlayed=Math.max(...teams.map(t=>totalPlayed(t.id)),0);
@@ -1558,12 +1694,20 @@ function Standings({ myTeam, teams, matches, division, setDivision }) {
     <div>
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>Standings</div>
       <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>{SEASON} · 2 pts per win · Top {PLAYOFFS} advance · Tap any team to view profile</div>
-      <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
-        <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
-        <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
-      </div>
+      {/* Only admins can switch divisions */}
+      {isAdmin?(
+        <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
+          <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
+          <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
+        </div>
+      ):(
+        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px"}}>
+          <Pill d={activeDivision} active={true} onClick={()=>{}}/>
+          <span style={{fontSize:"12px",color:C.faint}}>Your division</span>
+        </div>
+      )}
       <div style={card()}>
-        <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>{dL(division)} — Full standings</div>
+        <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>{dL(activeDivision)} — Full standings</div>
         <div className="tscroll">
           <table style={{width:"100%",borderCollapse:"collapse",minWidth:"400px"}}>
             <thead><tr>{["Rank","Team",!mobile&&"Players","W","L","Pts","MP","Win%","Streak"].filter(Boolean).map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
@@ -1590,7 +1734,7 @@ function Standings({ myTeam, teams, matches, division, setDivision }) {
                     {!mobile&&<td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:C.muted,fontSize:"12px"}}>{t.p1_name} &amp; {t.p2_name}</td>}
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"700",color:C.green,fontSize:"15px"}}>{t.wins}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:C.red,fontSize:"15px"}}>{t.losses}</td>
-                    <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",fontSize:"18px",color:dC(division)}}>{t.points}</td>
+                    <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",fontSize:"18px",color:dC(activeDivision)}}>{t.points}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:C.muted,fontSize:"13px"}}>{mp}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:C.muted}}>{pct}%</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:streak>=3?C.orange:C.muted,fontWeight:streak>=3?"700":"400"}}>{streak>0?`${streak}W`:"-"}</td>
@@ -2126,7 +2270,7 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
   const [log,setLog]=useState([]);
   const [editM,setEditM]=useState(null);
   const [editScores,setEditScores]=useState({});
-  const [newMatch,setNewMatch]=useState({t1:"",t2:"",div:"low",date:"",time:"",court:""});
+  const [newMatch,setNewMatch]=useState({t1:"",t2:"",div:"low",date:"",time:"",court:"",asCompleted:false,winner:"",g1s1:"",g1s2:"",g2s1:"",g2s2:"",g3s1:"",g3s2:""});
   const [bannerDraft,setBannerDraft]=useState(adminBanner||"");
   const [deadlineDraft,setDeadlineDraft]=useState(weekDeadline||"");
 
@@ -2198,10 +2342,62 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
     await logAction("Edited score","match",mid,`Winner: ${tName(s.winner_id)}`);
   };
 
+  const deleteMatch=async(mid)=>{
+    if(!window.confirm("Permanently delete this match? Standings will be updated if the match was completed."))return;
+    const m=matches.find(x=>x.id===mid);
+    // Roll back standings if completed
+    if(m?.status==="completed"&&m.winner_id&&m.loser_id){
+      const winner=teams.find(t=>t.id===m.winner_id);
+      const loser=teams.find(t=>t.id===m.loser_id);
+      if(winner)await sb.from("teams").update({wins:Math.max(0,winner.wins-1),points:Math.max(0,winner.points-2)}).eq("id",m.winner_id);
+      if(loser)await sb.from("teams").update({losses:Math.max(0,loser.losses-1)}).eq("id",m.loser_id);
+      setTeams(p=>p.map(t=>{
+        if(t.id===m.winner_id)return{...t,wins:Math.max(0,t.wins-1),points:Math.max(0,t.points-2)};
+        if(t.id===m.loser_id)return{...t,losses:Math.max(0,t.losses-1)};
+        return t;
+      }));
+    }
+    await sb.from("matches").delete().eq("id",mid);
+    setMatches(p=>p.filter(x=>x.id!==mid));
+    await logAction("Deleted match","match",mid,`${tName(m?.t1_id)} vs ${tName(m?.t2_id)}`);
+  };
+
   const createMatch=async()=>{
     if(!newMatch.t1||!newMatch.t2||newMatch.t1===newMatch.t2)return;
-    const{data}=await sb.from("matches").insert({t1_id:newMatch.t1,t2_id:newMatch.t2,division:newMatch.div,match_date:newMatch.date,match_time:newMatch.time,court:newMatch.court||"TBD — Charlotte area",status:"confirmed"}).select().single();
-    if(data){setMatches(p=>[data,...p]);setNewMatch({t1:"",t2:"",div:"low",date:"",time:"",court:""});await logAction("Created match manually","match",data.id,`${tName(newMatch.t1)} vs ${tName(newMatch.t2)}`);}
+    const isCompleted=newMatch.asCompleted&&newMatch.winner;
+    const games=[];
+    for(let i=1;i<=3;i++){
+      const s1=parseInt(newMatch[`g${i}s1`]),s2=parseInt(newMatch[`g${i}s2`]);
+      if(!isNaN(s1)&&!isNaN(s2)&&newMatch[`g${i}s1`])games.push({s1,s2});
+    }
+    const insertData={
+      t1_id:newMatch.t1,t2_id:newMatch.t2,division:newMatch.div,
+      match_date:newMatch.date,match_time:newMatch.time,
+      court:newMatch.court||"TBD — Charlotte area",
+      status:isCompleted?"completed":"confirmed",
+    };
+    if(isCompleted&&newMatch.winner){
+      insertData.winner_id=newMatch.winner;
+      insertData.loser_id=newMatch.winner===newMatch.t1?newMatch.t2:newMatch.t1;
+      if(games.length>=2){const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;insertData.games=games;insertData.score_t1=w1;insertData.score_t2=w2;}
+    }
+    const{data}=await sb.from("matches").insert(insertData).select().single();
+    if(data){
+      setMatches(p=>[data,...p]);
+      // Update standings if completed
+      if(isCompleted&&newMatch.winner){
+        await sb.from("teams").update({wins:teams.find(t=>t.id===newMatch.winner)?.wins+1||1,points:teams.find(t=>t.id===newMatch.winner)?.points+2||2}).eq("id",newMatch.winner);
+        const loserId=newMatch.winner===newMatch.t1?newMatch.t2:newMatch.t1;
+        await sb.from("teams").update({losses:teams.find(t=>t.id===loserId)?.losses+1||1}).eq("id",loserId);
+        setTeams(p=>p.map(t=>{
+          if(t.id===newMatch.winner)return{...t,wins:t.wins+1,points:t.points+2};
+          if(t.id===loserId)return{...t,losses:t.losses+1};
+          return t;
+        }));
+      }
+      setNewMatch({t1:"",t2:"",div:"low",date:"",time:"",court:"",asCompleted:false,winner:"",g1s1:"",g1s2:"",g2s1:"",g2s2:"",g3s1:"",g3s2:""});
+      await logAction(isCompleted?"Created completed match":"Created match","match",data.id,`${tName(newMatch.t1)} vs ${tName(newMatch.t2)}`);
+    }
   };
 
   const postAnn=async()=>{
@@ -2345,9 +2541,10 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
 
         {/* MATCHES */}
         {tab==="matches"&&<>
-          <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"6px"}}>Create match manually</div>
-          <p style={{fontSize:"13px",color:C.muted,marginBottom:"14px"}}>Assign two teams without going through the request process.</p>
-          <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:"10px",marginBottom:"14px"}}>
+          {/* CREATE MATCH */}
+          <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"4px"}}>Create match</div>
+          <p style={{fontSize:"13px",color:C.muted,marginBottom:"14px"}}>Assign two teams manually. Optionally mark as already completed with a score.</p>
+          <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:"10px",marginBottom:"12px"}}>
             <div><Lbl>Team 1</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.t1} onChange={e=>setNewMatch(m=>({...m,t1:e.target.value}))}><option value="">Select...</option>{teams.filter(t=>t.approved).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
             <div><Lbl>Team 2</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.t2} onChange={e=>setNewMatch(m=>({...m,t2:e.target.value}))}><option value="">Select...</option>{teams.filter(t=>t.approved).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
             <div><Lbl>Division</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.div} onChange={e=>setNewMatch(m=>({...m,div:e.target.value}))}><option value="low">3.0–3.5</option><option value="high">3.5–4.0</option></select></div>
@@ -2355,17 +2552,64 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
             <div><Lbl>Time</Lbl><input type="time" style={inp()} value={newMatch.time} onChange={e=>setNewMatch(m=>({...m,time:e.target.value}))}/></div>
             <div><Lbl>Court</Lbl><input style={inp()} placeholder="Court name" value={newMatch.court} onChange={e=>setNewMatch(m=>({...m,court:e.target.value}))}/></div>
           </div>
-          <button style={btn(C.text,"#fff",{minHeight:"44px",marginBottom:"20px"})} onClick={createMatch} disabled={!newMatch.t1||!newMatch.t2}>Create Match</button>
-          <div style={{height:"1px",background:C.border,marginBottom:"16px"}}/>
-          <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Edit / override scores</div>
-          {matches.filter(m=>["completed","score_pending","disputed"].includes(m.status)).slice(0,20).map(m=>(
-            <div key={m.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
-                <div>
-                  <div style={{fontWeight:"700"}}>{tName(m.t1_id)} vs {tName(m.t2_id)}</div>
-                  <div style={{fontSize:"12px",color:C.muted}}>{m.match_date} · {m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"No scores"}</div>
+
+          {/* Mark as completed toggle */}
+          <label style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 14px",background:newMatch.asCompleted?C.greenBg:C.bg,border:`1.5px solid ${newMatch.asCompleted?C.green:C.border}`,borderRadius:"10px",cursor:"pointer",marginBottom:"14px",minHeight:"48px"}}>
+            <div onClick={()=>setNewMatch(m=>({...m,asCompleted:!m.asCompleted}))} style={{width:"44px",height:"24px",borderRadius:"12px",background:newMatch.asCompleted?C.green:C.border,position:"relative",flexShrink:0,cursor:"pointer",transition:"background .2s"}}>
+              <div style={{position:"absolute",top:"2px",left:newMatch.asCompleted?"22px":"2px",width:"20px",height:"20px",borderRadius:"50%",background:C.white,transition:"left .2s"}}/>
+            </div>
+            <div>
+              <div style={{fontSize:"14px",fontWeight:"600",color:newMatch.asCompleted?C.green:C.text}}>Mark as completed match</div>
+              <div style={{fontSize:"12px",color:C.muted}}>Use when manually entering a result that already happened</div>
+            </div>
+          </label>
+
+          {/* Completed fields */}
+          {newMatch.asCompleted&&<div style={{background:C.greenBg,border:`1px solid ${C.green}30`,borderRadius:"10px",padding:"14px",marginBottom:"14px"}}>
+            <Lbl>Winner</Lbl>
+            <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
+              {[newMatch.t1,newMatch.t2].filter(Boolean).map(tid=>{
+                const sel=newMatch.winner===tid;
+                return<button key={tid} onClick={()=>setNewMatch(m=>({...m,winner:tid}))} style={{flex:1,padding:"10px",borderRadius:"8px",border:`2px solid ${sel?C.green:C.border}`,background:sel?C.white:C.white,color:sel?C.green:C.muted,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"13px",fontWeight:"600",minHeight:"44px"}}>{tName(tid)||"Select team above"}</button>;
+              })}
+              {!newMatch.t1&&!newMatch.t2&&<p style={{fontSize:"12px",color:C.muted}}>Select both teams above first.</p>}
+            </div>
+            <Lbl>Game scores (optional)</Lbl>
+            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+              {[1,2,3].map(g=>(
+                <div key={g} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"10px"}}>
+                  <Lbl>Game {g}{g===3?" (opt.)":""}</Lbl>
+                  <div style={{display:"flex",gap:"5px",alignItems:"center"}}>
+                    <input style={{...inp({width:"44px",textAlign:"center"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={newMatch[`g${g}s1`]||""} onChange={e=>setNewMatch(m=>({...m,[`g${g}s1`]:e.target.value}))}/>
+                    <span style={{color:"#ccc"}}>–</span>
+                    <input style={{...inp({width:"44px",textAlign:"center"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={newMatch[`g${g}s2`]||""} onChange={e=>setNewMatch(m=>({...m,[`g${g}s2`]:e.target.value}))}/>
+                  </div>
                 </div>
-                <button style={btn(C.blue,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>setEditM(editM?.id===m.id?null:{type:"score",id:m.id,...m})}>Edit Score</button>
+              ))}
+            </div>
+          </div>}
+
+          <button style={btn(newMatch.asCompleted?C.green:C.text,"#fff",{minHeight:"44px",marginBottom:"24px",minWidth:"180px"})} onClick={createMatch} disabled={!newMatch.t1||!newMatch.t2||(newMatch.asCompleted&&!newMatch.winner)}>
+            {newMatch.asCompleted?"Create & Record Result":"Create Match"}
+          </button>
+
+          <div style={{height:"1px",background:C.border,marginBottom:"20px"}}/>
+
+          {/* ALL MATCHES — edit, delete */}
+          <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"4px"}}>All matches</div>
+          <p style={{fontSize:"13px",color:C.muted,marginBottom:"14px"}}>Edit scores or delete any match. Deleting a completed match rolls back standings.</p>
+          {matches.filter(m=>!m.cancelled).slice(0,40).map(m=>(
+            <div key={m.id} style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px"}}>
+                <div>
+                  <div style={{fontWeight:"700",fontSize:"14px"}}>{tName(m.t1_id)} vs {tName(m.t2_id)}</div>
+                  <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}{m.games?.length>0?` · ${m.games.map(g=>`${g.s1}-${g.s2}`).join("  ")}`:""}</div>
+                  <Tag c={m.status==="completed"?"gray":m.status==="confirmed"?"green":m.status==="disputed"?"red":"amber"}>{m.status}</Tag>
+                </div>
+                <div style={{display:"flex",gap:"6px"}}>
+                  <button style={btn(C.blue,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>setEditM(editM?.id===m.id?null:{type:"score",id:m.id,...m})}>Edit</button>
+                  <button style={btn(C.red,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>deleteMatch(m.id)}>Delete</button>
+                </div>
               </div>
               {editM?.type==="score"&&editM.id===m.id&&(
                 <div style={{background:C.bg,borderRadius:"8px",padding:"14px",marginTop:"10px"}}>
@@ -2651,7 +2895,7 @@ export default function AscendLeague() {
         {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner}/>}
         {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision}/>}
         {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
-        {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision}/>}
+        {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} teams={teams} matches={matches} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
         {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision}/>}
         {tab==="admin"&&isAdmin&&<AdminPanel teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} userId={userId} adminBanner={adminBanner} setAdminBanner={setAdminBanner} weekDeadline={weekDeadline} setWeekDeadline={setWeekDeadline}/>}
