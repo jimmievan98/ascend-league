@@ -7,8 +7,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
-const SUPABASE_ANON = "sb_publishable_SXa5wSG157FAK-8bNVAorw_raHdHgs5";
+const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -199,6 +199,34 @@ const Icon = ({ n, size=20 }) => {
   };
   return icons[n] || null;
 };
+
+// ── Ascend PB Logo ────────────────────────────────────────────
+const AscendLogo = ({ size = 32, color = "#111", showText = true }) => (
+  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"4px" }}>
+    <svg width={size} height={size * 0.85} viewBox="0 0 100 85" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Outer triangle */}
+      <path d="M50 2L98 83H2L50 2Z" fill={color} />
+      {/* Inner cutout - inverted triangle */}
+      <path d="M50 22L82 75H18L50 22Z" fill="white" />
+      {/* Inner small triangle pointing up */}
+      <path d="M50 38L66 68H34L50 38Z" fill={color} />
+    </svg>
+    {showText && (
+      <div style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:"800", fontSize: size * 0.28, letterSpacing:"1.5px", color, textTransform:"uppercase", whiteSpace:"nowrap" }}>
+        Ascend Pickleball
+      </div>
+    )}
+  </div>
+);
+
+// ── Ascend Nav Mark (icon only) ───────────────────────────────
+const AscendMark = ({ size = 28, color = "#111" }) => (
+  <svg width={size} height={size * 0.85} viewBox="0 0 100 85" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 2L98 83H2L50 2Z" fill={color} />
+    <path d="M50 22L82 75H18L50 22Z" fill="white" />
+    <path d="M50 38L66 68H34L50 38Z" fill={color} />
+  </svg>
+);
 
 // ── Notification Bell ─────────────────────────────────────────
 function NotifBell({ notifications, onOpen }) {
@@ -440,7 +468,7 @@ function AuthScreen() {
   const [err,  setErr]  = useState("");
   const [msg,  setMsg]  = useState("");
   const [busy, setBusy] = useState(false);
-  const [wOk,  setWOk]  = useState(false);
+  const [wOk,  setWOk]  = useState(true);
   const wRef = useRef(null);
   const up = (k,v) => setForm(f => ({...f,[k]:v}));
   const autoDiv = () => { const m = Math.max(parseFloat(form.p1Skill), parseFloat(form.p2Skill)); return m>3.5?"high":m<3.5?"low":form.division||""; };
@@ -498,10 +526,10 @@ function AuthScreen() {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px", background:C.bg }}>
-      <div style={{ fontFamily:"'DM Mono',monospace", fontSize:"24px", fontWeight:"500", marginBottom:"6px" }}>
-        ascend<span style={{ color:"#0ea5e9" }}>pb</span>
+      <div style={{ marginBottom:"28px", display:"flex", flexDirection:"column", alignItems:"center" }}>
+        <AscendLogo size={56} color="#111" showText={true} />
+        <div style={{ fontSize:"12px", color:C.faint, letterSpacing:".5px", marginTop:"10px" }}>Flex League · Charlotte, NC · {SEASON}</div>
       </div>
-      <div style={{ fontSize:"12px", color:C.faint, letterSpacing:".5px", marginBottom:"28px" }}>Flex League · Charlotte, NC · {SEASON}</div>
       <div style={{ ...card(), width:"100%", maxWidth:"420px" }}>
         {mode==="login" && <>
           <div style={{ fontSize:"22px", fontWeight:"700", marginBottom:"4px" }}>Sign in</div>
@@ -582,11 +610,43 @@ function AuthScreen() {
               style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:"8px", padding:"12px 14px", height:"200px", overflowY:"auto", fontSize:"12px", lineHeight:"1.8", color:"#555", whiteSpace:"pre-wrap", marginBottom:"12px" }}>
               {WAIVER}
             </div>
-            {!wOk && <Alert type="warn">Scroll through the full agreement before agreeing.</Alert>}
-            <label style={{ display:"flex", gap:"10px", alignItems:"flex-start", cursor:"pointer", fontSize:"14px", lineHeight:"1.5" }}>
-              <input type="checkbox" checked={form.agreed} onChange={e=>up("agreed",e.target.checked)} style={{ marginTop:"3px", accentColor:C.blue, width:"16px", height:"16px" }}/>
-              I have read and agree to the rules and waiver on behalf of both team members.
-            </label>
+            
+            <div
+              onClick={() => wOk && up("agreed", !form.agreed)}
+              style={{
+                display:"flex", gap:"14px", alignItems:"center",
+                background: form.agreed ? "#dcfce7" : C.bg,
+                border: `2px solid ${form.agreed ? C.green : C.border}`,
+                borderRadius:"12px", padding:"16px",
+                cursor: wOk ? "pointer" : "not-allowed",
+                opacity: wOk ? 1 : 0.5,
+                transition:"all .2s",
+                minHeight:"60px",
+                WebkitTapHighlightColor:"transparent",
+              }}
+            >
+              <div style={{
+                width:"28px", height:"28px", borderRadius:"50%",
+                background: form.agreed ? C.green : C.white,
+                border: `2px solid ${form.agreed ? C.green : C.border}`,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                flexShrink:0, transition:"all .2s",
+              }}>
+                {form.agreed && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                )}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:"14px", fontWeight:"600", color: form.agreed ? C.green : C.text, lineHeight:"1.4" }}>
+                  {form.agreed ? "Agreed ✓" : "Tap to agree"}
+                </div>
+                <div style={{ fontSize:"12px", color:C.muted, marginTop:"2px", lineHeight:"1.4" }}>
+                  I have read and agree to the rules and waiver on behalf of both team members.
+                </div>
+              </div>
+            </div>
           </>}
           {step===5 && <>
             <div style={{ background:C.bg, border:`1px solid ${C.border}`, borderRadius:"8px", padding:"14px", marginBottom:"14px" }}>
@@ -1687,8 +1747,8 @@ export default function AscendLeague() {
   if (loading) return (
     <div style={{ background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontFamily:"'DM Mono',monospace", fontSize:"22px", fontWeight:"500" }}>ascend<span style={{color:"#0ea5e9"}}>pb</span></div>
-        <div style={{ fontSize:"12px", color:C.faint, marginTop:"8px" }}>Loading...</div>
+        <AscendMark size={44} color="#111" />
+        <div style={{ fontSize:"12px", color:C.faint, marginTop:"10px" }}>Loading...</div>
       </div>
     </div>
   );
@@ -1700,8 +1760,9 @@ export default function AscendLeague() {
 
       {/* Top nav */}
       <nav style={{ background:C.white, borderBottom:`1px solid ${C.border}`, padding:"0 16px", display:"flex", alignItems:"center", gap:"2px", position:"sticky", top:0, zIndex:100, height:"52px" }}>
-        <div style={{ fontFamily:"'DM Mono',monospace", fontSize:"15px", fontWeight:"500", letterSpacing:"1px", marginRight:mobile?"8px":"16px", cursor:"pointer", whiteSpace:"nowrap" }} onClick={()=>setTab("dashboard")}>
-          ascend<span style={{color:"#0ea5e9"}}>pb</span>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px", marginRight:mobile?"8px":"16px", cursor:"pointer" }} onClick={()=>setTab("dashboard")}>
+          <AscendMark size={26} color="#111" />
+          {!mobile && <span style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:"800", fontSize:"13px", letterSpacing:"1px", textTransform:"uppercase", color:"#111" }}>Ascend PB</span>}
         </div>
         {!mobile && <>
           <div style={{ width:"1px", height:"22px", background:C.border, margin:"0 6px" }}/>
