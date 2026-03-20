@@ -10,6 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
+const APP_VERSION   = "v1.5.0"; // major.minor.patch — bump minor for new features, patch for fixes
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -691,7 +692,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
           <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px"}}>{myTeam?.name||"Dashboard"}</div>
           <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginTop:"2px"}}>{SEASON} · Week {CURRENT_WEEK} of {WEEKS} · Charlotte</div>
         </div>
-        {myTeam?.approved&&<button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>setTab("board")}>+ Request Match</button>}
+        {myTeam?.approved&&<button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>setTab("board")}>Request Match</button>}
       </div>
 
       {/* Stat cards */}
@@ -1005,7 +1006,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
           <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px"}}>Match Board</div>
           <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>Request a match · Any team in your division can accept</div>
         </div>
-        {myTeam?.approved&&<button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>setShowForm(s=>!s)}>{showForm?"Cancel":"+ Request Match"}</button>}
+        {myTeam?.approved&&<button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>setShowForm(s=>!s)}>{showForm?"Cancel":"Request Match"}</button>}
       </div>
 
       <div style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap"}}>
@@ -1392,20 +1393,47 @@ function SeasonSchedule({ matches, teams, division, setDivision }) {
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────
-function Settings({ userId, myTeam, teams, matches, signOut, openReport, openNotifPrefs }) {
+function Settings({ userId, myTeam, teams, matches, signOut, openReport, notifications, setNotifications }) {
   const mobile=useMobile();
   const [editReq,setEditReq]=useState(false);
   const [editMsg,setEditMsg]=useState("");
   const [sent,setSent]=useState(false);
+  const [prefs,setPrefs]=useState(null);
+  const [prefsSaved,setPrefsSaved]=useState(false);
 
   const myMatchHistory=matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&m.status==="completed").sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
+  const unread=notifications.filter(n=>!n.read).length;
+
+  useEffect(()=>{
+    if(!userId)return;
+    sb.from("notification_prefs").select("*").eq("user_id",userId).single().then(({data})=>{
+      setPrefs(data||{user_id:userId,match_confirmed:true,match_cancelled:true,score_submitted:true,score_confirmed:true,score_disputed:true,match_message:true,division_message:true,admin_announcement:true,match_reminder_24h:true,match_reminder_2h:true,email_enabled:true});
+    });
+  },[userId]);
+
+  const savePrefs=async()=>{await sb.from("notification_prefs").upsert(prefs);setPrefsSaved(true);setTimeout(()=>setPrefsSaved(false),1500);};
+  const togglePref=k=>setPrefs(p=>({...p,[k]:!p[k]}));
+
+  const markAllRead=async()=>{
+    await sb.from("notifications").update({read:true}).eq("read",false);
+    setNotifications(p=>p.map(n=>({...n,read:true})));
+  };
 
   const sendEditRequest=async()=>{
     if(!editMsg.trim())return;
     await sb.from("admin_activity_log").insert({action:"Team edit request",target_type:"team",target_id:myTeam?.id,details:`${myTeam?.name}: ${editMsg}`});
     setSent(true);setEditReq(false);setEditMsg("");
   };
+
+  const notifGroups=[
+    ["Matches",[["match_confirmed","Match confirmed"],["match_cancelled","Match cancelled"],["match_reminder_24h","Reminder 24h before"],["match_reminder_2h","Reminder 2h before"]]],
+    ["Scores",[["score_submitted","Score submitted"],["score_confirmed","Score confirmed"],["score_disputed","Score disputed"]]],
+    ["Messages",[["match_message","Match chat"],["division_message","Division chat"],["admin_announcement","Admin announcements"]]],
+    ["Email",[["email_enabled","Receive email notifications"]]],
+  ];
+
+  const notifIcons={match_confirmed:"✓",score_submitted:"📊",score_confirmed:"✅",disputed:"⚠",message:"💬",match_message:"🏓",admin_announcement:"📢",match_cancelled:"❌",match_reminder:"⏰",match_today:"🏓"};
 
   return(
     <div>
@@ -1425,7 +1453,7 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, openNot
             {sent?<Alert type="success">Edit request sent to admin.</Alert>:
             editReq?<>
               <Lbl>What would you like changed?</Lbl>
-              <textarea style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px"}} placeholder="e.g. Change team name to 'Power Smash' — partner name spelling correction" value={editMsg} onChange={e=>setEditMsg(e.target.value)}/>
+              <textarea style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px"}} placeholder="e.g. Change team name, correct a player name spelling..." value={editMsg} onChange={e=>setEditMsg(e.target.value)}/>
               <div style={{display:"flex",gap:"8px"}}>
                 <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={sendEditRequest} disabled={!editMsg.trim()}>Send Request</button>
                 <button style={btn(C.gray,"#fff",{minHeight:"44px"})} onClick={()=>setEditReq(false)}>Cancel</button>
@@ -1434,6 +1462,47 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, openNot
             <button style={btn(C.gray,"#fff",{fontSize:"13px"})} onClick={()=>setEditReq(true)}>Request a team info edit</button>}
           </div>
         </>:<p style={{fontSize:"13px",color:C.muted}}>Admin account — no team assigned.</p>}
+      </div>
+
+      {/* Notifications */}
+      <div style={{...card(),marginBottom:"14px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}}>
+          <div style={{fontSize:"15px",fontWeight:"700"}}>Notifications {unread>0&&<Tag c="red">{unread} unread</Tag>}</div>
+          {unread>0&&<button style={btn(C.gray,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"36px"})} onClick={markAllRead}>Mark all read</button>}
+        </div>
+        {notifications.length===0?<p style={{fontSize:"13px",color:C.muted}}>No notifications yet.</p>:
+        <div style={{maxHeight:"280px",overflowY:"auto",marginBottom:"14px"}}>
+          {notifications.slice(0,20).map(n=>(
+            <div key={n.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:"10px",alignItems:"flex-start",background:n.read?"transparent":"#f0f9ff",borderRadius:"4px",paddingLeft:n.read?"0":"8px"}}>
+              <span style={{fontSize:"16px",flexShrink:0}}>{notifIcons[n.type]||"•"}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:n.read?"500":"700",fontSize:"13px",marginBottom:"2px"}}>{n.title}</div>
+                <div style={{fontSize:"12px",color:C.muted,lineHeight:"1.4"}}>{n.body}</div>
+                <div style={{fontSize:"11px",color:C.faint,marginTop:"3px"}}>{timeAgo(n.created_at)}</div>
+              </div>
+              {!n.read&&<div style={{width:"8px",height:"8px",borderRadius:"50%",background:C.blue,flexShrink:0,marginTop:"5px"}}/>}
+            </div>
+          ))}
+        </div>}
+
+        {/* Notification preferences inline */}
+        {prefs&&<>
+          <div style={{fontSize:"13px",fontWeight:"700",color:C.text,marginBottom:"10px",marginTop:"4px",paddingTop:"14px",borderTop:`1px solid ${C.border}`}}>Notification preferences</div>
+          {notifGroups.map(([group,items])=>(
+            <div key={group} style={{marginBottom:"14px"}}>
+              <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>{group}</div>
+              {items.map(([key,label])=>(
+                <label key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer",minHeight:"44px"}}>
+                  <span style={{fontSize:"14px"}}>{label}</span>
+                  <div onClick={()=>togglePref(key)} style={{width:"44px",height:"24px",borderRadius:"12px",background:prefs[key]?C.blue:C.border,position:"relative",transition:"background .2s",cursor:"pointer",flexShrink:0}}>
+                    <div style={{position:"absolute",top:"2px",left:prefs[key]?"22px":"2px",width:"20px",height:"20px",borderRadius:"50%",background:C.white,transition:"left .2s"}}/>
+                  </div>
+                </label>
+              ))}
+            </div>
+          ))}
+          <button style={btn(prefsSaved?C.green:C.text,"#fff",{width:"100%",marginTop:"4px"})} onClick={savePrefs}>{prefsSaved?"Saved ✓":"Save notification preferences"}</button>
+        </>}
       </div>
 
       {/* Match history */}
@@ -1462,22 +1531,20 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, openNot
         </div>
       )}
 
-      {/* Settings options */}
+      {/* Account actions */}
       <div style={card()}>
-        <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Preferences</div>
-        {[
-          {label:"Notification preferences",sub:"Manage what alerts you receive",action:openNotifPrefs},
-          {label:"Report a problem",sub:"Flag an issue to admin",action:openReport,c:C.amber},
-          {label:"Sign out",sub:"Log out of your account",action:signOut,c:C.red},
-        ].map((r,i)=>(
-          <button key={i} onClick={r.action} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",borderBottom:`1px solid ${C.border}`,textAlign:"left",minHeight:"44px"}}>
-            <div>
-              <div style={{fontSize:"14px",fontWeight:"600",color:r.c||C.text}}>{r.label}</div>
-              <div style={{fontSize:"12px",color:C.muted}}>{r.sub}</div>
-            </div>
-            <span style={{color:C.muted,fontSize:"20px"}}>›</span>
-          </button>
-        ))}
+        <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Account</div>
+        <button onClick={openReport} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",borderBottom:`1px solid ${C.border}`,textAlign:"left",minHeight:"44px"}}>
+          <div><div style={{fontSize:"14px",fontWeight:"600",color:C.amber}}>Report a problem</div><div style={{fontSize:"12px",color:C.muted}}>Flag an issue to admin</div></div>
+          <span style={{color:C.muted,fontSize:"20px"}}>›</span>
+        </button>
+        <button onClick={signOut} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",textAlign:"left",minHeight:"44px"}}>
+          <div><div style={{fontSize:"14px",fontWeight:"600",color:C.red}}>Sign out</div><div style={{fontSize:"12px",color:C.muted}}>Log out of your account</div></div>
+          <span style={{color:C.muted,fontSize:"20px"}}>›</span>
+        </button>
+        <div style={{paddingTop:"12px",textAlign:"center"}}>
+          <span style={{fontSize:"11px",color:C.faint}}>Ascend PB Flex League · {APP_VERSION} · {SEASON}</span>
+        </div>
       </div>
     </div>
   );
@@ -1924,8 +1991,8 @@ export default function AscendLeague() {
   if(!session)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen/></div>;
 
   const navTabs=isAdmin
-    ?[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"],["admin","Admin"]]
-    :[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"]];
+    ?[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"],["admin","Admin"],["settings","Settings"]]
+    :[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"],["settings","Settings"]];
 
   return(
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",color:C.text,paddingBottom:mobile?"74px":"0"}}>
@@ -1945,13 +2012,11 @@ export default function AscendLeague() {
           ))}
         </>}
         <div style={{flex:1}}/>
+        {/* Version badge */}
+        <span style={{fontSize:"11px",color:"#bbb",fontWeight:"500",marginRight:"10px",letterSpacing:".3px",userSelect:"none"}}>{APP_VERSION}</span>
         {myTeam&&!mobile&&<span style={{fontSize:"12px",color:C.faint,marginRight:"8px"}}>{myTeam.name}</span>}
-        <div style={{position:"relative"}}>
-          <NotifBell notifications={notifications} onOpen={()=>setShowNotifs(s=>!s)}/>
-          {showNotifs&&<NotifPanel notifications={notifications} setNotifications={setNotifications} onClose={()=>setShowNotifs(false)}/>}
-        </div>
         {!mobile&&<button style={btn(C.gray,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"40px"})} onClick={signOut}>Sign out</button>}
-        {mobile&&<button onClick={()=>setTab("settings")} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,padding:"8px",minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon n="settings" size={20}/></button>}
+        {mobile&&<button onClick={()=>setTab("settings")} style={{background:"none",border:"none",cursor:"pointer",color:tab==="settings"?C.blue:C.muted,padding:"8px",minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon n="settings" size={20}/>{unread>0&&<span style={{position:"absolute",top:"8px",right:"8px",background:C.red,color:"#fff",borderRadius:"50%",width:"14px",height:"14px",fontSize:"9px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{unread>9?"9+":unread}</span>}</button>}
       </nav>
 
       {/* Page */}
@@ -1963,7 +2028,7 @@ export default function AscendLeague() {
         {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
         {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision}/>}
         {tab==="admin"&&isAdmin&&<AdminPanel teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} userId={userId} adminBanner={adminBanner} setAdminBanner={setAdminBanner} weekDeadline={weekDeadline} setWeekDeadline={setWeekDeadline}/>}
-        {tab==="settings" &&<Settings userId={userId} myTeam={myTeam} teams={teams} matches={matches} signOut={signOut} openReport={()=>setShowReport(true)} openNotifPrefs={()=>setShowNotifPrefs(true)}/>}
+        {tab==="settings" &&<Settings userId={userId} myTeam={myTeam} teams={teams} matches={matches} signOut={signOut} openReport={()=>setShowReport(true)} notifications={notifications} setNotifications={setNotifications}/>}
       </div>
 
       {/* Mobile bottom nav */}
