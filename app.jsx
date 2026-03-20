@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.8.3";
+const APP_VERSION   = "v1.9.1";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -418,15 +418,371 @@ function ReportModal({ myTeam, onClose }) {
 }
 
 // ── Match Chat Modal ──────────────────────────────────────────
-// ── FACEBOOK-STYLE MATCH CHAT ────────────────────────────────
+// ── MESSENGER CHAT SYSTEM ─────────────────────────────────────
+// Shared bubble renderer used by both division and match chats
+function ChatBubbles({ msgs, myTeam, endRef, emptyMsg }) {
+  return (
+    <div style={{flex:1, overflowY:"auto", padding:"16px"}}>
+      {msgs.length===0 && <div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>{emptyMsg||"No messages yet."}</div>}
+      {msgs.map(m=>{
+        const mine = m.team_id===myTeam?.id || m.user_id===myTeam?.p1_email || m.sent_by===myTeam?.id;
+        const isAdmin = m.is_admin;
+        const senderLabel = isAdmin
+          ? "League Admin"
+          : `${m.sender_name||m.team_name||"??"} | ${m.team_name||""}`;
+        return(
+          <div key={m.id} style={{display:"flex", flexDirection:mine?"row-reverse":"row", gap:"8px", marginBottom:"14px", alignItems:"flex-end"}}>
+            <div style={{maxWidth:"72%"}}>
+              {!mine && <div style={{fontSize:"11px",color:isAdmin?C.amber:C.muted,marginBottom:"3px",fontWeight:"700"}}>{senderLabel}</div>}
+              <div style={{background:mine?"#111":isAdmin?"#fef3c7":"#f0f0ee", color:mine?"#fff":isAdmin?"#78350f":C.text, borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px", padding:"10px 14px", fontSize:"14px", lineHeight:"1.5", wordBreak:"break-word"}}>
+                {m.content}
+              </div>
+              <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
+            </div>
+          </div>
+        );
+      })}
+      <div ref={endRef}/>
+    </div>
+  );
+}
+
+// Single match chat pane
+function MatchChatPane({ match, myTeam, teams, onBack, mobile }) {
+  const [msgs,    setMsgs]  = useState([]);
+  const [input,   setInput] = useState("");
+  const endRef = useRef(null);
+  const opp    = teams.find(t=>t.id===(match.t1_id===myTeam?.id?match.t2_id:match.t1_id));
+  const isClosed = match.chat_closed_at && new Date(match.chat_closed_at)<new Date();
+
+  useEffect(()=>{
+    sb.from("match_chats").select("*").eq("match_id",match.id).order("created_at",{ascending:true}).then(({data})=>{
+      if(data) setMsgs(data);
+      setTimeout(()=>endRef.current?.scrollIntoView(),100);
+    });
+    const ch=sb.channel(`mcp-${match.id}`)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"match_chats",filter:`match_id=eq.${match.id}`},p=>{
+        setMsgs(prev=>[...prev,p.new]);
+        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
+      }).subscribe();
+    return()=>sb.removeChannel(ch);
+  },[match.id]);
+
+  const send=async()=>{
+    if(!input.trim()||isClosed)return;
+    await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,sender_name:myTeam.p1_name||myTeam.name,content:input.trim()});
+    setInput("");
+  };
+
+  // Normalise msgs for ChatBubbles — team_id is the key
+  const normMsgs = msgs.map(m=>({...m, sent_by:m.team_id}));
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
+        {(mobile||onBack)&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:C.text,fontSize:"22px",lineHeight:1,minWidth:"40px",minHeight:"40px",display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>}
+        <div style={{width:"38px",height:"38px",borderRadius:"50%",background:"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"16px",fontWeight:"700",color:C.blue}}>{opp?.name?.[0]||"?"}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:"14px",fontWeight:"700",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{opp?.name}</div>
+          <div style={{fontSize:"11px",color:C.muted}}>{fmtDateTime(match.match_date,match.match_time)} · {match.court}</div>
+        </div>
+        <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`,"_blank")} style={btn(C.blue,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"34px",display:"flex",alignItems:"center",gap:"4px"})}>
+          <Icon n="map" size={13}/> Map
+        </button>
+      </div>
+      {isClosed&&<div style={{background:C.amberBg,padding:"7px 16px",fontSize:"12px",color:C.amber,textAlign:"center",flexShrink:0}}>This chat is archived.</div>}
+      {/* Phone number tip */}
+      <div style={{background:"#f0fdf4",borderBottom:`1px solid #bbf7d0`,padding:"8px 16px",fontSize:"12px",color:"#166534",textAlign:"center",flexShrink:0}}>
+        💬 Share your phone number for easier day-of coordination!
+      </div>
+      <ChatBubbles msgs={normMsgs} myTeam={myTeam} endRef={endRef} emptyMsg="Chat opened! Coordinate your match here."/>
+      {!isClosed&&<div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
+        <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+          <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message..."/>
+          <button style={{...btn(C.text,"#fff",{padding:"10px 14px",minHeight:"44px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={18}/></button>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// Division chat pane
+function DivisionChatPane({ myTeam, isAdmin, division, setAdminDiv, adminPauseChat, setAdminPauseChat, onBack, mobile }) {
+  const [msgs,  setMsgs]  = useState([]);
+  const [input, setInput] = useState("");
+  const [pinned,setPinned]= useState(null);
+  const endRef = useRef(null);
+  const canPost = myTeam?.approved && !adminPauseChat;
+
+  useEffect(()=>{
+    sb.from("division_chats").select("*").eq("division",division).order("created_at",{ascending:true}).limit(300).then(({data})=>{
+      if(data) setMsgs(data);
+      setTimeout(()=>endRef.current?.scrollIntoView(),100);
+    });
+    const ch=sb.channel(`dcp-${division}`)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"division_chats",filter:`division=eq.${division}`},p=>{
+        setMsgs(prev=>[...prev,p.new]);
+        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
+      }).subscribe();
+    return()=>sb.removeChannel(ch);
+  },[division]);
+
+  const send=async()=>{
+    if(!input.trim()||!canPost)return;
+    await sb.from("division_chats").insert({division,team_id:myTeam.id,team_name:myTeam.name,sender_name:myTeam.p1_name||myTeam.name,is_admin:isAdmin,content:input.trim()});
+    setInput("");
+  };
+
+  const deleteMsg=async(id)=>{ if(!isAdmin)return; await sb.from("division_chats").delete().eq("id",id); setMsgs(p=>p.filter(m=>m.id!==id)); };
+
+  const normMsgs = msgs.map(m=>({...m,sent_by:m.team_id}));
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:"#1d1d1f",flexShrink:0}}>
+        {(mobile||onBack)&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:"#fff",fontSize:"22px",lineHeight:1,minWidth:"40px",minHeight:"40px",display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>}
+        <div style={{width:"38px",height:"38px",borderRadius:"50%",background:"#00BFFF",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"14px",fontWeight:"800",color:"#fff"}}>AP</div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:"14px",fontWeight:"700",color:"#fff"}}>{dL(division)} Division Chat</div>
+          <div style={{fontSize:"11px",color:"rgba(255,255,255,.5)"}}>All teams in your division</div>
+        </div>
+        {isAdmin&&<>
+          {["low","high"].map(d=>(
+            <button key={d} onClick={()=>setAdminDiv(d)} style={{background:division===d?"#00BFFF":"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",padding:"5px 10px",fontSize:"11px",fontWeight:"700",color:"#fff"}}>{dL(d)}</button>
+          ))}
+          <button onClick={()=>setAdminPauseChat(p=>!p)} style={{background:adminPauseChat?"#22c55e":"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",padding:"5px 10px",fontSize:"11px",color:"#fff"}}>{adminPauseChat?"Resume":"Pause"}</button>
+        </>}
+      </div>
+      {pinned&&<div style={{background:"#fef9c3",borderBottom:`1px solid #fde68a`,padding:"8px 16px",display:"flex",gap:"8px",alignItems:"center",flexShrink:0}}>
+        <span>📌</span><div style={{flex:1,fontSize:"12px",color:"#78350f"}}><strong>{pinned.team_name}:</strong> {pinned.content}</div>
+        {isAdmin&&<button onClick={()=>setPinned(null)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"16px"}}>×</button>}
+      </div>}
+      {adminPauseChat&&<div style={{background:C.amberBg,padding:"7px 16px",fontSize:"12px",color:C.amber,textAlign:"center",flexShrink:0}}>Chat paused by admin.</div>}
+      {/* Messages with admin delete/pin controls */}
+      <div style={{flex:1,overflowY:"auto",padding:"16px"}}>
+        {normMsgs.length===0&&<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>No messages yet. Start the conversation!</div>}
+        {normMsgs.map(m=>{
+          const mine=m.team_id===myTeam?.id;
+          const isAdminMsg=m.is_admin;
+          const label=isAdminMsg?"League Admin":`${m.sender_name||m.team_name||"?"} | ${m.team_name||""}`;
+          return(
+            <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"8px",marginBottom:"14px",alignItems:"flex-end"}}>
+              <div style={{maxWidth:"72%",position:"relative"}}>
+                {!mine&&<div style={{fontSize:"11px",color:isAdminMsg?"#d97706":dC(division),marginBottom:"3px",fontWeight:"700"}}>{label}</div>}
+                <div style={{background:mine?"#111":isAdminMsg?"#fef3c7":"#f0f0ee",color:mine?"#fff":isAdminMsg?"#78350f":C.text,borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px",padding:"10px 14px",fontSize:"14px",lineHeight:"1.5",wordBreak:"break-word"}}>
+                  {m.content}
+                </div>
+                <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
+                {isAdmin&&<div style={{position:"absolute",top:0,right:mine?undefined:"calc(100% + 4px)",left:mine?"calc(100% + 4px)":undefined,display:"flex",gap:"2px"}}>
+                  <button onClick={()=>setPinned(p=>p?.id===m.id?null:m)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:"4px",cursor:"pointer",padding:"2px 5px",fontSize:"11px"}}>📌</button>
+                  <button onClick={()=>deleteMsg(m.id)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:"4px",cursor:"pointer",padding:"2px 5px",fontSize:"11px",color:C.red}}>🗑</button>
+                </div>}
+              </div>
+            </div>
+          );
+        })}
+        <div ref={endRef}/>
+      </div>
+      {!adminPauseChat&&<div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
+        <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+          <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder={canPost?`Message ${dL(division)}...`:"Account must be activated to chat."} disabled={!canPost}/>
+          <button style={{...btn(C.text,"#fff",{padding:"10px 14px",minHeight:"44px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send} disabled={!canPost}><Icon n="send" size={18}/></button>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+// Main chat hub — Messenger layout
+function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdminPauseChat }) {
+  const mobile   = useMobile();
+  const myDiv    = myTeam?.division || "low";
+  const [adminDiv,    setAdminDiv]    = useState(myDiv);
+  const [selected,    setSelected]    = useState(null); // null | {type:"division"} | {type:"match",match}
+  const [lastSeen,    setLastSeen]    = useState({}); // {chatKey: timestamp}
+  const [divMsgCounts,setDivMsgCounts]= useState({low:0,high:0});
+  const [matchMsgCounts,setMatchMsgCounts]=useState({}); // {matchId: count}
+
+  const division = isAdmin ? adminDiv : myDiv;
+
+  // Active confirmed matches for this team
+  const myMatches = matches.filter(m=>
+    (m.t1_id===myTeam?.id||m.t2_id===myTeam?.id) && !m.cancelled
+  ).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  const activeMatches    = myMatches.filter(m=>m.status!=="completed");
+  const completedMatches = myMatches.filter(m=>m.status==="completed");
+
+  const tName = id => teams.find(t=>t.id===id)?.name??"Unknown";
+
+  // Load unread counts
+  useEffect(()=>{
+    // Division chat counts
+    const divs = isAdmin?["low","high"]:[myDiv];
+    divs.forEach(d=>{
+      sb.from("division_chats").select("id,created_at").eq("division",d).order("created_at",{ascending:false}).limit(1).then(({data})=>{
+        if(data?.[0]) setDivMsgCounts(c=>({...c,[d]:new Date(data[0].created_at).getTime()}));
+      });
+    });
+    // Match chat counts
+    myMatches.forEach(m=>{
+      sb.from("match_chats").select("id,created_at").eq("match_id",m.id).order("created_at",{ascending:false}).limit(1).then(({data})=>{
+        if(data?.[0]) setMatchMsgCounts(c=>({...c,[m.id]:new Date(data[0].created_at).getTime()}));
+      });
+    });
+  },[matches]);
+
+  const markSeen=(key)=>setLastSeen(p=>({...p,[key]:Date.now()}));
+
+  const hasUnread=(key,latestTs)=>{
+    if(!latestTs)return false;
+    const seen=lastSeen[key]||0;
+    return latestTs>seen;
+  };
+
+  const selectDiv=()=>{
+    setSelected({type:"division"});
+    markSeen(`div-${division}`);
+  };
+
+  const selectMatch=(m)=>{
+    setSelected({type:"match",match:m});
+    markSeen(`match-${m.id}`);
+  };
+
+  // On mobile, if nothing selected, show list. If selected show full screen pane.
+  const showList = mobile ? !selected : true;
+  const showPane = mobile ? !!selected : !!selected;
+
+  if(!myTeam?.approved && !isAdmin) return(
+    <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
+      <div style={{fontSize:"36px",marginBottom:"12px"}}>🔒</div>
+      <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"8px"}}>Chat</div>
+      <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>Chat is available to approved teams only.</p>
+    </div>
+  );
+
+  // Sidebar list
+  const Sidebar = () => (
+    <div style={{width:mobile?"100%":"300px",flexShrink:0,borderRight:mobile?"none":`1px solid ${C.border}`,display:"flex",flexDirection:"column",background:C.white,height:"100%",overflowY:"auto"}}>
+      <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{fontSize:"18px",fontWeight:"800",letterSpacing:"-.3px"}}>Chats</div>
+      </div>
+
+      {/* Division chat - always first, dark header */}
+      <div onClick={selectDiv} style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 16px",cursor:"pointer",background:selected?.type==="division"?"#f0f9ff":"transparent",borderBottom:`1px solid ${C.border}`,transition:"background .1s"}}>
+        <div style={{width:"46px",height:"46px",borderRadius:"50%",background:"#1d1d1f",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"14px",fontWeight:"800",color:"#00BFFF",position:"relative"}}>
+          AP
+          {hasUnread(`div-${division}`,divMsgCounts[division])&&<span style={{position:"absolute",top:0,right:0,width:"14px",height:"14px",background:C.red,borderRadius:"50%",border:"2px solid #fff"}}/>}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"2px"}}>{dL(division)} Division</div>
+          <div style={{fontSize:"12px",color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Division-wide chat</div>
+        </div>
+        {hasUnread(`div-${division}`,divMsgCounts[division])&&<div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.blue,flexShrink:0}}/>}
+      </div>
+
+      {/* Admin div switcher */}
+      {isAdmin&&<div style={{padding:"8px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:"6px"}}>
+        {["low","high"].map(d=>(
+          <button key={d} onClick={()=>{setAdminDiv(d);setSelected(null);}} style={{...btn(adminDiv===d?"#1d1d1f":C.gray,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"32px",flex:1})}}>
+            {dL(d)}
+          </button>
+        ))}
+      </div>}
+
+      {/* Active matches */}
+      {activeMatches.length>0&&<div style={{padding:"8px 16px 4px",fontSize:"10px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px"}}>Active Matches</div>}
+      {activeMatches.map(m=>{
+        const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
+        const isSelected=selected?.type==="match"&&selected.match?.id===m.id;
+        const unread=hasUnread(`match-${m.id}`,matchMsgCounts[m.id]);
+        return(
+          <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 16px",cursor:"pointer",background:isSelected?"#f0f9ff":"transparent",borderBottom:`1px solid #f5f5f3`,transition:"background .1s"}}>
+            <div style={{width:"46px",height:"46px",borderRadius:"50%",background:"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"16px",fontWeight:"800",color:C.blue,position:"relative"}}>
+              {opp?.name?.[0]||"?"}
+              {unread&&<span style={{position:"absolute",top:0,right:0,width:"14px",height:"14px",background:C.red,borderRadius:"50%",border:"2px solid #fff"}}/>}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:"14px",fontWeight:unread?"800":"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
+              <div style={{fontSize:"11px",color:C.muted}}>{fmtDate(m.match_date)} · {fmtTime(m.match_time)}</div>
+            </div>
+            {unread&&<div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.blue,flexShrink:0}}/>}
+          </div>
+        );
+      })}
+
+      {/* Completed matches - greyed out */}
+      {completedMatches.length>0&&<div style={{padding:"8px 16px 4px",fontSize:"10px",fontWeight:"700",color:C.faint,textTransform:"uppercase",letterSpacing:".8px"}}>Past Matches</div>}
+      {completedMatches.map(m=>{
+        const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
+        const isSelected=selected?.type==="match"&&selected.match?.id===m.id;
+        return(
+          <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 16px",cursor:"pointer",background:isSelected?"#f0f9ff":"transparent",borderBottom:`1px solid #f5f5f3`,opacity:0.5,transition:"background .1s"}}>
+            <div style={{width:"46px",height:"46px",borderRadius:"50%",background:"#e9e9e9",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"16px",fontWeight:"800",color:C.muted}}>
+              {opp?.name?.[0]||"?"}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:"13px",fontWeight:"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
+              <div style={{fontSize:"11px",color:C.faint}}>{fmtDate(m.match_date)} · Completed</div>
+            </div>
+          </div>
+        );
+      })}
+
+      {activeMatches.length===0&&completedMatches.length===0&&(
+        <div style={{padding:"20px 16px",textAlign:"center",color:C.faint,fontSize:"13px"}}>
+          No match chats yet. Accept a match request to start one.
+        </div>
+      )}
+    </div>
+  );
+
+  // Empty state
+  const EmptyPane = () => (
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"12px",color:C.faint}}>
+      <div style={{fontSize:"48px"}}>💬</div>
+      <div style={{fontSize:"16px",fontWeight:"600",color:C.muted}}>Select a chat</div>
+      <div style={{fontSize:"13px"}}>Choose a division or match chat from the left</div>
+    </div>
+  );
+
+  const height = mobile ? "calc(100vh - 120px)" : "calc(100vh - 120px)";
+
+  return(
+    <div>
+      <div style={{fontSize:"22px",fontWeight:"700",letterSpacing:"-.3px",marginBottom:"12px"}}>Chat</div>
+      <div style={{display:"flex",height,border:`1px solid ${C.border}`,borderRadius:"14px",overflow:"hidden",background:C.white}}>
+        {showList&&<Sidebar/>}
+        {!mobile&&(
+          <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+            {!selected&&<EmptyPane/>}
+            {selected?.type==="division"&&<DivisionChatPane myTeam={myTeam} isAdmin={isAdmin} division={division} setAdminDiv={setAdminDiv} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat} mobile={false}/>}
+            {selected?.type==="match"&&<MatchChatPane match={selected.match} myTeam={myTeam} teams={teams} mobile={false}/>}
+          </div>
+        )}
+        {mobile&&selected&&(
+          <div style={{position:"fixed",inset:0,zIndex:200,background:C.white,display:"flex",flexDirection:"column"}}>
+            {selected.type==="division"&&<DivisionChatPane myTeam={myTeam} isAdmin={isAdmin} division={division} setAdminDiv={setAdminDiv} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat} onBack={()=>setSelected(null)} mobile={true}/>}
+            {selected.type==="match"&&<MatchChatPane match={selected.match} myTeam={myTeam} teams={teams} onBack={()=>setSelected(null)} mobile={true}/>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Legacy MatchChatWindow kept for dashboard/scores "Chat" button compatibility
 function MatchChatWindow({ match, myTeam, teams, onClose }) {
-  const mobile     = useMobile();
-  const [msgs,     setMsgs]      = useState([]);
-  const [input,    setInput]     = useState("");
-  const [minimized,setMinimized] = useState(false);
-  const [unread,   setUnread]    = useState(0);
-  const endRef  = useRef(null);
-  const opp     = teams.find(t=>t.id===(match.t1_id===myTeam.id?match.t2_id:match.t1_id));
+  const mobile = useMobile();
+  const [msgs,     setMsgs]     = useState([]);
+  const [input,    setInput]    = useState("");
+  const [minimized,setMinimized]= useState(false);
+  const [unread,   setUnread]   = useState(0);
+  const endRef = useRef(null);
+  const opp    = teams.find(t=>t.id===(match.t1_id===myTeam.id?match.t2_id:match.t1_id));
   const isClosed= match.chat_closed_at && new Date(match.chat_closed_at)<new Date();
 
   useEffect(()=>{
@@ -434,7 +790,7 @@ function MatchChatWindow({ match, myTeam, teams, onClose }) {
       if(data)setMsgs(data);
       setTimeout(()=>endRef.current?.scrollIntoView(),100);
     });
-    const ch=sb.channel(`mc-${match.id}`)
+    const ch=sb.channel(`mcw-${match.id}`)
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"match_chats",filter:`match_id=eq.${match.id}`},p=>{
         setMsgs(prev=>[...prev,p.new]);
         if(minimized)setUnread(u=>u+1);
@@ -443,35 +799,26 @@ function MatchChatWindow({ match, myTeam, teams, onClose }) {
     return()=>sb.removeChannel(ch);
   },[match.id]);
 
-  const open=()=>{ setMinimized(false); setUnread(0); setTimeout(()=>endRef.current?.scrollIntoView(),100); };
-
+  const open=()=>{setMinimized(false);setUnread(0);setTimeout(()=>endRef.current?.scrollIntoView(),100);};
   const send=async()=>{
     if(!input.trim()||isClosed)return;
-    await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:input.trim()});
+    await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,sender_name:myTeam.p1_name||myTeam.name,content:input.trim()});
     setInput("");
   };
 
-  const ChatMessages=()=>(
+  const Bubbles=()=>(
     <>
-      {/* Default welcome message always shown */}
-      <div style={{background:C.bg,borderRadius:"10px",padding:"10px 12px",marginBottom:"14px",textAlign:"center"}}>
-        <div style={{fontSize:"12px",color:C.muted,lineHeight:"1.6"}}>
-          💬 <strong>Match chat opened!</strong> Coordinate court details here.<br/>
-          <span style={{color:C.blue}}>Consider sharing your phone number for easier day-of coordination.</span>
-        </div>
+      <div style={{background:"#f0fdf4",borderRadius:"8px",padding:"8px 12px",marginBottom:"10px",textAlign:"center",fontSize:"11px",color:"#166534"}}>
+        💬 Share your phone number for day-of coordination!
       </div>
+      {msgs.length===0&&<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"16px 0"}}>Chat opened!</div>}
       {msgs.map(m=>{
         const mine=m.team_id===myTeam.id;
-        const isPhoto=m.content?.startsWith("[photo]");
-        const photoUrl=isPhoto?m.content.replace("[photo]",""):null;
         return(
           <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"6px",marginBottom:"10px",alignItems:"flex-end"}}>
             <div style={{maxWidth:"78%"}}>
-              {!mine&&<div style={{fontSize:"10px",color:C.muted,marginBottom:"2px",fontWeight:"600"}}>{m.team_name}</div>}
-              {isPhoto
-                ?<img src={photoUrl} alt="shared" style={{maxWidth:"180px",borderRadius:"10px",display:"block"}}/>
-                :<div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"8px 12px",fontSize:"13px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
-              }
+              {!mine&&<div style={{fontSize:"10px",color:C.muted,marginBottom:"2px",fontWeight:"600"}}>{m.sender_name||m.team_name} | {m.team_name}</div>}
+              <div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"8px 12px",fontSize:"13px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
               <div style={{fontSize:"10px",color:C.faint,marginTop:"2px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
             </div>
           </div>
@@ -481,29 +828,19 @@ function MatchChatWindow({ match, myTeam, teams, onClose }) {
     </>
   );
 
-  // ── MOBILE: full sheet from bottom ───────────────────────────
   if(mobile){
     return(
       <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
         <div style={{background:C.white,borderRadius:"16px 16px 0 0",width:"100%",maxHeight:"88vh",display:"flex",flexDirection:"column",animation:"slideUp .25s ease"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
-            <div>
-              <div style={{fontWeight:"700",fontSize:"15px"}}>vs {opp?.name}</div>
-              <div style={{fontSize:"11px",color:C.muted}}>{match.match_date} · {match.match_time}</div>
-            </div>
-            <div style={{display:"flex",gap:"8px"}}>
-              <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`,"_blank")} style={{background:C.blueBg,border:"none",cursor:"pointer",borderRadius:"8px",padding:"6px 10px",color:C.blue,fontSize:"12px",fontWeight:"600",display:"flex",alignItems:"center",gap:"4px"}}>
-                <Icon n="map" size={13}/> Map
-              </button>
-              <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"24px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-            </div>
+            <div><div style={{fontWeight:"700",fontSize:"15px"}}>vs {opp?.name}</div><div style={{fontSize:"11px",color:C.muted}}>{fmtDate(match.match_date)} · {fmtTime(match.match_time)}</div></div>
+            <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"24px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
           </div>
-          {isClosed&&<div style={{background:C.amberBg,padding:"8px 16px",fontSize:"12px",color:C.amber,textAlign:"center"}}>This chat has been archived.</div>}
-          <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}><ChatMessages/></div>
+          <div style={{flex:1,overflowY:"auto",padding:"12px 14px"}}><Bubbles/></div>
           {!isClosed&&<div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
-            <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-              <input style={{...inp({padding:"9px 12px"}),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message..." autoFocus/>
-              <button style={{...btn(C.text,"#fff",{padding:"9px 13px",minHeight:"42px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={16}/></button>
+            <div style={{display:"flex",gap:"8px"}}>
+              <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message..."/>
+              <button style={{...btn(C.text,"#fff",{minHeight:"44px",padding:"10px 14px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={16}/></button>
             </div>
           </div>}
         </div>
@@ -511,34 +848,26 @@ function MatchChatWindow({ match, myTeam, teams, onClose }) {
     );
   }
 
-  // ── DESKTOP: Facebook-style floating bottom-right ─────────────
+  // Desktop floating
   return(
     <div style={{position:"fixed",bottom:"20px",right:"20px",width:"320px",zIndex:300,display:"flex",flexDirection:"column",boxShadow:"0 4px 24px rgba(0,0,0,.18)",borderRadius:"12px",overflow:"hidden",animation:"fadeIn .2s ease"}}>
-      {/* Header — always visible, click to toggle */}
       <div onClick={minimized?open:undefined} style={{background:"#111",color:"#fff",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:minimized?"pointer":"default",userSelect:"none"}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontWeight:"700",fontSize:"13px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>vs {opp?.name}</div>
-          <div style={{fontSize:"11px",color:"rgba(255,255,255,.6)"}}>{match.match_date} · {match.match_time}</div>
+          <div style={{fontSize:"11px",color:"rgba(255,255,255,.5)"}}>{fmtDate(match.match_date)} · {fmtTime(match.match_time)}</div>
         </div>
-        <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
+        <div style={{display:"flex",gap:"5px",alignItems:"center",flexShrink:0}}>
           {unread>0&&<span style={{background:C.red,color:"#fff",borderRadius:"50%",width:"18px",height:"18px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{unread}</span>}
-          <button onClick={e=>{e.stopPropagation();minimized?open():setMinimized(true);}} style={{background:"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",width:"26px",height:"26px",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"14px",flexShrink:0}} title={minimized?"Open":"Minimize"}>
-            {minimized?"▲":"▼"}
-          </button>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",width:"26px",height:"26px",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"16px",flexShrink:0}}>×</button>
+          <button onClick={e=>{e.stopPropagation();minimized?open():setMinimized(true);}} style={{background:"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",width:"26px",height:"26px",color:"#fff",fontSize:"14px",display:"flex",alignItems:"center",justifyContent:"center"}}>{minimized?"▲":"▼"}</button>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",width:"26px",height:"26px",color:"#fff",fontSize:"16px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
       </div>
-
-      {/* Body — hidden when minimized */}
       {!minimized&&<>
-        {isClosed&&<div style={{background:C.amberBg,padding:"6px 14px",fontSize:"11px",color:C.amber,textAlign:"center"}}>Chat archived.</div>}
-        <div style={{background:C.white,height:"320px",overflowY:"auto",padding:"12px 14px"}}>
-          <ChatMessages/>
-        </div>
-        {!isClosed&&<div style={{background:C.white,padding:"8px 12px",borderTop:`1px solid ${C.border}`}}>
-          <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+        <div style={{background:C.white,height:"300px",overflowY:"auto",padding:"12px 12px"}}><Bubbles/></div>
+        {!isClosed&&<div style={{background:C.white,padding:"8px 10px",borderTop:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",gap:"6px"}}>
             <input style={{...inp({padding:"7px 10px",fontSize:"13px"}),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message..."/>
-            <button style={{...btn(C.text,"#fff",{padding:"7px 11px",minHeight:"34px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={15}/></button>
+            <button style={{...btn(C.text,"#fff",{padding:"7px 10px",minHeight:"34px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={14}/></button>
           </div>
         </div>}
       </>}
@@ -1285,23 +1614,25 @@ function ScoreConfirmFlow({ match: m, myTeam, opp, setMatches, confirmScore }) {
     setStep("idle");
   };
 
-  // Step: idle — show initial buttons
+  // Step: idle — show initial buttons (scores shown once, cleanly)
   if(step==="idle") return(
-    <div>
-      <p style={{fontSize:"13px",color:C.text,marginBottom:"12px",fontWeight:"500"}}>Your opponent submitted a score. Review and respond:</p>
+    <div style={{background:C.bg,borderRadius:"12px",padding:"14px"}}>
+      <p style={{fontSize:"13px",color:C.muted,marginBottom:"12px",fontWeight:"500"}}>
+        <strong style={{color:C.text}}>{opp?.name}</strong> submitted a score. Review and respond:
+      </p>
       {m.games&&m.games.length>0&&(
-        <div style={{background:C.bg,borderRadius:"8px",padding:"10px 12px",marginBottom:"12px",display:"flex",gap:"16px"}}>
+        <div style={{display:"flex",gap:"12px",marginBottom:"14px",justifyContent:"center"}}>
           {m.games.map((g,i)=>(
-            <div key={i} style={{textAlign:"center"}}>
-              <div style={{fontSize:"11px",color:C.faint,marginBottom:"2px"}}>Game {i+1}</div>
-              <div style={{fontSize:"16px",fontWeight:"700"}}>{g.s1}–{g.s2}</div>
+            <div key={i} style={{textAlign:"center",background:C.white,borderRadius:"10px",padding:"10px 16px",flex:1}}>
+              <div style={{fontSize:"10px",color:C.faint,fontWeight:"600",textTransform:"uppercase",marginBottom:"4px"}}>Game {i+1}</div>
+              <div style={{fontSize:"22px",fontWeight:"800",letterSpacing:"2px"}}>{g.s1}<span style={{color:"#ccc",padding:"0 4px"}}>—</span>{g.s2}</div>
             </div>
           ))}
         </div>
       )}
       <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-        <button style={btn(C.green,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("confirm_check")}>✓ Confirm Score</button>
-        <button style={btn(C.red,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("dispute_check")}>✗ Dispute</button>
+        <button style={btn(C.green,"#fff",{minHeight:"46px",flex:1,fontSize:"14px",fontWeight:"700"})} onClick={()=>setStep("confirm_check")}>✓ Confirm</button>
+        <button style={btn(C.red,"#fff",{minHeight:"46px",flex:1,fontSize:"14px",fontWeight:"700"})} onClick={()=>setStep("dispute_check")}>✗ Dispute</button>
       </div>
     </div>
   );
@@ -1546,20 +1877,6 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
             {canSubmit&&<ScoreEntry mid={m.id} myTeam={myTeam} opp={opp} entry={entry} setEntry={setEntry}/>}
             {scoreSubmitted&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
             {canConfirm&&<ScoreConfirmFlow match={m} myTeam={myTeam} opp={opp} setMatches={setMatches} confirmScore={confirmScore}/>}
-
-            {m.games&&m.games.length>0&&scoreSubmitted&&(
-              <div style={{marginTop:"12px",background:C.bg,borderRadius:"8px",padding:"10px 14px"}}>
-                <div style={{fontSize:"11px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Submitted scores</div>
-                <div style={{display:"flex",gap:"16px"}}>
-                  {m.games.map((g,i)=>(
-                    <div key={i} style={{textAlign:"center"}}>
-                      <div style={{fontSize:"11px",color:C.faint,marginBottom:"2px"}}>G{i+1}</div>
-                      <div style={{fontSize:"20px",fontWeight:"800"}}>{g.s1}–{g.s2}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         );
       })}
@@ -1770,259 +2087,6 @@ function Standings({ myTeam, teams, matches, division, setDivision, isAdmin }) {
         </div>
       </div>
       {profileTeam&&<TeamProfileModal team={profileTeam} teams={teams} matches={matches} myTeam={myTeam} onClose={()=>setProfileTeam(null)}/>}
-    </div>
-  );
-}
-
-// ── DIVISION CHAT ─────────────────────────────────────────────
-function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdminPauseChat }) {
-  const mobile   = useMobile();
-  const myDiv    = myTeam?.division || "low";
-  const [chatTab, setChatTab] = useState("division");
-  const [adminDiv, setAdminDiv] = useState(myDiv);
-  const division = isAdmin ? adminDiv : myDiv; // non-admins always see their own
-  const [msgs,   setMsgs]    = useState([]);
-  const [input,  setInput]   = useState("");
-  const [pinned, setPinned]  = useState(null);
-  const endRef   = useRef(null);
-
-  // Active match chats for this team
-  const myMatches = matches.filter(m =>
-    (m.t1_id===myTeam?.id||m.t2_id===myTeam?.id) && !m.cancelled && m.status!=="completed"
-  );
-  const [activeMatchChat, setActiveMatchChat] = useState(null);
-
-  useEffect(()=>{
-    if (chatTab!=="division") return;
-    sb.from("division_chats").select("*").eq("division",division).order("created_at",{ascending:true}).limit(300).then(({data})=>{
-      if(data)setMsgs(data);
-      setTimeout(()=>endRef.current?.scrollIntoView(),100);
-    });
-    const ch=sb.channel(`dc-${division}`)
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"division_chats",filter:`division=eq.${division}`},p=>{
-        setMsgs(prev=>[...prev,p.new]);
-        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
-      }).subscribe();
-    return()=>sb.removeChannel(ch);
-  },[division, chatTab]);
-
-  const canPost = myTeam?.approved && !adminPauseChat;
-  const canSee  = isAdmin || myTeam?.approved;
-  const tName   = id => teams.find(t=>t.id===id)?.name ?? "Unknown";
-
-  const send = async()=>{
-    if(!input.trim()||!canPost)return;
-    const content = input.trim();
-    await sb.from("division_chats").insert({division,team_id:myTeam.id,team_name:myTeam.name,is_admin:isAdmin,content});
-    setInput("");
-  };
-
-  const deleteMsg = async(id)=>{
-    if(!isAdmin)return;
-    await sb.from("division_chats").delete().eq("id",id);
-    setMsgs(p=>p.filter(m=>m.id!==id));
-  };
-
-  const pinMsg = (msg)=>{ setPinned(m=>m?.id===msg.id?null:msg); };
-
-  const formatMsg = (content)=>{
-    const parts=content.split(/(@\w[\w\s]*)/g);
-    return parts.map((p,i)=>p.startsWith("@")?<span key={i} style={{color:C.blue,fontWeight:"600"}}>{p}</span>:p);
-  };
-
-  if(!canSee) return(
-    <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
-      <div style={{fontSize:"40px",marginBottom:"12px"}}>🔒</div>
-      <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"8px"}}>Chat</div>
-      <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>Chat is only available to approved teams. Your account must be activated by admin to participate.</p>
-    </div>
-  );
-
-  return(
-    <div>
-      <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>Chat</div>
-      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"16px"}}>Division chat · Match threads · Private</div>
-
-      {/* Chat tabs */}
-      <div style={{display:"flex",gap:"6px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}>
-        <button style={btn(chatTab==="division"?C.text:C.gray,"#fff",{fontSize:"13px",padding:"8px 16px",minHeight:"40px"})} onClick={()=>setChatTab("division")}>
-          {dL(division)} Division
-        </button>
-        <button style={btn(chatTab==="matches"?C.text:C.gray,"#fff",{fontSize:"13px",padding:"8px 16px",minHeight:"40px"})} onClick={()=>setChatTab("matches")}>
-          My Matches {myMatches.length>0&&`(${myMatches.length})`}
-        </button>
-        {/* Admin can switch divisions */}
-        {isAdmin&&chatTab==="division"&&<>
-          <div style={{width:"1px",height:"28px",background:C.border}}/>
-          <Pill d="low"  active={adminDiv==="low"}  onClick={()=>setAdminDiv("low")}/>
-          <Pill d="high" active={adminDiv==="high"} onClick={()=>setAdminDiv("high")}/>
-          <button onClick={()=>setAdminPauseChat(p=>!p)} style={btn(adminPauseChat?C.green:C.amber,"#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"40px"})}>
-            {adminPauseChat?"Resume":"Pause"}
-          </button>
-        </>}
-      </div>
-
-      {adminPauseChat&&chatTab==="division"&&<Alert type="warn">Division chat is currently paused by admin.</Alert>}
-
-      {/* DIVISION CHAT TAB */}
-      {chatTab==="division"&&<>
-        {/* Non-admin division label */}
-        {!isAdmin&&<div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"12px"}}>
-          <Tag c={myDiv==="low"?"gray":"blue"}>{dL(myDiv)} Division</Tag>
-          <span style={{fontSize:"12px",color:C.faint}}>Your division chat</span>
-        </div>}
-
-        {/* Pinned message */}
-        {pinned&&(
-          <div style={{background:"#fef9c3",border:`1px solid ${C.amber}30`,borderRadius:"8px",padding:"10px 14px",marginBottom:"12px",display:"flex",gap:"10px",alignItems:"flex-start"}}>
-            <span>📌</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:"11px",fontWeight:"600",color:C.amber,marginBottom:"2px"}}>PINNED · {pinned.team_name}</div>
-              <div style={{fontSize:"13px",color:C.text}}>{pinned.content}</div>
-            </div>
-            {isAdmin&&<button onClick={()=>setPinned(null)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"18px",lineHeight:1}}>×</button>}
-          </div>
-        )}
-
-        <div style={{...card(),display:"flex",flexDirection:"column",height:mobile?"calc(100vh - 340px)":"460px"}}>
-          <div style={{flex:1,overflowY:"auto",paddingBottom:"6px"}}>
-            {msgs.length===0
-              ?<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>No messages yet in this division. Be the first!</div>
-              :msgs.map(m=>(
-              <div key={m.id} style={{marginBottom:"16px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px",flexWrap:"wrap"}}>
-                  <span style={{fontSize:"13px",fontWeight:"700",color:m.is_admin?C.amber:dC(division)}}>{m.team_name}</span>
-                  {m.is_admin&&<Tag c="amber">Admin</Tag>}
-                  {pinned?.id===m.id&&<Tag c="amber">Pinned</Tag>}
-                  <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(m.created_at)}</span>
-                  {isAdmin&&<div style={{marginLeft:"auto",display:"flex",gap:"4px"}}>
-                    <button onClick={()=>pinMsg(m)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,padding:"2px 5px",fontSize:"13px"}}>📌</button>
-                    <button onClick={()=>deleteMsg(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:C.red,padding:"2px 5px",fontSize:"13px"}}>🗑</button>
-                  </div>}
-                </div>
-                <div style={{fontSize:"14px",color:"#222",lineHeight:"1.6"}}>{formatMsg(m.content)}</div>
-              </div>
-            ))}
-            <div ref={endRef}/>
-          </div>
-          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:"12px",marginTop:"6px"}}>
-            {!canPost&&<p style={{fontSize:"12px",color:C.faint,marginBottom:"8px"}}>{adminPauseChat?"Chat paused by admin.":"Account must be activated to chat."}</p>}
-            <div style={{display:"flex",gap:"8px"}}>
-              <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder={canPost?`Message ${dL(division)}... use @TeamName to mention`:"Read only"} disabled={!canPost}/>
-              <button style={btn(C.text,"#fff",{minHeight:"44px",padding:"10px 16px"})} onClick={send} disabled={!canPost}>Send</button>
-            </div>
-          </div>
-        </div>
-      </>}
-
-      {/* MATCH CHATS TAB */}
-      {chatTab==="matches"&&<>
-        {myMatches.length===0
-          ?<div style={{...card(),textAlign:"center",padding:"40px 20px"}}><p style={{color:C.faint,fontSize:"14px"}}>No active matches yet. Accept a match request to open a private match chat.</p></div>
-          :<>
-            {!activeMatchChat&&(
-              <div>
-                {myMatches.map(m=>{
-                  const opp=teams.find(t=>t.id===(m.t1_id===myTeam.id?m.t2_id:m.t1_id));
-                  return(
-                    <div key={m.id} style={{...card(),marginBottom:"10px",cursor:"pointer"}} onClick={()=>setActiveMatchChat(m)}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div>
-                          <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"3px"}}>vs {opp?.name}</div>
-                          <div style={{fontSize:"12px",color:C.muted}}>{m.match_date} · {m.match_time} · {m.court}</div>
-                        </div>
-                        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-                          <Tag c="green">Active</Tag>
-                          <span style={{color:C.muted,fontSize:"20px"}}>›</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {activeMatchChat&&<>
-              <button style={btn(C.gray,"#fff",{fontSize:"13px",padding:"8px 14px",minHeight:"40px",marginBottom:"14px"})} onClick={()=>setActiveMatchChat(null)}>← Back to match list</button>
-              <InlineMatchChat match={activeMatchChat} myTeam={myTeam} teams={teams}/>
-            </>}
-          </>
-        }
-      </>}
-    </div>
-  );
-}
-
-// ── INLINE MATCH CHAT ─────────────────────────────────────────
-function InlineMatchChat({ match, myTeam, teams }) {
-  const mobile   = useMobile();
-  const [msgs,   setMsgs]   = useState([]);
-  const [input,  setInput]  = useState("");
-  const endRef   = useRef(null);
-  const opp      = teams.find(t=>t.id===(match.t1_id===myTeam.id?match.t2_id:match.t1_id));
-  const isClosed = match.chat_closed_at && new Date(match.chat_closed_at) < new Date();
-
-  useEffect(()=>{
-    sb.from("match_chats").select("*").eq("match_id",match.id).order("created_at",{ascending:true}).then(({data})=>{
-      if(data)setMsgs(data);
-      setTimeout(()=>endRef.current?.scrollIntoView(),100);
-    });
-    const ch=sb.channel(`mc-inline-${match.id}`)
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"match_chats",filter:`match_id=eq.${match.id}`},p=>{
-        setMsgs(prev=>[...prev,p.new]);
-        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
-      }).subscribe();
-    return()=>sb.removeChannel(ch);
-  },[match.id]);
-
-  const send=async()=>{
-    if(!input.trim()||isClosed)return;
-    await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:input.trim()});
-    setInput("");
-  };
-
-  return(
-    <div>
-      <div style={{...card({padding:"12px 14px"}),marginBottom:"10px",background:C.bg}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
-          <div>
-            <div style={{fontWeight:"700",fontSize:"15px"}}>vs {opp?.name}</div>
-            <div style={{fontSize:"12px",color:C.muted}}>{match.match_date} · {match.match_time} · {match.court}</div>
-          </div>
-          <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`,"_blank")} style={btn(C.blue,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"36px",display:"flex",alignItems:"center",gap:"5px"})}>
-            <Icon n="map" size={14}/> Court Map
-          </button>
-        </div>
-      </div>
-      {isClosed&&<Alert type="warn">This match chat is archived.</Alert>}
-      <div style={{...card(),display:"flex",flexDirection:"column",height:mobile?"calc(100vh - 400px)":"420px"}}>
-        <div style={{flex:1,overflowY:"auto",paddingBottom:"6px"}}>
-          <div style={{background:C.bg,borderRadius:"8px",padding:"10px 12px",marginBottom:"12px",textAlign:"center"}}>
-            <div style={{fontSize:"12px",color:C.muted,lineHeight:"1.6"}}>
-              💬 Chat opened! Coordinate court details here.<br/>
-              <span style={{color:C.blue}}>Consider sharing your phone number for easier day-of coordination.</span>
-            </div>
-          </div>
-          {msgs.map(m=>{
-            const mine=m.team_id===myTeam.id;
-            return(
-              <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"8px",marginBottom:"14px",alignItems:"flex-end"}}>
-                <div style={{maxWidth:"78%"}}>
-                  {!mine&&<div style={{fontSize:"11px",color:C.muted,marginBottom:"3px",fontWeight:"600"}}>{m.team_name}</div>}
-                  <div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"10px 14px",fontSize:"14px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
-                  <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={endRef}/>
-        </div>
-        {!isClosed&&<div style={{borderTop:`1px solid ${C.border}`,paddingTop:"12px",marginTop:"6px"}}>
-          <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-            <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message your opponent..."/>
-            <button style={btn(C.text,"#fff",{minHeight:"44px",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center"})} onClick={send}><Icon n="send" size={18}/></button>
-          </div>
-        </div>}
-      </div>
     </div>
   );
 }
