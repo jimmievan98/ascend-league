@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.9.2";
+const APP_VERSION   = "v1.9.3";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -427,7 +427,7 @@ function ChatBubbles({ msgs, myTeam, endRef, emptyMsg }) {
       {msgs.map(m=>{
         const mine = m.team_id===myTeam?.id || m.sent_by===myTeam?.id;
         const isAdmin = m.is_admin;
-        const senderLabel = isAdmin ? "League Admin" : `${m.sender_name||m.team_name||"??"} | ${m.team_name||""}`;
+        const senderLabel = isAdmin ? "League Admin" : `${m.sender_name||""} (${m.team_name||"?"})`.trim().replace(/^\s*\(/,"(");
         return(
           <div key={m.id} style={{display:"flex", flexDirection:mine?"row-reverse":"row", marginBottom:"10px", alignItems:"flex-end"}}>
             <div style={{maxWidth:"72%"}}>
@@ -489,7 +489,7 @@ function MatchChatPane({ match, myTeam, teams, onBack, mobile }) {
       {isClosed&&<div style={{background:C.amberBg,padding:"7px 16px",fontSize:"12px",color:C.amber,textAlign:"center",flexShrink:0}}>This chat is archived.</div>}
       {/* Phone number tip */}
       <div style={{background:"#f0fdf4",borderBottom:`1px solid #bbf7d0`,padding:"8px 16px",fontSize:"12px",color:"#166534",textAlign:"center",flexShrink:0}}>
-        💬 Share your phone number for easier day-of coordination!
+        💬 Pro tip — share your phone number so you can coordinate easily on match day!
       </div>
       <ChatBubbles msgs={normMsgs} myTeam={myTeam} endRef={endRef} emptyMsg="Chat opened! Coordinate your match here."/>
       {!isClosed&&<div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
@@ -561,7 +561,7 @@ function DivisionChatPane({ myTeam, isAdmin, division, setAdminDiv, adminPauseCh
         {normMsgs.map(m=>{
           const mine=m.team_id===myTeam?.id;
           const isAdminMsg=m.is_admin;
-          const label=isAdminMsg?"League Admin":`${m.sender_name||m.team_name||"?"} | ${m.team_name||""}`;
+          const label=isAdminMsg?"League Admin":`${m.sender_name||""} (${m.team_name||"?"})`.trim().replace(/^\s*\(/,"(");
           return(
             <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"8px",marginBottom:"14px",alignItems:"flex-end"}}>
               <div style={{maxWidth:"72%",position:"relative"}}>
@@ -666,17 +666,15 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
         <div style={{fontSize:"18px",fontWeight:"800",letterSpacing:"-.3px"}}>Chats</div>
       </div>
 
-      {/* Division chat - always first, dark header */}
-      <div onClick={selectDiv} style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 16px",cursor:"pointer",background:selected?.type==="division"?"#f0f9ff":"transparent",borderBottom:`1px solid ${C.border}`,transition:"background .1s"}}>
-        <div style={{width:"46px",height:"46px",borderRadius:"50%",background:"#1d1d1f",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"14px",fontWeight:"800",color:"#00BFFF",position:"relative"}}>
-          AP
-          {hasUnread(`div-${division}`,divMsgCounts[division])&&<span style={{position:"absolute",top:0,right:0,width:"14px",height:"14px",background:C.red,borderRadius:"50%",border:"2px solid #fff"}}/>}
-        </div>
+      {/* Division chat — always first, visually distinct */}
+      <div onClick={selectDiv} style={{display:"flex",gap:"12px",alignItems:"center",padding:"13px 16px",cursor:"pointer",background:selected?.type==="division"?"#e7f3ff":"#f0fdf4",borderBottom:`2px solid ${C.border}`,transition:"background .1s"}}>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"2px"}}>{dL(division)} Division</div>
-          <div style={{fontSize:"12px",color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Division-wide chat</div>
+          <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"1px",color:"#1d1d1f"}}>{dL(division)} Division Chat</div>
+          <div style={{fontSize:"12px",color:C.muted}}>All teams in your division</div>
         </div>
-        {hasUnread(`div-${division}`,divMsgCounts[division])&&<div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.blue,flexShrink:0}}/>}
+        {hasUnread(`div-${division}`,divMsgCounts[division])&&(
+          <div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>●</div>
+        )}
       </div>
 
       {/* Admin div switcher */}
@@ -695,16 +693,13 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
         const isSelected=selected?.type==="match"&&selected.match?.id===m.id;
         const unread=hasUnread(`match-${m.id}`,matchMsgCounts[m.id]);
         return(
-          <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 16px",cursor:"pointer",background:isSelected?"#f0f9ff":"transparent",borderBottom:`1px solid #f5f5f3`,transition:"background .1s"}}>
-            <div style={{width:"46px",height:"46px",borderRadius:"50%",background:"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"16px",fontWeight:"800",color:C.blue,position:"relative"}}>
-              {opp?.name?.[0]||"?"}
-              {unread&&<span style={{position:"absolute",top:0,right:0,width:"14px",height:"14px",background:C.red,borderRadius:"50%",border:"2px solid #fff"}}/>}
-            </div>
+          <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"13px 16px",cursor:"pointer",background:isSelected?"#e7f3ff":"transparent",borderBottom:`1px solid #f0f0f0`,transition:"background .1s"}}>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:"14px",fontWeight:unread?"800":"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
-              <div style={{fontSize:"11px",color:C.muted}}>{fmtDate(m.match_date)} · {fmtTime(m.match_time)}</div>
+              <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)} · {fmtTime(m.match_time)}</div>
+              <div style={{fontSize:"11px",color:"#555",marginTop:"1px"}}>📍 {m.court}</div>
             </div>
-            {unread&&<div style={{width:"10px",height:"10px",borderRadius:"50%",background:C.blue,flexShrink:0}}/>}
+            {unread&&<div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>●</div>}
           </div>
         );
       })}
@@ -715,10 +710,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
         const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
         const isSelected=selected?.type==="match"&&selected.match?.id===m.id;
         return(
-          <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"12px 16px",cursor:"pointer",background:isSelected?"#f0f9ff":"transparent",borderBottom:`1px solid #f5f5f3`,opacity:0.5,transition:"background .1s"}}>
-            <div style={{width:"46px",height:"46px",borderRadius:"50%",background:"#e9e9e9",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"16px",fontWeight:"800",color:C.muted}}>
-              {opp?.name?.[0]||"?"}
-            </div>
+          <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"13px 16px",cursor:"pointer",background:isSelected?"#e7f3ff":"transparent",borderBottom:`1px solid #f0f0f0`,opacity:0.5,transition:"background .1s"}}>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:"13px",fontWeight:"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
               <div style={{fontSize:"11px",color:C.faint}}>{fmtDate(m.match_date)} · Completed</div>
@@ -812,7 +804,7 @@ function MatchChatWindow({ match, myTeam, teams, onClose }) {
         return(
           <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"6px",marginBottom:"10px",alignItems:"flex-end"}}>
             <div style={{maxWidth:"78%"}}>
-              {!mine&&<div style={{fontSize:"10px",color:C.muted,marginBottom:"2px",fontWeight:"600"}}>{m.sender_name||m.team_name} | {m.team_name}</div>}
+              {!mine&&<div style={{fontSize:"10px",color:C.muted,marginBottom:"2px",fontWeight:"600"}}>{m.sender_name?`${m.sender_name} (${m.team_name})`:(m.team_name||"?")}</div>}
               <div style={{background:mine?"#0084ff":"#e9e9eb",color:mine?"#fff":"#000",borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"8px 12px",fontSize:"13px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
               <div style={{fontSize:"10px",color:C.faint,marginTop:"2px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
             </div>
@@ -1285,8 +1277,10 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
 }
 
 // ── MATCH BOARD ───────────────────────────────────────────────
-function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, setDivision, globalSetTab }) {
+function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, setDivision, isAdmin, globalSetTab }) {
   const mobile = useMobile();
+  // Non-admins always see their own division
+  const activeDivision = isAdmin ? division : (myTeam?.division || division);
   const [showForm,  setShowForm]  = useState(false);
   const [form,      setForm]      = useState({date:"",time:"",court:"",notes:"",fee:""});
   const [confirmReq,setConfirmReq]= useState(null);
@@ -1296,7 +1290,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
   const upF=(k,v)=>setForm(f=>({...f,[k]:v}));
 
   const divReqs = requests.filter(r=>{
-    if(r.division!==division)return false;
+    if(r.division!==activeDivision)return false;
     if(r.status==="cancelled")return false; // hide cancelled requests
     if(filter.date&&!r.proposed_date.includes(filter.date))return false;
     if(filter.timeOfDay==="morning"&&!["6:","7:","8:","9:","10:","11:"].some(h=>r.proposed_time.includes(h)))return false;
@@ -1313,7 +1307,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     if(!form.date||!form.time||!form.court)return;
     if(hasConflict(form.date,form.time)){alert("You already have a confirmed match at this time. Please choose a different time.");return;}
     setBusy(true);
-    const{data,error}=await sb.from("match_requests").insert({team_id:myTeam.id,division,proposed_date:form.date,proposed_time:form.time,proposed_court:form.court,notes:form.notes,location_fee:form.fee,status:"open"}).select("*,responses:request_responses(*)").single();
+    const{data,error}=await sb.from("match_requests").insert({team_id:myTeam.id,division:activeDivision,proposed_date:form.date,proposed_time:form.time,proposed_court:form.court,notes:form.notes,location_fee:form.fee,status:"open"}).select("*,responses:request_responses(*)").single();
     if(!error){setRequests(p=>[data,...p]);setShowForm(false);setForm({date:"",time:"",court:"",notes:"",fee:""});}
     setBusy(false);
   };
@@ -1500,10 +1494,17 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
         {myTeam?.approved&&<button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>setShowForm(s=>!s)}>{showForm?"Cancel":"Request Match"}</button>}
       </div>
 
-      <div style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap"}}>
-        <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
-        <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
-      </div>
+      {isAdmin?(
+        <div style={{display:"flex",gap:"8px",marginBottom:"14px",flexWrap:"wrap"}}>
+          <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
+          <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
+        </div>
+      ):(
+        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"14px"}}>
+          <Pill d={activeDivision} active={true} onClick={()=>{}}/>
+          <span style={{fontSize:"12px",color:C.faint}}>Your division</span>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{display:"flex",gap:"8px",marginBottom:"16px",flexWrap:"wrap"}}>
@@ -1823,7 +1824,7 @@ function ScoreConfirmModal({ mid, myTeam, teams, matches, entry, setEntry, setMa
   );
 }
 
-function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
+function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCancel }) {
   const mobile = useMobile();
   const [entry, setEntry] = useState({});
 
@@ -1837,8 +1838,15 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
   const completed = myMatches.filter(m=>m.status==="completed");
 
   const confirmScore=async(mid)=>{
+    const m=matches.find(x=>x.id===mid);
+    if(!m)return;
+    // Call RPC to update DB
     await sb.rpc("confirm_match_score",{match_id:mid});
+    // Update match locally
     setMatches(p=>p.map(x=>x.id===mid?{...x,status:"completed"}:x));
+    // Refresh teams from DB to get accurate standings
+    const{data:freshTeams}=await sb.from("teams").select("*").order("points",{ascending:false});
+    if(freshTeams)setTeams(freshTeams);
   };
 
   return(
@@ -2896,6 +2904,15 @@ export default function AscendLeague() {
     if(profile?.team_id){
       const{data:team}=await sb.from("teams").select("*").eq("id",profile.team_id).single();
       if(team){setMyTeam(team);setDivision(team.division);}
+    } else if(profile?.email) {
+      // Auto-link Player 2 — find team where their email is p2_email
+      const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",profile.email).maybeSingle();
+      if(teamAsP2){
+        // Link this profile to the team
+        await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
+        setMyTeam(teamAsP2);
+        setDivision(teamAsP2.division);
+      }
     }
     const{data:notifs}=await sb.from("notifications").select("*").eq("user_id",uid).order("created_at",{ascending:false}).limit(50);
     if(notifs)setNotifications(notifs);
@@ -3002,8 +3019,8 @@ export default function AscendLeague() {
       {/* Page */}
       <div style={{padding:mobile?"16px 14px":"28px 20px",maxWidth:"960px",margin:"0 auto"}}>
         {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner}/>}
-        {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision}/>}
-        {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
+        {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
+        {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
         {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} teams={teams} matches={matches} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
         {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision}/>}
