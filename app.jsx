@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.0";
+const APP_VERSION   = "v2.0.1";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1344,7 +1344,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         return hrs>48&&(r.responses?.length||0)===0;
       }).map(r=>(
         <Alert key={r.id} type="info" onDismiss={undefined}>
-          <strong>No responses yet</strong> on your {r.proposed_date} request. Try posting a different time or court — more teams may be available.
+          <strong>No responses yet</strong> on your {fmtDate(r.proposed_date)} request. Try posting a different time or court — more teams may be available.
         </Alert>
       ))}
 
@@ -1464,7 +1464,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
   }).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
-  const atLimit=tid=>{if(!myTeam)return false;return matches.filter(m=>(m.t1_id===myTeam.id&&m.t2_id===tid)||(m.t2_id===myTeam.id&&m.t1_id===tid)).length>=MAX_VS;};
+  const atLimit=tid=>{if(!myTeam)return false;return matches.filter(m=>((m.t1_id===myTeam.id&&m.t2_id===tid)||(m.t2_id===myTeam.id&&m.t1_id===tid))&&!m.cancelled).length>=MAX_VS;};
   const hasConflict=(date,time)=>matches.some(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&m.match_date===date&&m.match_time===time&&m.status==="confirmed"&&!m.cancelled);
 
   const postRequest=async()=>{
@@ -1549,8 +1549,8 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
               {isOwn&&<Tag c="gray">Your request</Tag>}
             </div>
             <div style={{fontSize:"13px",color:"#555",display:"flex",gap:"14px",flexWrap:"wrap",marginBottom:"3px"}}>
-              <span>📅 {req.proposed_date}</span>
-              <span>🕐 {req.proposed_time}</span>
+              <span>📅 {fmtDate(req.proposed_date)}</span>
+              <span>🕐 {fmtTime(req.proposed_time)}</span>
               <span>📍 {req.proposed_court}</span>
             </div>
             {req.notes&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{req.notes}</div>}
@@ -2175,7 +2175,7 @@ function TeamProfileModal({ team, teams, matches, myTeam, onClose }) {
                   <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
                     <div>
                       <div style={{fontSize:"13px",fontWeight:"600"}}>vs {opp}</div>
-                      <div style={{fontSize:"11px",color:C.muted}}>{m.match_date} · {scores}</div>
+                      <div style={{fontSize:"11px",color:C.muted}}>{fmtDate(m.match_date)} · {scores}</div>
                     </div>
                     <Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag>
                   </div>
@@ -2425,7 +2425,7 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
                   return(
                     <tr key={m.id}>
                       <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"600"}}>{opp}</td>
-                      <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"12px",color:C.muted}}>{m.match_date}</td>
+                      <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}</td>
                       <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"12px",color:C.muted}}>{m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"—"}</td>
                       <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`}}><Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag></td>
                     </tr>
@@ -2743,7 +2743,7 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
           disputes.map(m=>(
             <div key={m.id} style={{padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
               <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"3px"}}>{tName(m.t1_id)} vs {tName(m.t2_id)}</div>
-              <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>{m.match_date} · {m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"No scores"}</div>
+              <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>{fmtDate(m.match_date)} · {m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"No scores"}</div>
               <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
                 <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>resolveDispute(m.id,m.t1_id,m.t2_id)}>{tName(m.t1_id)} won</button>
                 <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>resolveDispute(m.id,m.t2_id,m.t1_id)}>{tName(m.t2_id)} won</button>
@@ -3101,13 +3101,34 @@ export default function AscendLeague() {
   useEffect(()=>{
     if(!session)return;
     const teamsCh=sb.channel("rt-teams")
-      .on("postgres_changes",{event:"*",schema:"public",table:"teams"},()=>{
-        sb.from("teams").select("*").order("points",{ascending:false}).then(({data})=>{if(data)setTeams(data);});
-      }).subscribe();
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"teams"},p=>{
+        setTeams(prev=>[...prev,p.new].sort((a,b)=>b.points-a.points||b.wins-a.wins));
+      })
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"teams"},p=>{
+        setTeams(prev=>prev.map(x=>x.id===p.new.id?p.new:x).sort((a,b)=>b.points-a.points||b.wins-a.wins));
+        if(p.new?.id===myTeam?.id)setMyTeam(p.new);
+      })
+      .on("postgres_changes",{event:"DELETE",schema:"public",table:"teams"},p=>{
+        setTeams(prev=>prev.filter(x=>x.id!==p.old.id));
+      })
+      .subscribe();
     const matchesCh=sb.channel("rt-matches")
-      .on("postgres_changes",{event:"*",schema:"public",table:"matches"},()=>{
-        sb.from("matches").select("*").order("created_at",{ascending:false}).then(({data})=>{if(data)setMatches(data);});
-      }).subscribe();
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches"},p=>{
+        // New match — add to local state
+        setMatches(prev=>{
+          if(prev.find(x=>x.id===p.new.id))return prev;
+          return [p.new,...prev];
+        });
+      })
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches"},p=>{
+        // Updated match — replace in local state
+        setMatches(prev=>prev.map(x=>x.id===p.new.id?p.new:x));
+      })
+      .on("postgres_changes",{event:"DELETE",schema:"public",table:"matches"},p=>{
+        // Deleted match — remove from local state immediately, no re-fetch
+        setMatches(prev=>prev.filter(x=>x.id!==p.old.id));
+      })
+      .subscribe();
     const requestsCh=sb.channel("rt-requests")
       .on("postgres_changes",{event:"*",schema:"public",table:"match_requests"},()=>{
         sb.from("match_requests").select("*,responses:request_responses(*)").order("created_at",{ascending:false}).then(({data})=>{if(data)setRequests(data);});
@@ -3116,17 +3137,11 @@ export default function AscendLeague() {
       .on("postgres_changes",{event:"*",schema:"public",table:"request_responses"},()=>{
         sb.from("match_requests").select("*,responses:request_responses(*)").order("created_at",{ascending:false}).then(({data})=>{if(data)setRequests(data);});
       }).subscribe();
-    // Also refresh myTeam record when teams table changes (standings update, etc)
-    const myTeamCh=sb.channel("rt-myteam")
-      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"teams"},p=>{
-        if(p.new?.id===myTeam?.id)setMyTeam(p.new);
-      }).subscribe();
     return()=>{
       sb.removeChannel(teamsCh);
       sb.removeChannel(matchesCh);
       sb.removeChannel(requestsCh);
       sb.removeChannel(responsesCh);
-      sb.removeChannel(myTeamCh);
     };
   },[session]);
 
