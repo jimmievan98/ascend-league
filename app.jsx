@@ -7,8 +7,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL  = "https://YOUR_PROJECT_ID.supabase.co";
-const SUPABASE_ANON = "YOUR_ANON_KEY_HERE";
+const SUPABASE_URL  = "egacieyresiwkwwomesi.supabase.co";
+const SUPABASE_ANON = "sb_publishable_SXa5wSG157FAK-8bNVAorw_raHdHgs5";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
