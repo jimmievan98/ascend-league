@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.9.1";
+const APP_VERSION   = "v1.9.2";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -425,19 +425,17 @@ function ChatBubbles({ msgs, myTeam, endRef, emptyMsg }) {
     <div style={{flex:1, overflowY:"auto", padding:"16px"}}>
       {msgs.length===0 && <div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>{emptyMsg||"No messages yet."}</div>}
       {msgs.map(m=>{
-        const mine = m.team_id===myTeam?.id || m.user_id===myTeam?.p1_email || m.sent_by===myTeam?.id;
+        const mine = m.team_id===myTeam?.id || m.sent_by===myTeam?.id;
         const isAdmin = m.is_admin;
-        const senderLabel = isAdmin
-          ? "League Admin"
-          : `${m.sender_name||m.team_name||"??"} | ${m.team_name||""}`;
+        const senderLabel = isAdmin ? "League Admin" : `${m.sender_name||m.team_name||"??"} | ${m.team_name||""}`;
         return(
-          <div key={m.id} style={{display:"flex", flexDirection:mine?"row-reverse":"row", gap:"8px", marginBottom:"14px", alignItems:"flex-end"}}>
+          <div key={m.id} style={{display:"flex", flexDirection:mine?"row-reverse":"row", marginBottom:"10px", alignItems:"flex-end"}}>
             <div style={{maxWidth:"72%"}}>
-              {!mine && <div style={{fontSize:"11px",color:isAdmin?C.amber:C.muted,marginBottom:"3px",fontWeight:"700"}}>{senderLabel}</div>}
-              <div style={{background:mine?"#111":isAdmin?"#fef3c7":"#f0f0ee", color:mine?"#fff":isAdmin?"#78350f":C.text, borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px", padding:"10px 14px", fontSize:"14px", lineHeight:"1.5", wordBreak:"break-word"}}>
+              {!mine && <div style={{fontSize:"11px",color:isAdmin?"#d97706":C.muted,marginBottom:"3px",fontWeight:"700",paddingLeft:"4px"}}>{senderLabel}</div>}
+              <div style={{background:mine?"#0084ff":isAdmin?"#fef3c7":"#e9e9eb", color:mine?"#fff":isAdmin?"#78350f":"#000", borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px", padding:"10px 14px", fontSize:"14px", lineHeight:"1.5", wordBreak:"break-word"}}>
                 {m.content}
               </div>
-              <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
+              <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left",paddingLeft:"4px"}}>{timeAgo(m.created_at)}</div>
             </div>
           </div>
         );
@@ -482,14 +480,11 @@ function MatchChatPane({ match, myTeam, teams, onBack, mobile }) {
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
         {(mobile||onBack)&&<button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:C.text,fontSize:"22px",lineHeight:1,minWidth:"40px",minHeight:"40px",display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>}
-        <div style={{width:"38px",height:"38px",borderRadius:"50%",background:"#e0f2fe",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:"16px",fontWeight:"700",color:C.blue}}>{opp?.name?.[0]||"?"}</div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:"14px",fontWeight:"700",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{opp?.name}</div>
-          <div style={{fontSize:"11px",color:C.muted}}>{fmtDateTime(match.match_date,match.match_time)} · {match.court}</div>
+          <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
+          <div style={{fontSize:"11px",color:C.muted}}>{fmtDateTime(match.match_date,match.match_time)}</div>
+          <div style={{fontSize:"11px",color:"#555",marginTop:"1px"}}>📍 {match.court}</div>
         </div>
-        <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`,"_blank")} style={btn(C.blue,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"34px",display:"flex",alignItems:"center",gap:"4px"})}>
-          <Icon n="map" size={13}/> Map
-        </button>
       </div>
       {isClosed&&<div style={{background:C.amberBg,padding:"7px 16px",fontSize:"12px",color:C.amber,textAlign:"center",flexShrink:0}}>This chat is archived.</div>}
       {/* Phone number tip */}
@@ -571,7 +566,7 @@ function DivisionChatPane({ myTeam, isAdmin, division, setAdminDiv, adminPauseCh
             <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"8px",marginBottom:"14px",alignItems:"flex-end"}}>
               <div style={{maxWidth:"72%",position:"relative"}}>
                 {!mine&&<div style={{fontSize:"11px",color:isAdminMsg?"#d97706":dC(division),marginBottom:"3px",fontWeight:"700"}}>{label}</div>}
-                <div style={{background:mine?"#111":isAdminMsg?"#fef3c7":"#f0f0ee",color:mine?"#fff":isAdminMsg?"#78350f":C.text,borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px",padding:"10px 14px",fontSize:"14px",lineHeight:"1.5",wordBreak:"break-word"}}>
+                <div style={{background:mine?"#0084ff":isAdminMsg?"#fef3c7":"#e9e9eb",color:mine?"#fff":isAdminMsg?"#78350f":"#000",borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px",padding:"10px 14px",fontSize:"14px",lineHeight:"1.5",wordBreak:"break-word"}}>
                   {m.content}
                 </div>
                 <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
@@ -818,7 +813,7 @@ function MatchChatWindow({ match, myTeam, teams, onClose }) {
           <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"6px",marginBottom:"10px",alignItems:"flex-end"}}>
             <div style={{maxWidth:"78%"}}>
               {!mine&&<div style={{fontSize:"10px",color:C.muted,marginBottom:"2px",fontWeight:"600"}}>{m.sender_name||m.team_name} | {m.team_name}</div>}
-              <div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"8px 12px",fontSize:"13px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
+              <div style={{background:mine?"#0084ff":"#e9e9eb",color:mine?"#fff":"#000",borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"8px 12px",fontSize:"13px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
               <div style={{fontSize:"10px",color:C.faint,marginTop:"2px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
             </div>
           </div>
@@ -1080,7 +1075,8 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
   const mobile = useMobile();
   const myReqs    = requests.filter(r=>r.team_id===myTeam?.id&&r.status==="open");
   const myMatches = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled&&m.status!=="completed");
-  const standings = [...teams.filter(t=>t.division===division&&t.approved)].sort((a,b)=>b.points-a.points||b.wins-a.wins);
+  const activeDiv   = myTeam?.division || division;
+  const standings   = [...teams.filter(t=>t.division===activeDiv&&t.approved)].sort((a,b)=>b.points-a.points||b.wins-a.wins);
   const tName     = id=>teams.find(t=>t.id===id)?.name??"Unknown";
   const playoffDate=new Date("2026-04-07");
   const daysUntil =Math.max(0,Math.ceil((playoffDate-new Date())/86400000));
@@ -1247,13 +1243,15 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         }
       </div>
 
-      {/* Standings */}
+      {/* Standings — locked to user's own division, admin can switch */}
       <div style={card()}>
         <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",flexWrap:"wrap"}}>
-          <div style={{fontSize:"15px",fontWeight:"700"}}>Division standings</div>
+          <div style={{fontSize:"15px",fontWeight:"700"}}>Division standings — {dL(myTeam?.division||division)}</div>
           <div style={{flex:1}}/>
-          <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
-          <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
+          {!myTeam&&<>
+            <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
+            <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
+          </>}
         </div>
         <div className="tscroll">
           <table style={{width:"100%",borderCollapse:"collapse",minWidth:"300px"}}>
@@ -1273,7 +1271,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
                     </td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"700",color:C.green}}>{t.wins}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:C.red}}>{t.losses}</td>
-                    <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",fontSize:"17px",color:dC(division)}}>{t.points}</td>
+                    <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",fontSize:"17px",color:dC(activeDiv)}}>{t.points}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,color:C.muted,fontSize:"12px"}}>{totalMatchesPlayed(t.id)}</td>
                   </tr>
                 );
@@ -2655,26 +2653,43 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
           {/* Completed fields */}
           {newMatch.asCompleted&&<div style={{background:C.greenBg,border:`1px solid ${C.green}30`,borderRadius:"10px",padding:"14px",marginBottom:"14px"}}>
             <Lbl>Winner</Lbl>
-            <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
+            <div style={{display:"flex",gap:"8px",marginBottom:"16px"}}>
               {[newMatch.t1,newMatch.t2].filter(Boolean).map(tid=>{
                 const sel=newMatch.winner===tid;
-                return<button key={tid} onClick={()=>setNewMatch(m=>({...m,winner:tid}))} style={{flex:1,padding:"10px",borderRadius:"8px",border:`2px solid ${sel?C.green:C.border}`,background:sel?C.white:C.white,color:sel?C.green:C.muted,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"13px",fontWeight:"600",minHeight:"44px"}}>{tName(tid)||"Select team above"}</button>;
+                return<button key={tid} onClick={()=>setNewMatch(m=>({...m,winner:tid}))} style={{flex:1,padding:"12px",borderRadius:"10px",border:`2px solid ${sel?C.green:C.border}`,background:sel?C.greenBg:C.white,color:sel?C.green:C.text,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"14px",fontWeight:"700",minHeight:"48px"}}>{tName(tid)||"Select team above"}</button>;
               })}
               {!newMatch.t1&&!newMatch.t2&&<p style={{fontSize:"12px",color:C.muted}}>Select both teams above first.</p>}
             </div>
-            <Lbl>Game scores (optional)</Lbl>
-            <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              {[1,2,3].map(g=>(
-                <div key={g} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"10px"}}>
-                  <Lbl>Game {g}{g===3?" (opt.)":""}</Lbl>
-                  <div style={{display:"flex",gap:"5px",alignItems:"center"}}>
-                    <input style={{...inp({width:"44px",textAlign:"center"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={newMatch[`g${g}s1`]||""} onChange={e=>setNewMatch(m=>({...m,[`g${g}s1`]:e.target.value}))}/>
-                    <span style={{color:"#ccc"}}>–</span>
-                    <input style={{...inp({width:"44px",textAlign:"center"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={newMatch[`g${g}s2`]||""} onChange={e=>setNewMatch(m=>({...m,[`g${g}s2`]:e.target.value}))}/>
-                  </div>
-                </div>
-              ))}
+
+            <Lbl>Game scores — {tName(newMatch.t1)||"Team 1"} vs {tName(newMatch.t2)||"Team 2"}</Lbl>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px",padding:"0 2px"}}>
+              <span style={{fontSize:"13px",fontWeight:"700",color:C.text}}>{tName(newMatch.t1)||"Team 1"}</span>
+              <span style={{fontSize:"13px",color:C.faint}}>vs</span>
+              <span style={{fontSize:"13px",fontWeight:"700",color:C.text,textAlign:"right"}}>{tName(newMatch.t2)||"Team 2"}</span>
             </div>
+            {[1,2,3].map(g=>(
+              <div key={g} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px",background:C.white,borderRadius:"12px",padding:"12px 14px",border:`1px solid ${C.border}`}}>
+                <span style={{fontSize:"12px",color:C.muted,width:"64px",flexShrink:0,fontWeight:"600"}}>{g===3?"Game 3*":`Game ${g}`}</span>
+                <div style={{display:"flex",alignItems:"center",gap:"10px",flex:1}}>
+                  <input
+                    type="number" min="0" max="25" inputMode="numeric"
+                    placeholder="0"
+                    value={newMatch[`g${g}s1`]||""}
+                    onChange={e=>setNewMatch(m=>({...m,[`g${g}s1`]:e.target.value}))}
+                    style={{width:"0",flex:1,textAlign:"center",fontSize:"26px",fontWeight:"800",background:"#f9f9f9",border:`2px solid ${newMatch[`g${g}s1`]?"#111":C.border}`,borderRadius:"12px",padding:"10px 4px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0",color:C.text,WebkitAppearance:"none",MozAppearance:"textfield"}}
+                  />
+                  <span style={{fontSize:"20px",color:"#ccc",flexShrink:0}}>—</span>
+                  <input
+                    type="number" min="0" max="25" inputMode="numeric"
+                    placeholder="0"
+                    value={newMatch[`g${g}s2`]||""}
+                    onChange={e=>setNewMatch(m=>({...m,[`g${g}s2`]:e.target.value}))}
+                    style={{width:"0",flex:1,textAlign:"center",fontSize:"26px",fontWeight:"800",background:"#f9f9f9",border:`2px solid ${newMatch[`g${g}s2`]?"#111":C.border}`,borderRadius:"12px",padding:"10px 4px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0",color:C.text,WebkitAppearance:"none",MozAppearance:"textfield"}}
+                  />
+                </div>
+              </div>
+            ))}
+            <p style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>* Game 3 only if needed · Left = {tName(newMatch.t1)||"Team 1"} · Right = {tName(newMatch.t2)||"Team 2"}</p>
           </div>}
 
           <button style={btn(newMatch.asCompleted?C.green:C.text,"#fff",{minHeight:"44px",marginBottom:"24px",minWidth:"180px"})} onClick={createMatch} disabled={!newMatch.t1||!newMatch.t2||(newMatch.asCompleted&&!newMatch.winner)}>
