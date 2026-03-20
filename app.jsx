@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.9.3";
+const APP_VERSION   = "v2.0.0";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -911,10 +911,26 @@ function NotifPrefsModal({ userId, onClose }) {
 }
 
 // ── AUTH SCREEN ───────────────────────────────────────────────
+// ── GENERATE JOIN CODE ───────────────────────────────────────
+const genCode = () => Math.random().toString(36).substring(2,8).toUpperCase();
+
 function AuthScreen() {
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login"); // login | register | forgot | join
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ email:"", password:"", confirm:"", teamName:"", p1Name:"", p1Skill:"3.2", p2Name:"", p2Email:"", p2Skill:"3.2", division:"", agreed:false });
+  const [form, setForm] = useState({
+    email:"", password:"", confirm:"",
+    teamName:"", p1Name:"", p1Skill:"3.2",
+    p2Name:"", p2Email:"", p2Skill:"3.2",
+    division:"", agreed:false
+  });
+  const [joinCode,   setJoinCode]   = useState("");
+  const [joinEmail,  setJoinEmail]  = useState("");
+  const [joinPass,   setJoinPass]   = useState("");
+  const [joinPassC,  setJoinPassC]  = useState("");
+  const [joinTeam,   setJoinTeam]   = useState(null);
+  const [joinErr,    setJoinErr]    = useState("");
+  const [joinStep,   setJoinStep]   = useState(1); // 1=enter code 2=confirm 3=create account 4=done
+  const [createdCode,setCreatedCode]= useState("");
   const [err,  setErr]  = useState("");
   const [msg,  setMsg]  = useState("");
   const [busy, setBusy] = useState(false);
@@ -927,13 +943,43 @@ function AuthScreen() {
   const doGoogle = async()=>{ await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}}); };
   const doForgot = async()=>{ setErr(""); setBusy(true); const{error}=await sb.auth.resetPasswordForEmail(form.email,{redirectTo:window.location.origin}); setBusy(false); if(error)setErr(error.message); else setMsg("Reset link sent — check your inbox."); };
 
+  const lookupCode = async () => {
+    if(!joinCode.trim()){setJoinErr("Enter your team code.");return;}
+    setBusy(true);
+    const{data,error}=await sb.from("teams").select("*").eq("join_code",joinCode.trim().toUpperCase()).maybeSingle();
+    setBusy(false);
+    if(error||!data){setJoinErr("Team code not found. Double-check with your partner and try again.");return;}
+    if(data.p2_joined){setJoinErr("This team already has a Player 2 linked. Contact admin if there's an issue.");return;}
+    setJoinTeam(data);setJoinStep(2);setJoinErr("");
+  };
+
+  const joinTeamSubmit = async () => {
+    if(!joinEmail.trim()||!joinPass.trim()){setJoinErr("Email and password required.");return;}
+    if(joinPass!==joinPassC){setJoinErr("Passwords do not match.");return;}
+    setBusy(true);
+    const{data:authData,error:authErr}=await sb.auth.signUp({email:joinEmail,password:joinPass});
+    if(authErr){setJoinErr(authErr.message);setBusy(false);return;}
+    const uid=authData.user?.id;
+    if(uid){
+      await sb.from("profiles").upsert({id:uid,email:joinEmail,team_id:joinTeam.id});
+      await sb.from("notification_prefs").insert({user_id:uid});
+      await sb.from("teams").update({p2_joined:true,p2_email:joinEmail}).eq("id",joinTeam.id);
+      await sb.from("admin_activity_log").insert({action:"Player 2 joined team",target_type:"team",target_id:joinTeam.id,details:`${joinEmail} joined "${joinTeam.name}" via code ${joinCode.toUpperCase()}`});
+    }
+    setBusy(false);
+    window.open(SHOPIFY_URL,"_blank");
+    setJoinStep(4);
+  };
+
   const nextStep=()=>{
     setErr("");
     if(step===1&&(!form.email||!form.password)){setErr("Email and password required.");return;}
     if(step===1&&form.password!==form.confirm){setErr("Passwords do not match.");return;}
     if(step===2&&!form.teamName.trim()){setErr("Team name required.");return;}
     if(step===2&&!form.p1Name.trim()){setErr("Your name is required.");return;}
-    if(step===3&&!form.p2Name.trim()){setErr("Partner name required.");return;}
+    if(step===3&&!form.p2Name.trim()){setErr("Partner's name is required.");return;}
+    if(step===3&&!form.p2Email.trim()){setErr("Partner's email is required — they need it to receive their join code.");return;}
+    if(step===3&&!/\S+@\S+\.\S+/.test(form.p2Email)){setErr("Enter a valid email for your partner.");return;}
     if(step===3&&needs35()&&!form.division){setErr("Please choose a division.");return;}
     if(step===4&&!form.agreed){setErr("You must agree to the rules and waiver.");return;}
     setStep(s=>s+1);
@@ -942,12 +988,22 @@ function AuthScreen() {
   const submitReg=async()=>{
     setErr(""); setBusy(true);
     const div=autoDiv();
-    const{data,error}=await sb.auth.signUp({email:form.email,password:form.password});
+    const code=genCode();
+    const{data:authData,error}=await sb.auth.signUp({email:form.email,password:form.password});
     if(error){setErr(error.message);setBusy(false);return;}
-    const uid=data.user?.id;
-    const{data:team,error:te}=await sb.from("teams").insert({name:form.teamName,p1_name:form.p1Name,p1_email:form.email,p1_skill:form.p1Skill,p2_name:form.p2Name,p2_email:form.p2Email||"",p2_skill:form.p2Skill,division:div,paid:false,approved:false}).select().single();
+    const uid=authData.user?.id;
+    const{data:team,error:te}=await sb.from("teams").insert({
+      name:form.teamName,p1_name:form.p1Name,p1_email:form.email,p1_skill:form.p1Skill,
+      p2_name:form.p2Name,p2_email:form.p2Email,p2_skill:form.p2Skill,
+      division:div,paid:false,approved:false,join_code:code,p2_joined:false
+    }).select().single();
     if(te){setErr(te.message);setBusy(false);return;}
-    if(uid){await sb.from("profiles").upsert({id:uid,email:form.email,team_id:team.id});await sb.from("notification_prefs").insert({user_id:uid});}
+    if(uid){
+      await sb.from("profiles").upsert({id:uid,email:form.email,team_id:team.id});
+      await sb.from("notification_prefs").insert({user_id:uid});
+    }
+    await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} — P2 invite sent to ${form.p2Email}. Code: ${code}`});
+    setCreatedCode(code);
     setBusy(false);
     window.open(SHOPIFY_URL,"_blank");
     setStep(6);
@@ -962,6 +1018,8 @@ function AuthScreen() {
         <div style={{fontSize:"12px",color:C.faint,letterSpacing:".5px",marginTop:"12px"}}>Flex League · Charlotte, NC · {SEASON}</div>
       </div>
       <div style={{...card(),width:"100%",maxWidth:"420px"}}>
+
+        {/* LOGIN */}
         {mode==="login"&&<>
           <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Sign in</div>
           <div style={{fontSize:"13px",color:C.muted,marginBottom:"20px"}}>Access your team portal</div>
@@ -972,11 +1030,18 @@ function AuthScreen() {
           <input style={{...inp(),marginBottom:"18px"}} type="password" placeholder="Password" value={form.password} onChange={e=>up("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
           <button style={{...btn(C.text,"#fff",{width:"100%",marginBottom:"10px"})}} onClick={doLogin} disabled={busy}>{busy?"Signing in...":"Sign in"}</button>
           <button style={{...btn(C.gray,"#fff",{width:"100%",marginBottom:"18px"})}} onClick={doGoogle}>Continue with Google</button>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px"}}>
-            <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("register");setStep(1);setErr("");}}>Create account</span>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"16px"}}>
+            <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("register");setStep(1);setErr("");}}>Register new team</span>
             <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("forgot");setErr("");}}>Forgot password?</span>
           </div>
+          <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"10px",padding:"14px",textAlign:"center"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"6px"}}>📧 Got a team invite?</div>
+            <div style={{fontSize:"12px",color:"#92400e",marginBottom:"10px"}}>Your partner registered the team and shared a 6-character code with you. Use it to create your account.</div>
+            <button style={btn("#78350f","#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{setMode("join");setJoinStep(1);setJoinErr("");}}>Join with team code →</button>
+          </div>
         </>}
+
+        {/* FORGOT */}
         {mode==="forgot"&&<>
           <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Reset password</div>
           <Err e={err}/>
@@ -986,32 +1051,97 @@ function AuthScreen() {
           <button style={btn(C.text,"#fff",{width:"100%",marginBottom:"12px"})} onClick={doForgot} disabled={busy}>{busy?"Sending...":"Send reset link"}</button>
           <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setErr("");setMsg("");}}>← Back to sign in</span>
         </>}
+
+        {/* JOIN WITH CODE */}
+        {mode==="join"&&<>
+          {joinStep===1&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Join your team</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"18px"}}>Your partner shared a 6-character team code with you. Enter it below.</p>
+            <Err e={joinErr}/>
+            <Lbl>Team code</Lbl>
+            <input
+              style={{...inp({textAlign:"center",fontSize:"32px",fontWeight:"900",letterSpacing:"8px",padding:"16px"}),marginBottom:"16px",textTransform:"uppercase",fontFamily:"monospace"}}
+              placeholder="ABC123"
+              maxLength={6}
+              value={joinCode}
+              onChange={e=>setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={e=>e.key==="Enter"&&lookupCode()}
+            />
+            <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"16px",marginBottom:"12px"})} onClick={lookupCode} disabled={busy}>{busy?"Searching...":"Find my team →"}</button>
+            <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setJoinErr("");}}>← Back to sign in</span>
+          </>}
+          {joinStep===2&&joinTeam&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Is this your team?</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Confirm before creating your account.</p>
+            <div style={{background:C.bg,borderRadius:"12px",padding:"16px",marginBottom:"18px"}}>
+              <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>{joinTeam.name}</div>
+              <div style={{fontSize:"14px",color:C.muted,marginBottom:"4px"}}>Registered by: <strong style={{color:C.text}}>{joinTeam.p1_name}</strong></div>
+              <div style={{fontSize:"13px",color:C.muted,marginBottom:"10px"}}>Partner listed: <strong style={{color:C.text}}>{joinTeam.p2_name}</strong></div>
+              <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+                <Tag c={joinTeam.division==="low"?"gray":"blue"}>{dL(joinTeam.division)}</Tag>
+                <Tag c="gray">DUPR {joinTeam.p1_skill} / {joinTeam.p2_skill}</Tag>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:"8px"}}>
+              <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>setJoinStep(3)}>✓ Yes, that's my team</button>
+              <button style={btn(C.gray,"#fff",{flex:1,minHeight:"48px"})} onClick={()=>{setJoinStep(1);setJoinTeam(null);}}>Wrong team</button>
+            </div>
+          </>}
+          {joinStep===3&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"2px"}}>Create your account</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Joining <strong>{joinTeam?.name}</strong> as Player 2 ({joinTeam?.p2_name}).</p>
+            <Err e={joinErr}/>
+            <Lbl>Your email address</Lbl>
+            <input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="your@email.com" value={joinEmail} onChange={e=>setJoinEmail(e.target.value)}/>
+            <Lbl>Create password</Lbl>
+            <input style={{...inp(),marginBottom:"12px"}} type="password" placeholder="Minimum 6 characters" value={joinPass} onChange={e=>setJoinPass(e.target.value)}/>
+            <Lbl>Confirm password</Lbl>
+            <input style={{...inp(),marginBottom:"18px"}} type="password" placeholder="Repeat password" value={joinPassC} onChange={e=>setJoinPassC(e.target.value)}/>
+            <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"15px",marginBottom:"10px"})} onClick={joinTeamSubmit} disabled={busy}>{busy?"Creating account...":"Create account & Pay $25"}</button>
+            <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>setJoinStep(2)}>← Back</button>
+          </>}
+          {joinStep===4&&<div style={{textAlign:"center",padding:"10px 0"}}>
+            <div style={{fontSize:"40px",marginBottom:"12px"}}>🏓</div>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"8px"}}>You're on the team!</div>
+            <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.7",marginBottom:"18px"}}>
+              You've joined <strong>{joinTeam?.name}</strong>. Complete your $25 payment on the tab that opened. Admin activates the team within 24 hours of both payments.
+            </p>
+            <button style={btn(C.gray,"#fff")} onClick={()=>{setMode("login");setJoinStep(1);}}>Go to sign in</button>
+          </div>}
+        </>}
+
+        {/* REGISTER — 5 steps */}
         {mode==="register"&&step<6&&<>
           <div style={{display:"flex",gap:"4px",marginBottom:"20px"}}>
             {[1,2,3,4,5].map(n=><div key={n} style={{flex:1,height:"3px",borderRadius:"2px",background:n<=step?"#111":"#e4e4e0",transition:"background .3s"}}/>)}
           </div>
-          <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"2px"}}>{["","Account","Team Info","Player 2","Rules & Waiver","Confirm & Pay"][step]}</div>
-          <div style={{fontSize:"11px",color:C.faint,marginBottom:"18px",textTransform:"uppercase"}}>Step {step} of 5</div>
+          <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"2px"}}>{["","Account","Team Info","Partner","Rules & Waiver","Review & Pay"][step]}</div>
+          <div style={{fontSize:"11px",color:C.faint,marginBottom:"18px",textTransform:"uppercase"}}>Step {step} of 5 · You are Player 1</div>
           <Err e={err}/>
           {step===1&&<>
-            <Lbl>Email address</Lbl><input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)}/>
+            <Lbl>Your email</Lbl><input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)}/>
             <Lbl>Password</Lbl><input style={{...inp(),marginBottom:"12px"}} type="password" placeholder="Minimum 6 characters" value={form.password} onChange={e=>up("password",e.target.value)}/>
             <Lbl>Confirm password</Lbl><input style={inp()} type="password" placeholder="Repeat password" value={form.confirm} onChange={e=>up("confirm",e.target.value)}/>
           </>}
           {step===2&&<>
             <Lbl>Team name</Lbl><input style={{...inp(),marginBottom:"12px"}} placeholder="e.g. The Drop Shot Duo" value={form.teamName} onChange={e=>up("teamName",e.target.value)}/>
             <Lbl>Your name (Player 1)</Lbl><input style={{...inp(),marginBottom:"12px"}} placeholder="Full name" value={form.p1Name} onChange={e=>up("p1Name",e.target.value)}/>
-            <Lbl>Your skill level (DUPR)</Lbl>
+            <Lbl>Your DUPR skill level</Lbl>
             <select style={{...inp(),appearance:"none"}} value={form.p1Skill} onChange={e=>up("p1Skill",e.target.value)}>{SKILLS.map(s=><option key={s}>{s}</option>)}</select>
           </>}
           {step===3&&<>
-            <Lbl>Partner's name (Player 2)</Lbl><input style={{...inp(),marginBottom:"12px"}} placeholder="Full name" value={form.p2Name} onChange={e=>up("p2Name",e.target.value)}/>
-            <Lbl>Partner's email <span style={{fontWeight:"400",textTransform:"none",letterSpacing:0,color:C.faint}}>(optional)</span></Lbl>
-            <input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="partner@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
-            <Lbl>Partner's skill level (DUPR)</Lbl>
+            <Lbl>Partner's name (Player 2)</Lbl>
+            <input style={{...inp(),marginBottom:"12px"}} placeholder="Full name" value={form.p2Name} onChange={e=>up("p2Name",e.target.value)}/>
+            <div style={{marginBottom:"4px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:"11px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px"}}>Partner's email</span>
+              <span style={{fontSize:"11px",background:"#fee2e2",color:C.red,padding:"2px 7px",borderRadius:"6px",fontWeight:"700"}}>Required</span>
+            </div>
+            <input style={{...inp(),marginBottom:"4px"}} type="email" placeholder="partner@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
+            <p style={{fontSize:"11px",color:C.muted,marginBottom:"12px",lineHeight:"1.5"}}>Your partner needs this to receive their join code and create their account.</p>
+            <Lbl>Partner's DUPR skill level</Lbl>
             <select style={{...inp(),appearance:"none",marginBottom:needs35()?"14px":"0"}} value={form.p2Skill} onChange={e=>up("p2Skill",e.target.value)}>{SKILLS.map(s=><option key={s}>{s}</option>)}</select>
-            {needs35()&&<div style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:"8px",padding:"14px"}}>
-              <Lbl c={C.blue}>Choose division (3.5 rated player)</Lbl>
+            {needs35()&&<div style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:"8px",padding:"14px",marginTop:"10px"}}>
+              <Lbl c={C.blue}>Choose division (3.5 player)</Lbl>
               <div style={{display:"flex",gap:"8px",marginTop:"6px"}}>
                 {["low","high"].map(d=><button key={d} onClick={()=>up("division",d)} style={{flex:1,padding:"10px",borderRadius:"8px",border:`2px solid ${form.division===d?dC(d):C.border}`,background:form.division===d?dC(d):C.white,color:form.division===d?"#fff":C.muted,cursor:"pointer",fontSize:"14px",fontWeight:"600",minHeight:"44px"}}>{dL(d)}</button>)}
               </div>
@@ -1026,7 +1156,7 @@ function AuthScreen() {
               </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:"14px",fontWeight:"600",color:form.agreed?C.green:C.text}}>{form.agreed?"Agreed ✓":"Tap to agree"}</div>
-                <div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>I have read and agree to the rules and waiver on behalf of both team members.</div>
+                <div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>I agree on behalf of both team members.</div>
               </div>
             </div>
           </>}
@@ -1038,12 +1168,15 @@ function AuthScreen() {
               <Tag c={autoDiv()==="low"?"gray":"blue"}>{dL(autoDiv()||"low")} Division</Tag>
             </div>
             <div style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:"8px",padding:"16px",textAlign:"center",marginBottom:"14px"}}>
-              <div style={{fontSize:"11px",fontWeight:"600",color:C.blue,textTransform:"uppercase",letterSpacing:".8px"}}>Your registration fee</div>
+              <div style={{fontSize:"11px",fontWeight:"600",color:C.blue,textTransform:"uppercase",letterSpacing:".8px"}}>Your fee</div>
               <div style={{fontSize:"44px",fontWeight:"800",color:C.blue,lineHeight:"1.1"}}>$25</div>
-              <div style={{fontSize:"12px",color:"#555"}}>per player · your partner pays their own $25 · non-refundable</div>
+              <div style={{fontSize:"12px",color:"#555"}}>per player · {form.p2Name} pays their own $25 separately</div>
             </div>
-            <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.7",marginBottom:"16px"}}>Clicking below saves your team and opens the Ascend PB store for your $25 payment. Share the link with your partner after. Admin activates within 24 hours of both payments.</p>
-            <button style={btn(C.text,"#fff",{width:"100%",padding:"13px"})} onClick={submitReg} disabled={busy}>{busy?"Registering...":"Pay My $25 and Register"}</button>
+            <div style={{background:"#fef9c3",border:"1px solid #fde68a",borderRadius:"8px",padding:"12px 14px",marginBottom:"14px"}}>
+              <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"4px"}}>After you register:</div>
+              <div style={{fontSize:"12px",color:"#92400e",lineHeight:"1.6"}}>You'll get a <strong>6-character team code</strong> to share with {form.p2Name}. They use it at <strong>app.ascendpb.com</strong> to create their account and pay their $25.</div>
+            </div>
+            <button style={btn(C.text,"#fff",{width:"100%",padding:"13px",fontSize:"15px"})} onClick={submitReg} disabled={busy}>{busy?"Registering...":"Pay My $25 and Get Team Code"}</button>
           </>}
           <div style={{display:"flex",justifyContent:"space-between",marginTop:"16px"}}>
             {step>1?<button style={btn(C.gray,"#fff",{padding:"10px 16px"})} onClick={()=>{setErr("");setStep(s=>s-1);}}>← Back</button>:<span/>}
@@ -1051,12 +1184,43 @@ function AuthScreen() {
           </div>
           {step===1&&<div style={{textAlign:"center",marginTop:"14px",fontSize:"13px",color:C.muted}}>Already registered? <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("login");setErr("");}}>Sign in</span></div>}
         </>}
-        {mode==="register"&&step===6&&<div style={{textAlign:"center",padding:"30px 0"}}>
+
+        {/* REGISTRATION COMPLETE — show join code */}
+        {mode==="register"&&step===6&&<div style={{textAlign:"center",padding:"10px 0"}}>
           <div style={{fontSize:"40px",marginBottom:"10px"}}>🏓</div>
-          <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"8px"}}>You're in the queue!</div>
-          <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.7",marginBottom:"18px"}}><strong style={{color:C.text}}>{form.teamName}</strong> registered. Complete your $25 payment on the tab that opened, share with your partner. Admin activates within 24 hours.</p>
-          <button style={btn(C.gray,"#fff")} onClick={()=>{setMode("login");setStep(1);}}>Back to sign in</button>
+          <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"16px"}}>You're registered!</div>
+
+          <div style={{background:"#1d1d1f",borderRadius:"14px",padding:"22px",marginBottom:"16px"}}>
+            <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Share this code with {form.p2Name}</div>
+            <div style={{fontSize:"52px",fontWeight:"900",color:"#00BFFF",letterSpacing:"10px",fontFamily:"monospace",lineHeight:"1"}}>{createdCode}</div>
+            <div style={{fontSize:"12px",color:"rgba(255,255,255,.4)",marginTop:"10px"}}>They enter this at app.ascendpb.com → "Join with team code"</div>
+          </div>
+
+          <div style={{background:C.bg,borderRadius:"10px",padding:"14px",marginBottom:"16px",textAlign:"left"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",color:C.text,marginBottom:"8px"}}>Send {form.p2Name} these instructions:</div>
+            {[
+              `1. Go to app.ascendpb.com`,
+              `2. Tap "Join with team code"`,
+              `3. Enter: ${createdCode}`,
+              `4. Create your account`,
+              `5. Pay your $25`
+            ].map((s,i)=><div key={i} style={{fontSize:"13px",color:C.muted,marginBottom:"3px"}}>{s}</div>)}
+          </div>
+
+          <button
+            style={btn(C.blue,"#fff",{width:"100%",marginBottom:"10px",minHeight:"48px"})}
+            onClick={()=>{
+              const text=`Hey ${form.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${createdCode}\n4. Create your account & pay $25\n\nSee you on the courts!`;
+              if(navigator.share){navigator.share({title:"Join our pickleball team!",text});}
+              else{navigator.clipboard.writeText(text);alert("Copied to clipboard — paste it in a text to "+form.p2Name);}
+            }}
+          >
+            📤 Share with {form.p2Name}
+          </button>
+          <p style={{fontSize:"11px",color:C.faint,marginBottom:"14px"}}>We've also noted {form.p2Email} as your partner's email for admin reference.</p>
+          <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>{setMode("login");setStep(1);}}>Back to sign in</button>
         </div>}
+
       </div>
     </div>
   );
