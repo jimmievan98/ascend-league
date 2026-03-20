@@ -854,30 +854,22 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     setBusy(false);
   };
 
-  const cancelReq=async(rid)=>{await sb.from("match_requests").update({status:"cancelled"}).eq("id",rid);setRequests(p=>p.map(r=>r.id===rid?{...r,status:"cancelled"}:r));};
-
-  // Emoji reactions
-  const addReaction=async(rid,emoji)=>{
-    const r=requests.find(x=>x.id===rid);if(!r)return;
-    const current=r.reactions||{};
-    const mine=current[myTeam?.id]===emoji?null:emoji;
-    const updated={...current,[myTeam?.id]:mine};
-    await sb.from("match_requests").update({reactions:updated}).eq("id",rid);
-    setRequests(p=>p.map(x=>x.id===rid?{...x,reactions:updated}:x));
+  const cancelReq=async(rid)=>{
+    if(!window.confirm("Cancel this match request? This cannot be undone."))return;
+    const{error}=await sb.from("match_requests").update({status:"cancelled"}).eq("id",rid);
+    if(error){alert("Could not cancel — check your connection and try again.");return;}
+    setRequests(p=>p.map(r=>r.id===rid?{...r,status:"cancelled"}:r));
   };
 
   const RequestCard=({req})=>{
     const isOwn=req.team_id===myTeam?.id;
     const isAcc=req.status==="accepted";
-    const canAct=myTeam&&myTeam.approved&&!isOwn&&!isAcc&&myTeam.division===req.division;
+    const isCancelled=req.status==="cancelled";
+    const canAct=myTeam&&myTeam.approved&&!isOwn&&!isAcc&&!isCancelled&&myTeam.division===req.division;
     const overLimit=canAct&&atLimit(req.team_id);
     const showCF=cf.rid===req.id;
     const responses=req.responses||[];
     const swiped=swipeId===req.id;
-    const reactions=req.reactions||{};
-    const reactionCounts={"👀":0,"🏓":0};
-    Object.values(reactions).forEach(e=>{if(reactionCounts[e]!==undefined)reactionCounts[e]++;});
-    const myReaction=reactions[myTeam?.id];
 
     // Poster skill range
     const poster=teams.find(t=>t.id===req.team_id);
@@ -918,16 +910,6 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
             </div>
           </div>
 
-          {/* Emoji reactions */}
-          <div style={{display:"flex",gap:"8px",marginBottom:"10px"}}>
-            {["👀","🏓"].map(e=>(
-              <button key={e} onClick={()=>myTeam&&!isOwn&&addReaction(req.id,e)}
-                style={{background:myReaction===e?"#e0f2fe":"#f5f5f3",border:`1px solid ${myReaction===e?C.blue:C.border}`,borderRadius:"8px",padding:"5px 10px",cursor:myTeam&&!isOwn?"pointer":"default",fontSize:"13px",display:"flex",alignItems:"center",gap:"4px",minHeight:"36px"}}>
-                {e} <span style={{fontSize:"12px",color:C.muted}}>{reactionCounts[e]||0}</span>
-              </button>
-            ))}
-          </div>
-
           {/* Responses thread - full transparency */}
           {responses.length>0&&(
             <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"10px"}}>
@@ -948,16 +930,17 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
             </div>
           )}
 
-          {/* Action buttons */}
+          {/* Action buttons - always visible when canAct */}
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-            {canAct&&!showCF&&!overLimit&&<>
+            {canAct&&!overLimit&&!showCF&&<>
               <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>Accept</button>
-              <button style={btn(C.gray,"#fff",{fontSize:"13px",minHeight:"44px"})} onClick={()=>setCf({rid:req.id,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""})}>Comment</button>
-              <button style={btn(C.amber,"#fff",{minHeight:"44px"})} onClick={()=>setCf({rid:req.id,type:"counter",msg:"",cdate:"",ctime:"",ccourt:""})}>Counter</button>
+              <button style={btn(C.gray,"#fff",{fontSize:"13px",minHeight:"44px"})} onClick={()=>{setSwipeId(null);setCf({rid:req.id,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""});}}>Comment</button>
+              <button style={btn(C.amber,"#fff",{minHeight:"44px"})} onClick={()=>{setSwipeId(null);setCf({rid:req.id,type:"counter",msg:"",cdate:"",ctime:"",ccourt:""});}}>Counter</button>
+              {mobile&&<span style={{fontSize:"11px",color:C.faint,alignSelf:"center"}}>← Swipe to accept</span>}
             </>}
-            {canAct&&overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team.</span>}
-            {isOwn&&!isAcc&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"40px"})} onClick={()=>cancelReq(req.id)}>Cancel request</button>}
-            {mobile&&canAct&&!overLimit&&<span style={{fontSize:"11px",color:C.faint,alignSelf:"center"}}>← Swipe to accept</span>}
+            {canAct&&overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team this season.</span>}
+            {isOwn&&!isAcc&&!isCancelled&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"40px"})} onClick={()=>cancelReq(req.id)}>Cancel request</button>}
+            {isCancelled&&<Tag c="gray">Cancelled</Tag>}
           </div>
 
           {/* Comment / Counter form */}
