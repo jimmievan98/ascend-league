@@ -688,12 +688,6 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
     return dt.getDate()===n.getDate()&&dt.getMonth()===n.getMonth()&&dt.getFullYear()===n.getFullYear();
   });
 
-  const today = (date) => {
-    const dt = new Date(date);
-    const n = new Date();
-    return dt.getDate()===n.getDate()&&dt.getMonth()===n.getMonth()&&dt.getFullYear()===n.getFullYear();
-  };
-
   return(
     <div>
       {/* Admin pinned banner */}
@@ -742,14 +736,13 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
           {myMatches.length===0?<p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>No confirmed matches yet. Post a match request to get started.</p>:
           myMatches.map(m=>{
             const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
-            const matchToday=today(m.match_date);
-            const today=isToday(m.match_date);
+            const matchToday=isToday(m.match_date);
             return(
               <div key={m.id} style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
                 <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" 🏓":""}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{m.match_date} · {m.match_time}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginBottom:"6px"}}>{m.court}</div>
-                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&!today?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {ct}</div>:null;})()}
+                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {ct}</div>:null;})()}
                 <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
                   <Tag c="green">Confirmed</Tag>
                   <div style={{display:"flex",gap:"6px",flex:1,flexWrap:"wrap"}}>
