@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.5.0"; // major.minor.patch — bump minor for new features, patch for fixes
+const APP_VERSION   = "v1.7.0";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -112,7 +112,8 @@ function useFonts() {
     const s = document.createElement("style");
     s.textContent = `
       *{box-sizing:border-box;margin:0;padding:0}
-      body{background:#f5f5f3;-webkit-tap-highlight-color:transparent}
+      html,body{height:100%;overflow-x:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:touch}
+      body{background:#f5f5f3;-webkit-tap-highlight-color:transparent;position:relative;overflow-y:auto}
       input,select,textarea,button{font-family:'DM Sans',sans-serif;-webkit-appearance:none}
       .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
       @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -366,10 +367,14 @@ function ReportModal({ myTeam, onClose }) {
 }
 
 // ── Match Chat Modal ──────────────────────────────────────────
-function MatchChatModal({ match, myTeam, teams, onClose }) {
-  const [msgs,    setMsgs]    = useState([]);
-  const [input,   setInput]   = useState("");
-  const [uploading,setUploading]=useState(false);
+// ── FACEBOOK-STYLE MATCH CHAT ────────────────────────────────
+function MatchChatWindow({ match, myTeam, teams, onClose }) {
+  const mobile     = useMobile();
+  const [msgs,     setMsgs]      = useState([]);
+  const [input,    setInput]     = useState("");
+  const [minimized,setMinimized] = useState(false);
+  const [uploading,setUploading] = useState(false);
+  const [unread,   setUnread]    = useState(0);
   const endRef  = useRef(null);
   const fileRef = useRef(null);
   const opp     = teams.find(t=>t.id===(match.t1_id===myTeam.id?match.t2_id:match.t1_id));
@@ -383,14 +388,16 @@ function MatchChatModal({ match, myTeam, teams, onClose }) {
     const ch=sb.channel(`mc-${match.id}`)
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"match_chats",filter:`match_id=eq.${match.id}`},p=>{
         setMsgs(prev=>[...prev,p.new]);
-        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
+        if(minimized)setUnread(u=>u+1);
+        else setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
       }).subscribe();
     return()=>sb.removeChannel(ch);
   },[match.id]);
 
+  const open=()=>{ setMinimized(false); setUnread(0); setTimeout(()=>endRef.current?.scrollIntoView(),100); };
+
   const send=async()=>{
     if(!input.trim()||isClosed)return;
-    const mention=input.match(/@(\w[\w\s]*)/);
     await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:input.trim()});
     setInput("");
   };
@@ -401,62 +408,101 @@ function MatchChatModal({ match, myTeam, teams, onClose }) {
     const path=`match-chats/${match.id}/${Date.now()}.${file.name.split(".").pop()}`;
     const{error}=await sb.storage.from("match-photos").upload(path,file,{upsert:true});
     if(!error){
-      const{data:urlData}=sb.storage.from("match-photos").getPublicUrl(path);
-      await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:`[photo]${urlData.publicUrl}`});
+      const{data:u}=sb.storage.from("match-photos").getPublicUrl(path);
+      await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:`[photo]${u.publicUrl}`});
     }
     setUploading(false);
   };
 
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div style={{background:C.white,borderRadius:"16px 16px 0 0",width:"100%",maxWidth:"560px",maxHeight:"90vh",display:"flex",flexDirection:"column",animation:"slideUp .25s ease"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 18px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
-          <div>
-            <div style={{fontWeight:"700",fontSize:"16px"}}>Match Chat</div>
-            <div style={{fontSize:"12px",color:C.muted}}>vs {opp?.name} · {match.match_date} · Private</div>
-          </div>
-          <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-            <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`, "_blank")} style={{background:C.blueBg,border:"none",cursor:"pointer",borderRadius:"8px",padding:"7px 10px",color:C.blue,display:"flex",alignItems:"center",gap:"5px",fontSize:"12px",fontWeight:"600"}}>
-              <Icon n="map" size={14}/> Court
-            </button>
-            <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"24px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-          </div>
-        </div>
-        {isClosed&&<Alert type="warn">This match chat has been archived.</Alert>}
-        <div style={{flex:1,overflowY:"auto",padding:"16px 18px"}}>
-          {msgs.length===0&&<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>Chat opened! Coordinate your match details here.</div>}
-          {msgs.map(m=>{
-            const mine=m.team_id===myTeam.id;
-            const isPhoto=m.content?.startsWith("[photo]");
-            const photoUrl=isPhoto?m.content.replace("[photo]",""):null;
-            return(
-              <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"8px",marginBottom:"14px",alignItems:"flex-end"}}>
-                <div style={{maxWidth:"75%"}}>
-                  {!mine&&<div style={{fontSize:"11px",color:C.muted,marginBottom:"3px",fontWeight:"600"}}>{m.team_name}</div>}
-                  {isPhoto
-                    ?<img src={photoUrl} alt="shared" style={{maxWidth:"200px",borderRadius:"12px",display:"block"}}/>
-                    :<div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"10px 14px",fontSize:"14px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
-                  }
-                  <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={endRef}/>
-        </div>
-        {!isClosed&&(
-          <div style={{padding:"12px 18px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
-            <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-              <input type="file" ref={fileRef} accept="image/*" style={{display:"none"}} onChange={sendPhoto}/>
-              <button onClick={()=>fileRef.current?.click()} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:"8px",cursor:"pointer",padding:"9px",color:C.muted,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}} disabled={uploading}>
-                <Icon n="image" size={20}/>
-              </button>
-              <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type a message... Use @TeamName to mention"/>
-              <button style={{...btn(C.text,"#fff",{padding:"10px 14px",minHeight:"44px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={18}/></button>
+  const ChatMessages=()=>(
+    <>
+      {msgs.length===0&&<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"20px 0"}}>Chat is open! Coordinate match details here.</div>}
+      {msgs.map(m=>{
+        const mine=m.team_id===myTeam.id;
+        const isPhoto=m.content?.startsWith("[photo]");
+        const photoUrl=isPhoto?m.content.replace("[photo]",""):null;
+        return(
+          <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"6px",marginBottom:"10px",alignItems:"flex-end"}}>
+            <div style={{maxWidth:"78%"}}>
+              {!mine&&<div style={{fontSize:"10px",color:C.muted,marginBottom:"2px",fontWeight:"600"}}>{m.team_name}</div>}
+              {isPhoto
+                ?<img src={photoUrl} alt="shared" style={{maxWidth:"180px",borderRadius:"10px",display:"block"}}/>
+                :<div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"8px 12px",fontSize:"13px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
+              }
+              <div style={{fontSize:"10px",color:C.faint,marginTop:"2px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
             </div>
           </div>
-        )}
+        );
+      })}
+      <div ref={endRef}/>
+    </>
+  );
+
+  // ── MOBILE: full sheet from bottom ───────────────────────────
+  if(mobile){
+    return(
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+        <div style={{background:C.white,borderRadius:"16px 16px 0 0",width:"100%",maxHeight:"88vh",display:"flex",flexDirection:"column",animation:"slideUp .25s ease"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+            <div>
+              <div style={{fontWeight:"700",fontSize:"15px"}}>vs {opp?.name}</div>
+              <div style={{fontSize:"11px",color:C.muted}}>{match.match_date} · {match.match_time}</div>
+            </div>
+            <div style={{display:"flex",gap:"8px"}}>
+              <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`,"_blank")} style={{background:C.blueBg,border:"none",cursor:"pointer",borderRadius:"8px",padding:"6px 10px",color:C.blue,fontSize:"12px",fontWeight:"600",display:"flex",alignItems:"center",gap:"4px"}}>
+                <Icon n="map" size={13}/> Map
+              </button>
+              <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"24px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+            </div>
+          </div>
+          {isClosed&&<div style={{background:C.amberBg,padding:"8px 16px",fontSize:"12px",color:C.amber,textAlign:"center"}}>This chat has been archived.</div>}
+          <div style={{flex:1,overflowY:"auto",padding:"12px 16px"}}><ChatMessages/></div>
+          {!isClosed&&<div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+            <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+              <input type="file" ref={fileRef} accept="image/*" style={{display:"none"}} onChange={sendPhoto}/>
+              <button onClick={()=>fileRef.current?.click()} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:"8px",cursor:"pointer",padding:"8px",color:C.muted,minWidth:"42px",minHeight:"42px",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon n="image" size={18}/></button>
+              <input style={{...inp({padding:"9px 12px"}),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message..." autoFocus/>
+              <button style={{...btn(C.text,"#fff",{padding:"9px 13px",minHeight:"42px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={16}/></button>
+            </div>
+          </div>}
+        </div>
       </div>
+    );
+  }
+
+  // ── DESKTOP: Facebook-style floating bottom-right ─────────────
+  return(
+    <div style={{position:"fixed",bottom:"20px",right:"20px",width:"320px",zIndex:300,display:"flex",flexDirection:"column",boxShadow:"0 4px 24px rgba(0,0,0,.18)",borderRadius:"12px",overflow:"hidden",animation:"fadeIn .2s ease"}}>
+      {/* Header — always visible, click to toggle */}
+      <div onClick={minimized?open:undefined} style={{background:"#111",color:"#fff",padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:minimized?"pointer":"default",userSelect:"none"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:"700",fontSize:"13px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>vs {opp?.name}</div>
+          <div style={{fontSize:"11px",color:"rgba(255,255,255,.6)"}}>{match.match_date} · {match.match_time}</div>
+        </div>
+        <div style={{display:"flex",gap:"6px",alignItems:"center",flexShrink:0}}>
+          {unread>0&&<span style={{background:C.red,color:"#fff",borderRadius:"50%",width:"18px",height:"18px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{unread}</span>}
+          <button onClick={e=>{e.stopPropagation();minimized?open():setMinimized(true);}} style={{background:"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",width:"26px",height:"26px",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"14px",flexShrink:0}} title={minimized?"Open":"Minimize"}>
+            {minimized?"▲":"▼"}
+          </button>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,.15)",border:"none",cursor:"pointer",borderRadius:"6px",width:"26px",height:"26px",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"16px",flexShrink:0}}>×</button>
+        </div>
+      </div>
+
+      {/* Body — hidden when minimized */}
+      {!minimized&&<>
+        {isClosed&&<div style={{background:C.amberBg,padding:"6px 14px",fontSize:"11px",color:C.amber,textAlign:"center"}}>Chat archived.</div>}
+        <div style={{background:C.white,height:"320px",overflowY:"auto",padding:"12px 14px"}}>
+          <ChatMessages/>
+        </div>
+        {!isClosed&&<div style={{background:C.white,padding:"8px 12px",borderTop:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+            <input type="file" ref={fileRef} accept="image/*" style={{display:"none"}} onChange={sendPhoto}/>
+            <button onClick={()=>fileRef.current?.click()} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:"6px",cursor:"pointer",padding:"6px",color:C.muted,minWidth:"34px",minHeight:"34px",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon n="image" size={16}/></button>
+            <input style={{...inp({padding:"7px 10px",fontSize:"13px"}),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message..."/>
+            <button style={{...btn(C.text,"#fff",{padding:"7px 11px",minHeight:"34px"}),display:"flex",alignItems:"center",justifyContent:"center"}} onClick={send}><Icon n="send" size={15}/></button>
+          </div>
+        </div>}
+      </>}
     </div>
   );
 }
@@ -729,6 +775,34 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         ))}
       </div>}
 
+      {/* Season progress bar */}
+      <div style={{...card({padding:"12px 16px"}),marginBottom:"16px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+          <span style={{fontSize:"13px",fontWeight:"600"}}>Season progress</span>
+          <span style={{fontSize:"12px",color:C.muted}}>Week {CURRENT_WEEK} of {WEEKS}</span>
+        </div>
+        <div style={{background:C.bg,borderRadius:"999px",height:"8px",overflow:"hidden"}}>
+          <div style={{background:`linear-gradient(90deg,${C.blue},${C.purple})`,height:"100%",width:`${Math.round((CURRENT_WEEK/WEEKS)*100)}%`,borderRadius:"999px",transition:"width .5s"}}/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:"6px"}}>
+          {Array.from({length:WEEKS},(_,i)=>(
+            <span key={i} style={{fontSize:"10px",color:i<CURRENT_WEEK?C.blue:C.faint,fontWeight:i+1===CURRENT_WEEK?"700":"400"}}>
+              W{i+1}{i+1===WEEKS?"🏆":""}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Stale request nudge */}
+      {myReqs.filter(r=>{
+        const hrs=(Date.now()-new Date(r.created_at))/3600000;
+        return hrs>48&&(r.responses?.length||0)===0;
+      }).map(r=>(
+        <Alert key={r.id} type="info" onDismiss={undefined}>
+          <strong>No responses yet</strong> on your {r.proposed_date} request. Try posting a different time or court — more teams may be available.
+        </Alert>
+      ))}
+
       <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:"14px",marginBottom:"20px"}}>
         {/* Confirmed matches */}
         <div style={card()}>
@@ -742,7 +816,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
                 <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" 🏓":""}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{m.match_date} · {m.match_time}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginBottom:"6px"}}>{m.court}</div>
-                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {ct}</div>:null;})()}
+                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&ct!=="Now"&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {ct}</div>:null;})()}
                 <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
                   <Tag c="green">Confirmed</Tag>
                   <div style={{display:"flex",gap:"6px",flex:1,flexWrap:"wrap"}}>
@@ -998,8 +1072,8 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
             />
             {formType==="counter"&&(
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
-                <div><Lbl>Alt date</Lbl><input style={{...inp(),background:"#fff"}} placeholder="Mar 25" value={cdate} onChange={e=>setCdate(e.target.value)}/></div>
-                <div><Lbl>Alt time</Lbl><input style={{...inp(),background:"#fff"}} placeholder="2:00 PM" value={ctime} onChange={e=>setCtime(e.target.value)}/></div>
+                <div><Lbl>Alt date</Lbl><input type="date" style={{...inp(),background:"#fff"}} value={cdate} onChange={e=>setCdate(e.target.value)}/></div>
+                <div><Lbl>Alt time</Lbl><input type="time" style={{...inp(),background:"#fff"}} value={ctime} onChange={e=>setCtime(e.target.value)}/></div>
                 <div><Lbl>Alt court</Lbl><input style={{...inp(),background:"#fff"}} placeholder="Court name" value={ccourt} onChange={e=>setCcourt(e.target.value)}/></div>
               </div>
             )}
@@ -1058,8 +1132,8 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
           <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Any team in your division can accept this request.</p>
           <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:"12px"}}>
             <div>
-              <Lbl>Available date</Lbl><input style={{...inp(),marginBottom:"12px"}} placeholder="e.g. Mar 25" value={form.date} onChange={e=>upF("date",e.target.value)}/>
-              <Lbl>Available time</Lbl><input style={inp()} placeholder="e.g. 10:00 AM" value={form.time} onChange={e=>upF("time",e.target.value)}/>
+              <Lbl>Available date</Lbl><input type="date" style={{...inp(),marginBottom:"12px"}} value={form.date} onChange={e=>upF("date",e.target.value)}/>
+              <Lbl>Available time</Lbl><input type="time" style={inp()} value={form.time} onChange={e=>upF("time",e.target.value)}/>
             </div>
             <div>
               <Lbl>Court / location</Lbl>
@@ -1087,6 +1161,130 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
 }
 
 // ── SCORES ────────────────────────────────────────────────────
+// ── SCORE CONFIRM FLOW ────────────────────────────────────────
+// Step 1: Confirm or Dispute buttons (with accidental hit protection)
+// Step 2a (Confirm): Second confirmation before locking
+// Step 2b (Dispute): Enter counter score → notify opponent
+// Step 3 (if counter disputed again): Auto-populate report → send to admin
+function ScoreConfirmFlow({ match: m, myTeam, opp, setMatches, confirmScore }) {
+  const [step, setStep]       = useState("idle"); // idle | confirm_check | dispute_check | counter_entry | counter_pending | report
+  const [cEntry, setCEntry]   = useState({});
+  const [submitting, setSub]  = useState(false);
+  const upC = (k,v) => setCEntry(e=>({...e,[k]:v}));
+
+  const doConfirm = async () => {
+    setSub(true);
+    await confirmScore(m.id);
+    setSub(false);
+  };
+
+  const doDispute = async () => {
+    setSub(true);
+    await sb.from("matches").update({status:"disputed"}).eq("id",m.id);
+    setMatches(p=>p.map(x=>x.id===m.id?{...x,status:"disputed"}:x));
+    setSub(false);
+    setStep("counter_entry");
+  };
+
+  const submitCounter = async () => {
+    const games=[];
+    for(let i=1;i<=3;i++){const s1=parseInt(cEntry[`g${i}s1`]),s2=parseInt(cEntry[`g${i}s2`]);if(!isNaN(s1)&&!isNaN(s2)&&cEntry[`g${i}s1`]!==undefined)games.push({s1,s2});}
+    if(games.length<2){alert("Enter at least 2 game scores.");return;}
+    setSub(true);
+    const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
+    const winner_id=w1>w2?m.t1_id:m.t2_id,loser_id=winner_id===m.t1_id?m.t2_id:m.t1_id;
+    await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,updated_at:new Date().toISOString()}).eq("id",m.id);
+    setMatches(p=>p.map(x=>x.id===m.id?{...x,status:"score_pending",games,winner_id,loser_id,submitted_by:myTeam.id}:x));
+    setSub(false);
+    setStep("counter_pending");
+  };
+
+  const sendToAdmin = async () => {
+    const details = `Match: ${opp?.name} vs ${myTeam.name} on ${m.match_date}. Both teams disputed the score. Submitted scores: ${m.games?.map(g=>`${g.s1}-${g.s2}`).join(" ")||"unknown"}. Counter scores by ${myTeam.name}: ${Object.values(cEntry).join(" ")}.`;
+    await sb.from("admin_activity_log").insert({action:"Score dispute escalated",target_type:"match",target_id:m.id,details});
+    await sb.from("matches").update({status:"disputed"}).eq("id",m.id);
+    setMatches(p=>p.map(x=>x.id===m.id?{...x,status:"disputed"}:x));
+    alert("Report sent to admin. They will review and resolve within 48 hours.");
+    setStep("idle");
+  };
+
+  // Step: idle — show initial buttons
+  if(step==="idle") return(
+    <div>
+      <p style={{fontSize:"13px",color:C.text,marginBottom:"12px",fontWeight:"500"}}>Your opponent submitted a score. Review and respond:</p>
+      {m.games&&m.games.length>0&&(
+        <div style={{background:C.bg,borderRadius:"8px",padding:"10px 12px",marginBottom:"12px",display:"flex",gap:"16px"}}>
+          {m.games.map((g,i)=>(
+            <div key={i} style={{textAlign:"center"}}>
+              <div style={{fontSize:"11px",color:C.faint,marginBottom:"2px"}}>Game {i+1}</div>
+              <div style={{fontSize:"16px",fontWeight:"700"}}>{g.s1}–{g.s2}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+        <button style={btn(C.green,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("confirm_check")}>✓ Confirm Score</button>
+        <button style={btn(C.red,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("dispute_check")}>✗ Dispute</button>
+      </div>
+    </div>
+  );
+
+  // Step: confirm_check — accidental hit protection
+  if(step==="confirm_check") return(
+    <div style={{background:C.greenBg,border:`1px solid ${C.green}30`,borderRadius:"10px",padding:"14px"}}>
+      <div style={{fontSize:"14px",fontWeight:"700",color:C.green,marginBottom:"8px"}}>Confirm this score?</div>
+      <p style={{fontSize:"13px",color:"#166534",marginBottom:"12px",lineHeight:"1.5"}}>This will lock the result and update standings. This cannot be undone.</p>
+      <div style={{display:"flex",gap:"8px"}}>
+        <button style={btn(C.green,"#fff",{minHeight:"44px",flex:1})} onClick={doConfirm} disabled={submitting}>{submitting?"Confirming...":"Yes, confirm"}</button>
+        <button style={btn(C.gray,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("idle")}>Cancel</button>
+      </div>
+    </div>
+  );
+
+  // Step: dispute_check — accidental hit protection
+  if(step==="dispute_check") return(
+    <div style={{background:C.redBg,border:`1px solid ${C.red}30`,borderRadius:"10px",padding:"14px"}}>
+      <div style={{fontSize:"14px",fontWeight:"700",color:C.red,marginBottom:"8px"}}>Dispute this score?</div>
+      <p style={{fontSize:"13px",color:"#991b1b",marginBottom:"12px",lineHeight:"1.5"}}>You'll be asked to enter the correct scores. Your opponent will then need to confirm or escalate to admin.</p>
+      <div style={{display:"flex",gap:"8px"}}>
+        <button style={btn(C.red,"#fff",{minHeight:"44px",flex:1})} onClick={doDispute} disabled={submitting}>{submitting?"Processing...":"Yes, dispute"}</button>
+        <button style={btn(C.gray,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("idle")}>Cancel</button>
+      </div>
+    </div>
+  );
+
+  // Step: counter_entry — enter correct scores
+  if(step==="counter_entry") return(
+    <div style={{background:C.amberBg,border:`1px solid ${C.amber}30`,borderRadius:"10px",padding:"14px"}}>
+      <div style={{fontSize:"14px",fontWeight:"700",color:C.amber,marginBottom:"4px"}}>Enter the correct scores</div>
+      <p style={{fontSize:"12px",color:"#78350f",marginBottom:"12px",lineHeight:"1.5"}}>Your opponent will receive a notification and must confirm or escalate to admin.</p>
+      <div style={{display:"flex",gap:"10px",flexWrap:"wrap",marginBottom:"12px"}}>
+        {[1,2,3].map(g=>(
+          <div key={g} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"10px"}}>
+            <Lbl>Game {g}{g===3?" (if needed)":""}</Lbl>
+            <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+              <input style={{...inp({width:"46px",textAlign:"center",fontSize:"16px"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={cEntry[`g${g}s1`]||""} onChange={e=>upC(`g${g}s1`,e.target.value)}/>
+              <span style={{color:"#ccc",fontSize:"18px"}}>–</span>
+              <input style={{...inp({width:"46px",textAlign:"center",fontSize:"16px"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={cEntry[`g${g}s2`]||""} onChange={e=>upC(`g${g}s2`,e.target.value)}/>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:"8px"}}>
+        <button style={btn(C.amber,"#fff",{minHeight:"44px",flex:1})} onClick={submitCounter} disabled={submitting}>{submitting?"Sending...":"Submit counter score"}</button>
+        <button style={btn(C.gray,"#fff",{minHeight:"44px",flex:1})} onClick={()=>setStep("idle")}>Cancel</button>
+      </div>
+    </div>
+  );
+
+  // Step: counter_pending — waiting on opponent
+  if(step==="counter_pending") return(
+    <Alert type="warn">Counter score submitted — {opp?.name} has been notified and must confirm or escalate to admin.</Alert>
+  );
+
+  return null;
+}
+
 function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
   const mobile = useMobile();
   const [entry, setEntry] = useState({});
@@ -1100,8 +1298,8 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
     const m=matches.find(x=>x.id===mid);
     const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
     const winner_id=w1>w2?m.t1_id:m.t2_id,loser_id=winner_id===m.t1_id?m.t2_id:m.t1_id;
-    const hasSub=!!document.getElementById(`sub-${mid}`)?.checked;
-    await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,has_sub:hasSub,updated_at:new Date().toISOString()}).eq("id",mid);
+    const hasSub=false; // sub disclosure removed per design
+    await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,updated_at:new Date().toISOString()}).eq("id",mid);
     setMatches(p=>p.map(m=>m.id===mid?{...m,status:"score_pending",games,winner_id,loser_id,submitted_by:myTeam.id}:m));
     setEntry(e=>{const n={...e};delete n[mid];return n;});
   };
@@ -1123,15 +1321,16 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
         const s=entry[m.id]||{};
         const canSubmit=m.status==="confirmed";
         const canConfirm=m.status==="score_pending"&&m.submitted_by!==myTeam?.id;
+        const scoreSubmitted = m.status==="score_pending";
         return(
-          <div key={m.id} style={{...card(),marginBottom:"14px"}}>
+          <div key={m.id} style={{...card(),marginBottom:"14px",opacity:scoreSubmitted?0.75:1}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",flexWrap:"wrap",gap:"8px"}}>
               <div>
                 <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"3px"}}>vs {opp?.name}</div>
                 <div style={{fontSize:"12px",color:C.muted}}>{m.match_date} · {m.match_time} · {m.court}</div>
               </div>
               <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap",minWidth:"0"}}>
-                <Tag c={m.status==="confirmed"?"green":m.status==="score_pending"?"amber":m.status==="completed"?"gray":"red"}>{m.status==="confirmed"?"Confirmed":m.status==="score_pending"?"Score Pending":m.status==="completed"?"Completed":"Disputed"}</Tag>
+                <Tag c={m.status==="confirmed"?"green":scoreSubmitted?"amber":m.status==="completed"?"gray":"red"}>{m.status==="confirmed"?"Confirmed":scoreSubmitted?"Score Pending":m.status==="completed"?"Completed":"Disputed"}</Tag>
                 <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",minWidth:"64px"})} onClick={()=>openChat(m)}>Chat</button>
                 {m.status==="confirmed"&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",minWidth:"64px"})} onClick={()=>openCancel(m)}>Cancel</button>}
               </div>
@@ -1149,20 +1348,10 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
                   </div>
                 ))}
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"14px"}}>
-                <input type="checkbox" id={`sub-${m.id}`} style={{accentColor:C.blue,width:"16px",height:"16px"}}/>
-                <label htmlFor={`sub-${m.id}`} style={{fontSize:"13px",color:C.muted,cursor:"pointer"}}>A sub played in this match</label>
-              </div>
               <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>submitScore(m.id)}>Submit Score</button>
             </>}
             {m.status==="score_pending"&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
-            {canConfirm&&<>
-              <p style={{fontSize:"13px",marginBottom:"12px"}}>Your opponent submitted a score. Confirm or dispute:</p>
-              <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-                <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>confirmScore(m.id)}>Confirm Score</button>
-                <button style={btn(C.red,"#fff",{minHeight:"44px"})} onClick={async()=>{await sb.from("matches").update({status:"disputed"}).eq("id",m.id);setMatches(p=>p.map(x=>x.id===m.id?{...x,status:"disputed"}:x));}}>Dispute</button>
-              </div>
-            </>}
+            {canConfirm&&<ScoreConfirmFlow match={m} myTeam={myTeam} opp={opp} setMatches={setMatches} confirmScore={confirmScore}/>}
             {/* Game scores history */}
             {m.games&&m.games.length>0&&(
               <div style={{marginTop:"12px",background:C.bg,borderRadius:"8px",padding:"10px 12px"}}>
@@ -1824,6 +2013,67 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
 }
 
 // ── ADMIN PANEL ───────────────────────────────────────────────
+// ── ADMIN INBOX ───────────────────────────────────────────────
+function AdminInbox({ userId, teams, matches }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const tName = id => teams.find(t=>t.id===id)?.name ?? "Unknown";
+
+  useEffect(()=>{
+    const load = async () => {
+      const [{ data:reports },{ data:edits },{ data:cancels }] = await Promise.all([
+        sb.from("admin_activity_log").select("*").in("action",["Player report","Score dispute escalated","Team edit request"]).order("created_at",{ascending:false}).limit(50),
+        sb.from("admin_activity_log").select("*").eq("action","Team edit request").order("created_at",{ascending:false}).limit(20),
+        sb.from("match_cancellations").select("*,matches(match_date,match_time,court,t1_id,t2_id)").order("created_at",{ascending:false}).limit(20),
+      ]);
+      const all = [
+        ...(reports||[]).map(r=>({...r,_type:"report"})),
+        ...(cancels||[]).map(c=>({...c,_type:"cancel",action:"Match cancelled",details:`${tName(c.cancelled_by)}: ${c.reason}`,created_at:c.created_at})),
+      ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+      setItems(all);
+      setLoading(false);
+    };
+    load();
+  },[]);
+
+  const iconMap = {
+    "Player report":"🚩",
+    "Score dispute escalated":"⚠",
+    "Team edit request":"✏",
+    "Match cancelled":"❌",
+  };
+
+  const colorMap = {
+    "Player report":C.red,
+    "Score dispute escalated":C.amber,
+    "Team edit request":C.blue,
+    "Match cancelled":C.muted,
+  };
+
+  return(
+    <div>
+      <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"4px"}}>Admin Inbox</div>
+      <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Player reports, edit requests, score disputes, and match cancellations — all in one place.</p>
+      {loading&&<p style={{fontSize:"13px",color:C.muted}}>Loading...</p>}
+      {!loading&&items.length===0&&<p style={{fontSize:"13px",color:C.muted}}>Inbox is empty. All clear!</p>}
+      {items.map((item,i)=>(
+        <div key={i} style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",gap:"10px",alignItems:"flex-start"}}>
+            <span style={{fontSize:"18px",flexShrink:0}}>{iconMap[item.action]||"•"}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"8px",flexWrap:"wrap"}}>
+                <span style={{fontSize:"13px",fontWeight:"700",color:colorMap[item.action]||C.text}}>{item.action}</span>
+                <span style={{fontSize:"11px",color:C.faint,whiteSpace:"nowrap"}}>{timeAgo(item.created_at)}</span>
+              </div>
+              {item.details&&<div style={{fontSize:"13px",color:C.text,marginTop:"4px",lineHeight:"1.5"}}>{item.details}</div>}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner, setAdminBanner, weekDeadline, setWeekDeadline }) {
   const mobile=useMobile();
   const [tab,setTab]=useState("summary");
@@ -1921,7 +2171,7 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
   const saveBanner=()=>{ setAdminBanner(bannerDraft||null); alert(bannerDraft?"Banner set — visible to all players on dashboard.":"Banner cleared."); };
   const saveDeadline=()=>{ setWeekDeadline(deadlineDraft||null); alert(deadlineDraft?"Deadline set.":"Deadline cleared."); };
 
-  const tabs=[["summary","📊 Summary"],["pending",`📋 Pending (${pending.length})`],["disputes",`⚠ Disputes (${disputes.length})`],["teams","👥 Teams"],["matches","🏓 Matches"],["payments","💰 Payments"],["dm","✉ Message"],["announce","📢 Announce"],["controls","⚙ Controls"],["log","📝 Log"]];
+  const tabs=[["summary","📊 Summary"],["pending",`📋 Pending (${pending.length})`],["disputes",`⚠ Disputes (${disputes.length})`],["inbox","📥 Inbox"],["teams","👥 Teams"],["matches","🏓 Matches"],["payments","💰 Payments"],["dm","✉ Message"],["announce","📢 Announce"],["controls","⚙ Controls"],["log","📝 Log"]];
   const tdS=(s={})=>({padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"13px",...s});
 
   return(
@@ -1993,6 +2243,9 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
           ))}
         </>}
 
+        {/* INBOX */}
+        {tab==="inbox"&&<AdminInbox userId={userId} teams={teams} matches={matches}/>}
+
         {/* ALL TEAMS */}
         {tab==="teams"&&<>
           <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"14px"}}>All teams ({teams.length})</div>
@@ -2043,8 +2296,8 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
             <div><Lbl>Team 1</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.t1} onChange={e=>setNewMatch(m=>({...m,t1:e.target.value}))}><option value="">Select...</option>{teams.filter(t=>t.approved).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
             <div><Lbl>Team 2</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.t2} onChange={e=>setNewMatch(m=>({...m,t2:e.target.value}))}><option value="">Select...</option>{teams.filter(t=>t.approved).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
             <div><Lbl>Division</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.div} onChange={e=>setNewMatch(m=>({...m,div:e.target.value}))}><option value="low">3.0–3.5</option><option value="high">3.5–4.0</option></select></div>
-            <div><Lbl>Date</Lbl><input style={inp()} placeholder="e.g. Mar 25" value={newMatch.date} onChange={e=>setNewMatch(m=>({...m,date:e.target.value}))}/></div>
-            <div><Lbl>Time</Lbl><input style={inp()} placeholder="e.g. 10:00 AM" value={newMatch.time} onChange={e=>setNewMatch(m=>({...m,time:e.target.value}))}/></div>
+            <div><Lbl>Date</Lbl><input type="date" style={inp()} value={newMatch.date} onChange={e=>setNewMatch(m=>({...m,date:e.target.value}))}/></div>
+            <div><Lbl>Time</Lbl><input type="time" style={inp()} value={newMatch.time} onChange={e=>setNewMatch(m=>({...m,time:e.target.value}))}/></div>
             <div><Lbl>Court</Lbl><input style={inp()} placeholder="Court name" value={newMatch.court} onChange={e=>setNewMatch(m=>({...m,court:e.target.value}))}/></div>
           </div>
           <button style={btn(C.text,"#fff",{minHeight:"44px",marginBottom:"20px"})} onClick={createMatch} disabled={!newMatch.t1||!newMatch.t2}>Create Match</button>
@@ -2281,7 +2534,10 @@ export default function AscendLeague() {
         {!mobile&&<>
           <div style={{width:"1px",height:"22px",background:C.border,margin:"0 6px"}}/>
           {navTabs.map(([id,lbl])=>(
-            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#111":"transparent",border:"none",color:tab===id?"#fff":C.muted,padding:"6px 10px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",fontWeight:tab===id?"600":"500",transition:"all .12s",whiteSpace:"nowrap"}}>{lbl}</button>
+            <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#111":"transparent",border:"none",color:tab===id?"#fff":C.muted,padding:"6px 10px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",fontWeight:tab===id?"600":"500",transition:"all .12s",whiteSpace:"nowrap",position:"relative"}}>
+              {lbl}
+              {id==="chat"&&msgUnread>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.red,color:"#fff",borderRadius:"50%",width:"15px",height:"15px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{msgUnread>9?"9+":msgUnread}</span>}
+            </button>
           ))}
         </>}
         <div style={{flex:1}}/>
@@ -2308,7 +2564,7 @@ export default function AscendLeague() {
       {mobile&&<BottomNav tab={tab} setTab={setTab} isAdmin={isAdmin} unreadCount={msgUnread}/>}
 
       {/* Modals */}
-      {activeChat  &&<MatchChatModal    match={activeChat}  myTeam={myTeam} teams={teams} onClose={()=>setActiveChat(null)}/>}
+      {activeChat  &&<MatchChatWindow   match={activeChat}  myTeam={myTeam} teams={teams} onClose={()=>setActiveChat(null)}/>}
       {cancelMatch &&<CancelMatchModal  match={cancelMatch} myTeam={myTeam} teams={teams} onConfirm={handleCancelMatch} onClose={()=>setCancelMatch(null)}/>}
       {showReport  &&<ReportModal       myTeam={myTeam} onClose={()=>setShowReport(false)}/>}
       {showNotifPrefs&&<NotifPrefsModal userId={userId} onClose={()=>setShowNotifPrefs(false)}/>}
