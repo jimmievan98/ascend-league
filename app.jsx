@@ -799,13 +799,11 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
   const mobile = useMobile();
   const [showForm,  setShowForm]  = useState(false);
   const [form,      setForm]      = useState({date:"",time:"",court:"",notes:"",fee:""});
-  const [cf,        setCf]        = useState({rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""});
   const [confirmReq,setConfirmReq]= useState(null);
   const [busy,      setBusy]      = useState(false);
   const [filter,    setFilter]    = useState({date:"",timeOfDay:""});
   const [showCourts,setShowCourts]= useState(false);
   const upF=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const upC=(k,v)=>setCf(c=>({...c,[k]:v}));
 
   const divReqs = requests.filter(r=>{
     if(r.division!==division)return false;
@@ -843,15 +841,6 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     setBusy(false);
   };
 
-  const submitComment=async(rid)=>{
-    if(!cf.msg.trim())return;
-    setBusy(true);
-    const{data,error}=await sb.from("request_responses").insert({request_id:rid,team_id:myTeam.id,team_name:myTeam.name,type:cf.type,message:cf.msg,counter_date:cf.cdate||"",counter_time:cf.ctime||"",counter_court:cf.ccourt||""}).select().single();
-    if(!error)setRequests(p=>p.map(r=>r.id===rid?{...r,responses:[...(r.responses||[]),data]}:r));
-    setCf({rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""});
-    setBusy(false);
-  };
-
   const cancelReq=async(rid)=>{
     if(!window.confirm("Cancel this match request? This cannot be undone."))return;
     const{error}=await sb.from("match_requests").update({status:"cancelled"}).eq("id",rid);
@@ -859,16 +848,44 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     setRequests(p=>p.map(r=>r.id===rid?{...r,status:"cancelled"}:r));
   };
 
+  // RequestCard — self-contained state so typing never loses focus
   const RequestCard=({req})=>{
-    const isOwn      = req.team_id===myTeam?.id;
-    const isAcc      = req.status==="accepted";
-    const isCancelled= req.status==="cancelled";
-    const canAct     = myTeam&&myTeam.approved&&!isOwn&&!isAcc&&!isCancelled&&myTeam.division===req.division;
-    const overLimit  = canAct&&atLimit(req.team_id);
-    const showCF     = cf.rid===req.id;
-    const responses  = req.responses||[];
-    const poster     = teams.find(t=>t.id===req.team_id);
-    const skillRange = poster?`${poster.p1_skill}/${poster.p2_skill}`:"";
+    const isOwn       = req.team_id===myTeam?.id;
+    const isAcc       = req.status==="accepted";
+    const isCancelled = req.status==="cancelled";
+    // Anyone approved in this division can interact — including the poster (for replies)
+    const canInteract = myTeam&&myTeam.approved&&!isCancelled&&myTeam.division===req.division;
+    const canAccept   = canInteract&&!isOwn&&!isAcc&&!atLimit(req.team_id);
+    const overLimit   = canInteract&&!isOwn&&atLimit(req.team_id);
+    const responses   = req.responses||[];
+    const poster      = teams.find(t=>t.id===req.team_id);
+    const skillRange  = poster?`${poster.p1_skill}/${poster.p2_skill}`:"";
+
+    // Local state — prevents parent re-render from stealing focus
+    const [formType, setFormType] = useState(null); // null | "comment" | "counter"
+    const [msg,  setMsg]  = useState("");
+    const [cdate,setCdate]= useState("");
+    const [ctime,setCtime]= useState("");
+    const [ccourt,setCcourt]=useState("");
+    const [submitting, setSubmitting]=useState(false);
+
+    const openForm=(type)=>{ setFormType(f=>f===type?null:type); setMsg(""); setCdate(""); setCtime(""); setCcourt(""); };
+    const closeForm=()=>{ setFormType(null); setMsg(""); setCdate(""); setCtime(""); setCcourt(""); };
+
+    const submitComment=async()=>{
+      if(!msg.trim()||submitting)return;
+      setSubmitting(true);
+      const{data,error}=await sb.from("request_responses").insert({
+        request_id:req.id,team_id:myTeam.id,team_name:myTeam.name,
+        type:formType,message:msg,
+        counter_date:cdate||"",counter_time:ctime||"",counter_court:ccourt||""
+      }).select().single();
+      if(!error){
+        setRequests(p=>p.map(r=>r.id===req.id?{...r,responses:[...(r.responses||[]),data]}:r));
+        closeForm();
+      }
+      setSubmitting(false);
+    };
 
     return(
       <div style={{...card(),marginBottom:"12px",borderLeft:`4px solid ${isCancelled?"#ccc":isAcc?C.green:C.blue}`,opacity:isCancelled?0.5:isAcc?0.75:1}}>
@@ -893,10 +910,10 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
           <Tag c={isCancelled?"gray":isAcc?"green":"blue"}>{isCancelled?"Cancelled":isAcc?"Matched":"Open"}</Tag>
         </div>
 
-        {/* Responses thread — full transparency */}
+        {/* Responses thread — full transparency, everyone sees all */}
         {responses.length>0&&(
           <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"12px"}}>
-            <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Responses ({responses.length})</div>
+            <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Thread ({responses.length})</div>
             {responses.map(r=>(
               <div key={r.id} style={{padding:"9px 0",borderBottom:`1px solid #eee`}}>
                 <div style={{display:"flex",alignItems:"center",gap:"7px",marginBottom:"4px",flexWrap:"wrap"}}>
@@ -910,6 +927,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
                     Proposes: {r.counter_date}{r.counter_time?` at ${r.counter_time}`:""}{r.counter_court?` · ${r.counter_court}`:""}
                   </div>
                 )}
+                {/* Request owner can accept any counter */}
                 {isOwn&&r.type==="counter"&&!isAcc&&(
                   <button style={btn(C.green,"#fff",{marginTop:"8px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>setConfirmReq({req,isCounter:true,counterData:r})}>
                     Accept this counter
@@ -920,53 +938,57 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
           </div>
         )}
 
-        {/* Action buttons — always visible */}
-        {canAct&&!overLimit&&(
-          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:showCF?"12px":"0"}}>
-            <button style={btn(C.green,"#fff",{minHeight:"44px",flex:"1",minWidth:"100px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>
-              ✓ Accept
+        {/* Action buttons — all approved division members can interact */}
+        {canInteract&&!isCancelled&&!isAcc&&(
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:formType?"12px":"0"}}>
+            {canAccept&&(
+              <button style={btn(C.green,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>
+                ✓ Accept
+              </button>
+            )}
+            {overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team.</span>}
+            <button style={btn(formType==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("comment")}>
+              💬 {formType==="comment"?"Close":"Comment"}
             </button>
-            <button style={btn(cf.rid===req.id&&cf.type==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"100px"})} onClick={()=>setCf(prev=>prev.rid===req.id&&prev.type==="comment"?{rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""}:{rid:req.id,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""})}>
-              💬 Comment
-            </button>
-            <button style={btn(cf.rid===req.id&&cf.type==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"100px"})} onClick={()=>setCf(prev=>prev.rid===req.id&&prev.type==="counter"?{rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""}:{rid:req.id,type:"counter",msg:"",cdate:"",ctime:"",ccourt:""})}>
-              ↩ Counter
-            </button>
+            {!isOwn&&(
+              <button style={btn(formType==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("counter")}>
+                ↩ {formType==="counter"?"Close":"Counter"}
+              </button>
+            )}
+            {isOwn&&(
+              <button style={btn(C.red,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>cancelReq(req.id)}>
+                Cancel
+              </button>
+            )}
           </div>
         )}
-        {canAct&&overLimit&&<p style={{fontSize:"12px",color:C.faint,marginBottom:"8px"}}>Max {MAX_VS} matches vs this team this season.</p>}
-        {isOwn&&!isAcc&&!isCancelled&&(
-          <button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"40px"})} onClick={()=>cancelReq(req.id)}>
-            Cancel request
-          </button>
-        )}
+        {isOwn&&isAcc&&<p style={{fontSize:"12px",color:C.muted,marginBottom:"8px"}}>Match confirmed — open the match chat to coordinate details.</p>}
 
-        {/* Comment / Counter form — slides in below buttons */}
-        {showCF&&(
-          <div style={{background:C.bg,border:`1.5px solid ${cf.type==="counter"?C.amber:C.blue}`,borderRadius:"10px",padding:"14px",marginTop:"4px"}}>
-            <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"10px",color:cf.type==="counter"?C.amber:C.blue}}>
-              {cf.type==="counter"?"Counter proposal — propose a different time or court":"Leave a comment"}
+        {/* Comment / Counter inline form — local state keeps focus stable */}
+        {formType&&(
+          <div style={{background:formType==="counter"?"#fffbeb":"#eff6ff",border:`1.5px solid ${formType==="counter"?C.amber:C.blue}`,borderRadius:"10px",padding:"14px"}}>
+            <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"10px",color:formType==="counter"?C.amber:C.blue}}>
+              {formType==="counter"?"Counter proposal — suggest a different time or court":"Add a comment"}
             </div>
-            <Lbl>Message</Lbl>
-            <input
-              style={{...inp(),marginBottom:"10px"}}
-              placeholder={cf.type==="counter"?"e.g. That time doesn't work — how about Saturday at 2pm?":"e.g. We're interested! Is this court covered or outdoor?"}
-              value={cf.msg}
-              onChange={e=>upC("msg",e.target.value)}
+            <textarea
+              style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px",background:"#fff"}}
+              placeholder={formType==="counter"?"e.g. That time doesn't work for us — can you do Saturday at 2pm at Freedom Park?":"e.g. We're interested! Is this an outdoor court? Let us check our schedule."}
+              value={msg}
+              onChange={e=>setMsg(e.target.value)}
               autoFocus
             />
-            {cf.type==="counter"&&(
+            {formType==="counter"&&(
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
-                <div><Lbl>Alt date</Lbl><input style={inp()} placeholder="Mar 25" value={cf.cdate} onChange={e=>upC("cdate",e.target.value)}/></div>
-                <div><Lbl>Alt time</Lbl><input style={inp()} placeholder="2:00 PM" value={cf.ctime} onChange={e=>upC("ctime",e.target.value)}/></div>
-                <div><Lbl>Alt court</Lbl><input style={inp()} placeholder="Court name" value={cf.ccourt} onChange={e=>upC("ccourt",e.target.value)}/></div>
+                <div><Lbl>Alt date</Lbl><input style={{...inp(),background:"#fff"}} placeholder="Mar 25" value={cdate} onChange={e=>setCdate(e.target.value)}/></div>
+                <div><Lbl>Alt time</Lbl><input style={{...inp(),background:"#fff"}} placeholder="2:00 PM" value={ctime} onChange={e=>setCtime(e.target.value)}/></div>
+                <div><Lbl>Alt court</Lbl><input style={{...inp(),background:"#fff"}} placeholder="Court name" value={ccourt} onChange={e=>setCcourt(e.target.value)}/></div>
               </div>
             )}
             <div style={{display:"flex",gap:"8px"}}>
-              <button style={btn(cf.type==="counter"?C.amber:C.text,"#fff",{minHeight:"44px",flex:1})} onClick={()=>submitComment(req.id)} disabled={!cf.msg.trim()||busy}>
-                {cf.type==="counter"?"Send counter":"Post comment"}
+              <button style={btn(formType==="counter"?C.amber:C.text,"#fff",{minHeight:"44px",flex:1})} onClick={submitComment} disabled={!msg.trim()||submitting}>
+                {submitting?"Sending...":(formType==="counter"?"Send counter":"Post comment")}
               </button>
-              <button style={btn(C.gray,"#fff",{minHeight:"44px",padding:"10px 16px"})} onClick={()=>setCf({rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""})}>
+              <button style={btn(C.gray,"#fff",{minHeight:"44px",padding:"10px 18px"})} onClick={closeForm}>
                 Cancel
               </button>
             </div>
