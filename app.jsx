@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v1.8.2";
+const APP_VERSION   = "v1.8.3";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -789,6 +789,31 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
       {myTeam&&!myTeam.approved&&<Alert type="warn"><strong>Pending activation</strong> — Registration saved. Admin activates within 24 hours of both players' payments.</Alert>}
       {clinched&&<Alert type="success">🎉 <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
 
+      {/* Yellow notification — scores needing action */}
+      {myTeam?.approved&&(()=>{
+        const needsConfirm=matches.filter(m=>
+          (m.t1_id===myTeam.id||m.t2_id===myTeam.id)&&
+          m.status==="score_pending"&&
+          m.submitted_by!==myTeam.id&&
+          !m.cancelled
+        );
+        const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
+        if(needsConfirm.length===0)return null;
+        return(
+          <div style={{background:"#fef08a",border:"1.5px solid #ca8a04",borderRadius:"12px",padding:"14px 16px",marginBottom:"16px",display:"flex",gap:"12px",alignItems:"flex-start"}}>
+            <span style={{fontSize:"22px",flexShrink:0}}>⚠️</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:"15px",fontWeight:"700",color:"#78350f",marginBottom:"4px"}}>Score{needsConfirm.length>1?"s":""} waiting for your response!</div>
+              {needsConfirm.map(m=>{
+                const opp=tName(m.t1_id===myTeam.id?m.t2_id:m.t1_id);
+                return<div key={m.id} style={{fontSize:"13px",color:"#92400e",marginBottom:"2px"}}>{opp} submitted a score — confirm or dispute</div>;
+              })}
+              <button style={{...btn("#78350f","#fff",{fontSize:"13px",padding:"7px 16px",minHeight:"36px",marginTop:"8px"})}} onClick={()=>setTab("scores")}>Go to My Matches →</button>
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"12px",marginBottom:"22px"}}>
         <div>
           <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px"}}>{myTeam?.name||"Dashboard"}</div>
@@ -945,6 +970,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
 
   const divReqs = requests.filter(r=>{
     if(r.division!==division)return false;
+    if(r.status==="cancelled")return false; // hide cancelled requests
     if(filter.date&&!r.proposed_date.includes(filter.date))return false;
     if(filter.timeOfDay==="morning"&&!["6:","7:","8:","9:","10:","11:"].some(h=>r.proposed_time.includes(h)))return false;
     if(filter.timeOfDay==="afternoon"&&!["12:","1:","2:","3:","4:","5:"].some(h=>r.proposed_time.includes(h)))return false;
@@ -994,6 +1020,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     // Anyone approved in this division can interact — including the poster (for replies)
     const canInteract = myTeam&&myTeam.approved&&!isCancelled&&myTeam.division===req.division;
     const canAccept   = canInteract&&!isOwn&&!isAcc&&!atLimit(req.team_id);
+    const canCounter  = canInteract&&!isOwn&&!isAcc; // own team cannot counter their own request
     const overLimit   = canInteract&&!isOwn&&atLimit(req.team_id);
     const responses   = req.responses||[];
     const poster      = teams.find(t=>t.id===req.team_id);
@@ -1088,7 +1115,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
             <button style={btn(formType==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("comment")}>
               💬 {formType==="comment"?"Close":"Comment"}
             </button>
-            {!isOwn&&(
+            {canCounter&&(
               <button style={btn(formType==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("counter")}>
                 ↩ {formType==="counter"?"Close":"Counter"}
               </button>
@@ -1351,142 +1378,144 @@ function ScoreConfirmFlow({ match: m, myTeam, opp, setMatches, confirmScore }) {
   return null;
 }
 
+// ── SCORE ENTRY (hoisted outside Scores to prevent focus loss) ─
+function ScoreEntry({ mid, myTeam, opp, entry, setEntry }) {
+  const s = entry[mid] || {};
+  const upE = (k,v) => setEntry(e=>({...e,[mid]:{...(e[mid]||{}),[k]:v}}));
+  const games = [];
+  for(let i=1;i<=3;i++){const s1=parseInt(s[`g${i}s1`]),s2=parseInt(s[`g${i}s2`]);if(!isNaN(s1)&&!isNaN(s2)&&s[`g${i}s1`]!=="")games.push({s1,s2});}
+  const hasEnough = games.length >= 2;
+
+  const inputStyle = (val) => ({
+    width:"0", flex:1, textAlign:"center", fontSize:"26px", fontWeight:"800",
+    background:C.white, border:`2px solid ${val?"#111":C.border}`,
+    borderRadius:"12px", padding:"12px 4px", outline:"none",
+    fontFamily:"'DM Sans',sans-serif", minWidth:"0", color:C.text,
+    WebkitAppearance:"none", MozAppearance:"textfield",
+  });
+
+  return(
+    <div>
+      {/* Team labels — large */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",padding:"0 2px"}}>
+        <span style={{fontSize:"16px",fontWeight:"800",color:C.text,flex:1}}>{myTeam?.name}</span>
+        <span style={{fontSize:"13px",color:C.faint,padding:"0 10px"}}>vs</span>
+        <span style={{fontSize:"16px",fontWeight:"800",color:C.text,flex:1,textAlign:"right"}}>{opp?.name}</span>
+      </div>
+
+      {/* Game rows */}
+      {[1,2,3].map(g=>(
+        <div key={g} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px",background:C.bg,borderRadius:"12px",padding:"12px 14px"}}>
+          <span style={{fontSize:"12px",color:C.muted,width:"60px",flexShrink:0,fontWeight:"600"}}>
+            {g===3?"Game 3*":`Game ${g}`}
+          </span>
+          <div style={{display:"flex",alignItems:"center",gap:"10px",flex:1}}>
+            <input
+              type="number" min="0" max="25" inputMode="numeric" pattern="[0-9]*"
+              placeholder="0"
+              value={s[`g${g}s1`]||""}
+              onChange={e=>upE(`g${g}s1`,e.target.value)}
+              style={inputStyle(s[`g${g}s1`])}
+            />
+            <span style={{fontSize:"20px",color:"#ccc",fontWeight:"300",flexShrink:0}}>—</span>
+            <input
+              type="number" min="0" max="25" inputMode="numeric" pattern="[0-9]*"
+              placeholder="0"
+              value={s[`g${g}s2`]||""}
+              onChange={e=>upE(`g${g}s2`,e.target.value)}
+              style={inputStyle(s[`g${g}s2`])}
+            />
+          </div>
+        </div>
+      ))}
+      <p style={{fontSize:"11px",color:C.faint,marginBottom:"14px",paddingLeft:"2px"}}>* Game 3 only if needed · Left score = {myTeam?.name} · Right = {opp?.name}</p>
+      <button
+        style={btn(hasEnough?C.text:"#ccc","#fff",{width:"100%",minHeight:"52px",fontSize:"16px",fontWeight:"700",cursor:hasEnough?"pointer":"default"})}
+        disabled={!hasEnough}
+        onClick={()=>hasEnough&&setEntry(e=>({...e,[`__confirm_${mid}`]:true}))}
+      >
+        Review &amp; Submit Score
+      </button>
+    </div>
+  );
+}
+
+// ── SCORE CONFIRM MODAL (hoisted outside to prevent focus loss) ─
+function ScoreConfirmModal({ mid, myTeam, teams, matches, entry, setEntry, setMatches, onClose }) {
+  if(!mid)return null;
+  const m = matches.find(x=>x.id===mid);
+  if(!m)return null;
+  const opp = teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
+  const s = entry[mid]||{};
+  const games=[];
+  for(let i=1;i<=3;i++){const s1=parseInt(s[`g${i}s1`]),s2=parseInt(s[`g${i}s2`]);if(!isNaN(s1)&&!isNaN(s2)&&s[`g${i}s1`]!=="")games.push({s1,s2});}
+  const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
+  const winner=w1>w2?myTeam?.name:opp?.name;
+  const [submitting,setSub]=useState(false);
+
+  const submit=async()=>{
+    if(submitting)return;
+    setSub(true);
+    const winner_id=w1>w2?m.t1_id:m.t2_id,loser_id=winner_id===m.t1_id?m.t2_id:m.t1_id;
+    await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,updated_at:new Date().toISOString()}).eq("id",mid);
+    setMatches(p=>p.map(x=>x.id===mid?{...x,status:"score_pending",games,winner_id,loser_id,submitted_by:myTeam.id}:x));
+    setEntry(e=>{const n={...e};delete n[mid];delete n[`__confirm_${mid}`];return n;});
+    onClose();
+    setSub(false);
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{...card(),width:"100%",maxWidth:"400px",animation:"fadeIn .15s ease"}}>
+        <div style={{fontSize:"20px",fontWeight:"700",marginBottom:"4px"}}>Confirm score</div>
+        <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Review before submitting. Your opponent has 24 hours to confirm or dispute.</p>
+        <div style={{background:C.bg,borderRadius:"10px",padding:"14px",marginBottom:"16px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:"12px"}}>
+            <span style={{fontSize:"15px",fontWeight:"800"}}>{myTeam?.name}</span>
+            <span style={{fontSize:"15px",fontWeight:"800"}}>{opp?.name}</span>
+          </div>
+          {games.map((g,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
+              <span style={{fontSize:"12px",color:C.muted}}>Game {i+1}</span>
+              <span style={{fontSize:"22px",fontWeight:"800",letterSpacing:"2px"}}>{g.s1} — {g.s2}</span>
+            </div>
+          ))}
+          <div style={{marginTop:"12px",paddingTop:"12px",borderTop:`2px solid ${C.border}`,textAlign:"center"}}>
+            <span style={{fontSize:"13px",color:C.muted}}>Winner: </span>
+            <span style={{fontSize:"16px",fontWeight:"800",color:C.green}}>{winner} 🏆</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:"8px"}}>
+          <button style={btn(C.green,"#fff",{flex:1,minHeight:"52px",fontSize:"16px",fontWeight:"700"})} onClick={submit} disabled={submitting}>{submitting?"Submitting...":"Submit"}</button>
+          <button style={btn(C.gray,"#fff",{flex:1,minHeight:"52px",fontSize:"15px"})} onClick={onClose}>Edit</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
   const mobile = useMobile();
-  const [entry,      setEntry]      = useState({});
-  const [confirmMid, setConfirmMid] = useState(null); // score confirm modal
-  const upE=(mid,k,v)=>setEntry(e=>({...e,[mid]:{...(e[mid]||{}),[k]:v}}));
+  const [entry, setEntry] = useState({});
 
-  // Active matches (not cancelled) — completed ones shown greyed out
+  // Derive confirm modal mid from entry state — avoids extra state variable
+  const confirmMid = Object.keys(entry).find(k=>k.startsWith("__confirm_"))?.replace("__confirm_","") || null;
+  const closeConfirm = () => setEntry(e=>{const n={...e};Object.keys(n).filter(k=>k.startsWith("__confirm_")).forEach(k=>delete n[k]);return n;});
+
+  // Active non-cancelled, completed separate
   const myMatches = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled);
   const active    = myMatches.filter(m=>m.status!=="completed");
   const completed = myMatches.filter(m=>m.status==="completed");
-
-  const buildGames=(mid)=>{
-    const s=entry[mid]||{};
-    const games=[];
-    for(let i=1;i<=3;i++){
-      const s1=parseInt(s[`g${i}s1`]),s2=parseInt(s[`g${i}s2`]);
-      if(!isNaN(s1)&&!isNaN(s2)&&s[`g${i}s1`]!=="")games.push({s1,s2});
-    }
-    return games;
-  };
-
-  const submitScore=async(mid)=>{
-    const games=buildGames(mid);
-    if(games.length<2){alert("Enter at least 2 game scores.");return;}
-    const m=matches.find(x=>x.id===mid);
-    const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
-    const winner_id=w1>w2?m.t1_id:m.t2_id,loser_id=winner_id===m.t1_id?m.t2_id:m.t1_id;
-    await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,updated_at:new Date().toISOString()}).eq("id",mid);
-    setMatches(p=>p.map(m=>m.id===mid?{...m,status:"score_pending",games,winner_id,loser_id,submitted_by:myTeam.id}:m));
-    setEntry(e=>{const n={...e};delete n[mid];return n;});
-    setConfirmMid(null);
-  };
 
   const confirmScore=async(mid)=>{
     await sb.rpc("confirm_match_score",{match_id:mid});
     setMatches(p=>p.map(x=>x.id===mid?{...x,status:"completed"}:x));
   };
 
-  const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
-
-  // Score entry game row — used inline in each match card
-  const ScoreEntry=({mid,opp})=>{
-    const s=entry[mid]||{};
-    const games=buildGames(mid);
-    const hasEnough=games.length>=2;
-    return(
-      <div>
-        {/* Team labels */}
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px",padding:"0 4px"}}>
-          <span style={{fontSize:"12px",fontWeight:"700",color:C.text}}>{myTeam?.name}</span>
-          <span style={{fontSize:"12px",color:C.faint}}>vs</span>
-          <span style={{fontSize:"12px",fontWeight:"700",color:C.text}}>{opp?.name}</span>
-        </div>
-
-        {/* Game rows */}
-        {[1,2,3].map(g=>(
-          <div key={g} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px",background:C.bg,borderRadius:"10px",padding:"12px 14px"}}>
-            <span style={{fontSize:"12px",color:C.muted,width:"52px",flexShrink:0}}>Game {g}{g===3?" *":""}</span>
-            <div style={{display:"flex",alignItems:"center",gap:"8px",flex:1}}>
-              {/* My score */}
-              <input
-                type="number" min="0" max="25"
-                placeholder="0"
-                value={s[`g${g}s1`]||""}
-                onChange={e=>upE(mid,`g${g}s1`,e.target.value)}
-                style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"700",background:C.white,border:`2px solid ${s[`g${g}s1`]?"#111":C.border}`,borderRadius:"10px",padding:"10px 6px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0"}}
-              />
-              <span style={{fontSize:"18px",color:"#ccc",fontWeight:"300",flexShrink:0}}>—</span>
-              {/* Opp score */}
-              <input
-                type="number" min="0" max="25"
-                placeholder="0"
-                value={s[`g${g}s2`]||""}
-                onChange={e=>upE(mid,`g${g}s2`,e.target.value)}
-                style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"700",background:C.white,border:`2px solid ${s[`g${g}s2`]?"#111":C.border}`,borderRadius:"10px",padding:"10px 6px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0"}}
-              />
-            </div>
-          </div>
-        ))}
-        <p style={{fontSize:"11px",color:C.faint,marginBottom:"12px"}}>* Game 3 only if needed. Enter your team's score on the left.</p>
-        <button
-          style={btn(hasEnough?C.text:C.faint,"#fff",{width:"100%",minHeight:"48px",fontSize:"15px",opacity:hasEnough?1:0.5})}
-          disabled={!hasEnough}
-          onClick={()=>hasEnough&&setConfirmMid(mid)}
-        >
-          Review &amp; Submit Score
-        </button>
-      </div>
-    );
-  };
-
-  // Score confirm modal
-  const ScoreConfirmModal=()=>{
-    if(!confirmMid)return null;
-    const m=matches.find(x=>x.id===confirmMid);
-    const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
-    const games=buildGames(confirmMid);
-    const w1=games.filter(g=>g.s1>g.s2).length,w2=games.filter(g=>g.s2>g.s1).length;
-    const winner=w1>w2?myTeam?.name:opp?.name;
-    return(
-      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}} onClick={e=>e.target===e.currentTarget&&setConfirmMid(null)}>
-        <div style={{...card(),width:"100%",maxWidth:"380px",animation:"fadeIn .15s ease"}}>
-          <div style={{fontSize:"20px",fontWeight:"700",marginBottom:"4px"}}>Confirm score</div>
-          <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px"}}>Review before submitting. Your opponent has 24 hours to confirm.</p>
-
-          {/* Score summary */}
-          <div style={{background:C.bg,borderRadius:"10px",padding:"14px",marginBottom:"16px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"10px"}}>
-              <span style={{fontSize:"13px",fontWeight:"700"}}>{myTeam?.name}</span>
-              <span style={{fontSize:"13px",fontWeight:"700"}}>{opp?.name}</span>
-            </div>
-            {games.map((g,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderTop:`1px solid ${C.border}`}}>
-                <span style={{fontSize:"12px",color:C.muted}}>Game {i+1}</span>
-                <span style={{fontSize:"18px",fontWeight:"800"}}>{g.s1} — {g.s2}</span>
-              </div>
-            ))}
-            <div style={{marginTop:"10px",paddingTop:"10px",borderTop:`2px solid ${C.border}`,textAlign:"center"}}>
-              <span style={{fontSize:"13px",color:C.muted}}>Winner: </span>
-              <span style={{fontSize:"14px",fontWeight:"700",color:C.green}}>{winner}</span>
-            </div>
-          </div>
-
-          <div style={{display:"flex",gap:"8px"}}>
-            <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>submitScore(confirmMid)}>Submit</button>
-            <button style={btn(C.gray,"#fff",{flex:1,minHeight:"48px"})} onClick={()=>setConfirmMid(null)}>Edit</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return(
     <div>
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>My Matches</div>
-      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>Submit scores · Confirm results · Full match history</div>
+      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>Submit scores · Confirm results · Full history</div>
 
       {active.length===0&&completed.length===0&&(
         <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
@@ -1494,34 +1523,30 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
         </div>
       )}
 
-      {/* Active matches */}
       {active.map(m=>{
         const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
         const canSubmit=m.status==="confirmed";
         const canConfirm=m.status==="score_pending"&&m.submitted_by!==myTeam?.id;
         const scoreSubmitted=m.status==="score_pending";
         return(
-          <div key={m.id} style={{...card(),marginBottom:"14px",opacity:scoreSubmitted?0.8:1}}>
-            {/* Match header */}
+          <div key={m.id} style={{...card(),marginBottom:"14px",opacity:scoreSubmitted?0.85:1}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",flexWrap:"wrap",gap:"8px"}}>
               <div>
-                <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"3px"}}>vs {opp?.name}</div>
+                <div style={{fontSize:"20px",fontWeight:"800",marginBottom:"3px",letterSpacing:"-.3px"}}>vs {opp?.name}</div>
                 <div style={{fontSize:"13px",color:C.muted}}>{fmtDateTime(m.match_date,m.match_time)}</div>
                 <div style={{fontSize:"12px",color:C.muted}}>{m.court}</div>
               </div>
               <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}}>
-                <Tag c={canSubmit?"green":scoreSubmitted?"amber":"red"}>{canSubmit?"Confirmed":scoreSubmitted?"Score Pending":"Disputed"}</Tag>
+                <Tag c={canSubmit?"green":scoreSubmitted?"amber":m.status==="disputed"?"red":"gray"}>{canSubmit?"Confirmed":scoreSubmitted?"Score Pending":"Disputed"}</Tag>
                 <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>openChat(m)}>Chat</button>
                 {canSubmit&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>openCancel(m)}>Cancel</button>}
               </div>
             </div>
 
-            {/* Score entry */}
-            {canSubmit&&<ScoreEntry mid={m.id} opp={opp}/>}
+            {canSubmit&&<ScoreEntry mid={m.id} myTeam={myTeam} opp={opp} entry={entry} setEntry={setEntry}/>}
             {scoreSubmitted&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
             {canConfirm&&<ScoreConfirmFlow match={m} myTeam={myTeam} opp={opp} setMatches={setMatches} confirmScore={confirmScore}/>}
 
-            {/* Submitted score history */}
             {m.games&&m.games.length>0&&scoreSubmitted&&(
               <div style={{marginTop:"12px",background:C.bg,borderRadius:"8px",padding:"10px 14px"}}>
                 <div style={{fontSize:"11px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Submitted scores</div>
@@ -1529,7 +1554,7 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
                   {m.games.map((g,i)=>(
                     <div key={i} style={{textAlign:"center"}}>
                       <div style={{fontSize:"11px",color:C.faint,marginBottom:"2px"}}>G{i+1}</div>
-                      <div style={{fontSize:"18px",fontWeight:"700"}}>{g.s1}–{g.s2}</div>
+                      <div style={{fontSize:"20px",fontWeight:"800"}}>{g.s1}–{g.s2}</div>
                     </div>
                   ))}
                 </div>
@@ -1539,15 +1564,14 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
         );
       })}
 
-      {/* Completed matches — greyed out */}
       {completed.length>0&&(
         <>
-          <div style={{fontSize:"13px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",margin:"24px 0 10px"}}>Completed</div>
+          <div style={{fontSize:"12px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",margin:"24px 0 10px"}}>Completed</div>
           {completed.map(m=>{
             const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
             const won=m.winner_id===myTeam?.id;
             return(
-              <div key={m.id} style={{...card(),marginBottom:"10px",opacity:0.55}}>
+              <div key={m.id} style={{...card(),marginBottom:"10px",opacity:0.5}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
                   <div>
                     <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"2px"}}>vs {opp?.name}</div>
@@ -1562,7 +1586,7 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
         </>
       )}
 
-      <ScoreConfirmModal/>
+      <ScoreConfirmModal mid={confirmMid} myTeam={myTeam} teams={teams} matches={matches} entry={entry} setEntry={setEntry} setMatches={setMatches} onClose={closeConfirm}/>
     </div>
   );
 }
@@ -2832,11 +2856,17 @@ export default function AscendLeague() {
       .on("postgres_changes",{event:"*",schema:"public",table:"request_responses"},()=>{
         sb.from("match_requests").select("*,responses:request_responses(*)").order("created_at",{ascending:false}).then(({data})=>{if(data)setRequests(data);});
       }).subscribe();
+    // Also refresh myTeam record when teams table changes (standings update, etc)
+    const myTeamCh=sb.channel("rt-myteam")
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"teams"},p=>{
+        if(p.new?.id===myTeam?.id)setMyTeam(p.new);
+      }).subscribe();
     return()=>{
       sb.removeChannel(teamsCh);
       sb.removeChannel(matchesCh);
       sb.removeChannel(requestsCh);
       sb.removeChannel(responsesCh);
+      sb.removeChannel(myTeamCh);
     };
   },[session]);
 
