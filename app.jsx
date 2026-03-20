@@ -201,14 +201,14 @@ const Icon = ({ n, size=20 }) => {
 };
 
 // ── Ascend PB Logo ────────────────────────────────────────────
-const LOGO_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(6).png";
+const LOGO_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
 
 const AscendLogo = ({ height = 60 }) => (
-  <img src={LOGO_URL} alt="Ascend Pickleball" style={{ height, width:"auto", display:"block" }} />
+  <img src={LOGO_URL} alt="Ascend Pickleball" style={{ height, width:"auto", display:"block", mixBlendMode:"multiply" }} />
 );
 
 const AscendMark = ({ height = 32 }) => (
-  <img src={LOGO_URL} alt="Ascend Pickleball" style={{ height, width:"auto", display:"block" }} />
+  <img src={LOGO_URL} alt="Ascend Pickleball" style={{ height, width:"auto", display:"block", mixBlendMode:"multiply" }} />
 );
 
 // ── Notification Bell ─────────────────────────────────────────
