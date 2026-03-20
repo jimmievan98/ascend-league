@@ -803,7 +803,6 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
   const [confirmReq,setConfirmReq]= useState(null);
   const [busy,      setBusy]      = useState(false);
   const [filter,    setFilter]    = useState({date:"",timeOfDay:""});
-  const [swipeId,   setSwipeId]   = useState(null);
   const [showCourts,setShowCourts]= useState(false);
   const upF=(k,v)=>setForm(f=>({...f,[k]:v}));
   const upC=(k,v)=>setCf(c=>({...c,[k]:v}));
@@ -841,7 +840,6 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     await sb.from("matches").insert({request_id:req.id,t1_id:req.team_id,t2_id:myTeam.id,division,match_date:date,match_time:time,court,status:"confirmed"});
     setRequests(p=>p.map(r=>r.id===req.id?{...r,status:"accepted"}:r));
     setConfirmReq(null);
-    setSwipeId(null);
     setBusy(false);
   };
 
@@ -862,105 +860,118 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
   };
 
   const RequestCard=({req})=>{
-    const isOwn=req.team_id===myTeam?.id;
-    const isAcc=req.status==="accepted";
-    const isCancelled=req.status==="cancelled";
-    const canAct=myTeam&&myTeam.approved&&!isOwn&&!isAcc&&!isCancelled&&myTeam.division===req.division;
-    const overLimit=canAct&&atLimit(req.team_id);
-    const showCF=cf.rid===req.id;
-    const responses=req.responses||[];
-    const swiped=swipeId===req.id;
-
-    // Poster skill range
-    const poster=teams.find(t=>t.id===req.team_id);
-    const skillRange=poster?`${poster.p1_skill}/${poster.p2_skill}`:"";
-
-    const swRef=useSwipe(
-      ()=>canAct&&!overLimit&&setSwipeId(req.id),
-      ()=>setSwipeId(null)
-    );
+    const isOwn      = req.team_id===myTeam?.id;
+    const isAcc      = req.status==="accepted";
+    const isCancelled= req.status==="cancelled";
+    const canAct     = myTeam&&myTeam.approved&&!isOwn&&!isAcc&&!isCancelled&&myTeam.division===req.division;
+    const overLimit  = canAct&&atLimit(req.team_id);
+    const showCF     = cf.rid===req.id;
+    const responses  = req.responses||[];
+    const poster     = teams.find(t=>t.id===req.team_id);
+    const skillRange = poster?`${poster.p1_skill}/${poster.p2_skill}`:"";
 
     return(
-      <div style={{position:"relative",marginBottom:"12px",overflow:"hidden",borderRadius:"12px"}}>
-        {swiped&&canAct&&(
-          <div style={{position:"absolute",inset:0,background:C.green,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:"20px",gap:"12px",borderRadius:"12px"}}>
-            <button style={btn(C.white,C.green,{border:`2px solid ${C.green}`})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>Confirm Match</button>
-            <button style={btn(C.white,C.text,{border:`2px solid ${C.border}`})} onClick={()=>setSwipeId(null)}>Cancel</button>
+      <div style={{...card(),marginBottom:"12px",borderLeft:`4px solid ${isCancelled?"#ccc":isAcc?C.green:C.blue}`,opacity:isCancelled?0.5:isAcc?0.75:1}}>
+
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"12px"}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"5px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"17px",fontWeight:"700"}}>{tName(req.team_id)}</span>
+              {skillRange&&<Tag sm c="gray">{skillRange}</Tag>}
+              {isOwn&&<Tag c="gray">Your request</Tag>}
+            </div>
+            <div style={{fontSize:"13px",color:"#555",display:"flex",gap:"14px",flexWrap:"wrap",marginBottom:"3px"}}>
+              <span>📅 {req.proposed_date}</span>
+              <span>🕐 {req.proposed_time}</span>
+              <span>📍 {req.proposed_court}</span>
+            </div>
+            {req.notes&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{req.notes}</div>}
+            {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>💰 Fee: {req.location_fee}</div>}
+            <div style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>{timeAgo(req.created_at)} · {responses.length} response{responses.length!==1?"s":""}</div>
+          </div>
+          <Tag c={isCancelled?"gray":isAcc?"green":"blue"}>{isCancelled?"Cancelled":isAcc?"Matched":"Open"}</Tag>
+        </div>
+
+        {/* Responses thread — full transparency */}
+        {responses.length>0&&(
+          <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"12px"}}>
+            <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Responses ({responses.length})</div>
+            {responses.map(r=>(
+              <div key={r.id} style={{padding:"9px 0",borderBottom:`1px solid #eee`}}>
+                <div style={{display:"flex",alignItems:"center",gap:"7px",marginBottom:"4px",flexWrap:"wrap"}}>
+                  <span style={{fontWeight:"700",fontSize:"13px"}}>{r.team_name}</span>
+                  <Tag c={r.type==="counter"?"amber":"blue"}>{r.type==="counter"?"Counter":"Comment"}</Tag>
+                  <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(r.created_at)}</span>
+                </div>
+                <div style={{fontSize:"13px",color:C.text,lineHeight:"1.5"}}>{r.message}</div>
+                {r.type==="counter"&&r.counter_date&&(
+                  <div style={{fontSize:"12px",color:C.amber,marginTop:"4px",fontWeight:"500"}}>
+                    Proposes: {r.counter_date}{r.counter_time?` at ${r.counter_time}`:""}{r.counter_court?` · ${r.counter_court}`:""}
+                  </div>
+                )}
+                {isOwn&&r.type==="counter"&&!isAcc&&(
+                  <button style={btn(C.green,"#fff",{marginTop:"8px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>setConfirmReq({req,isCounter:true,counterData:r})}>
+                    Accept this counter
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
-        <div ref={swRef} style={{...card(),borderLeft:`4px solid ${isAcc?C.green:C.blue}`,opacity:isAcc?.7:1,transition:"transform .2s",transform:swiped?"translateX(-80px)":"translateX(0)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"10px"}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"5px",flexWrap:"wrap"}}>
-                <span style={{fontSize:"17px",fontWeight:"700"}}>{tName(req.team_id)}</span>
-                {skillRange&&<Tag sm c="gray">{skillRange}</Tag>}
-                {isOwn&&<Tag c="gray">Your request</Tag>}
-              </div>
-              <div style={{fontSize:"13px",color:"#555",display:"flex",gap:"12px",flexWrap:"wrap",marginBottom:"3px"}}>
-                <span>📅 {req.proposed_date}</span>
-                <span>🕐 {req.proposed_time}</span>
-                <span>📍 {req.proposed_court}</span>
-              </div>
-              {req.notes&&<div style={{fontSize:"12px",color:C.muted}}>{req.notes}</div>}
-              {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500"}}>💰 Fee: {req.location_fee}</div>}
-              <div style={{fontSize:"11px",color:C.faint,marginTop:"3px"}}>{timeAgo(req.created_at)} · {responses.length} response{responses.length!==1?"s":""}</div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"4px"}}>
-              <Tag c={isAcc?"green":"blue"}>{isAcc?"Matched":"Open"}</Tag>
-            </div>
+
+        {/* Action buttons — always visible */}
+        {canAct&&!overLimit&&(
+          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:showCF?"12px":"0"}}>
+            <button style={btn(C.green,"#fff",{minHeight:"44px",flex:"1",minWidth:"100px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>
+              ✓ Accept
+            </button>
+            <button style={btn(cf.rid===req.id&&cf.type==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"100px"})} onClick={()=>setCf(prev=>prev.rid===req.id&&prev.type==="comment"?{rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""}:{rid:req.id,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""})}>
+              💬 Comment
+            </button>
+            <button style={btn(cf.rid===req.id&&cf.type==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"100px"})} onClick={()=>setCf(prev=>prev.rid===req.id&&prev.type==="counter"?{rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""}:{rid:req.id,type:"counter",msg:"",cdate:"",ctime:"",ccourt:""})}>
+              ↩ Counter
+            </button>
           </div>
+        )}
+        {canAct&&overLimit&&<p style={{fontSize:"12px",color:C.faint,marginBottom:"8px"}}>Max {MAX_VS} matches vs this team this season.</p>}
+        {isOwn&&!isAcc&&!isCancelled&&(
+          <button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"40px"})} onClick={()=>cancelReq(req.id)}>
+            Cancel request
+          </button>
+        )}
 
-          {/* Responses thread - full transparency */}
-          {responses.length>0&&(
-            <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"10px"}}>
-              <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Responses ({responses.length})</div>
-              {responses.map(r=>(
-                <div key={r.id} style={{padding:"9px 0",borderBottom:`1px solid #eee`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:"7px",marginBottom:"4px",flexWrap:"wrap"}}>
-                    <span style={{fontWeight:"700",fontSize:"13px"}}>{r.team_name}</span>
-                    <Tag c={r.type==="counter"?"amber":"blue"}>{r.type==="counter"?"Counter":"Comment"}</Tag>
-                    <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(r.created_at)}</span>
-                  </div>
-                  <div style={{fontSize:"13px",color:C.text,lineHeight:"1.5"}}>{r.message}</div>
-                  {r.type==="counter"&&r.counter_date&&<div style={{fontSize:"12px",color:C.amber,marginTop:"4px",fontWeight:"500"}}>Proposes: {r.counter_date}{r.counter_time?` at ${r.counter_time}`:""}{r.counter_court?` · ${r.counter_court}`:""}</div>}
-                  {/* Owner can accept counter */}
-                  {isOwn&&r.type==="counter"&&!isAcc&&<button style={btn(C.green,"#fff",{marginTop:"8px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>setConfirmReq({req,isCounter:true,counterData:r})}>Accept this counter</button>}
-                </div>
-              ))}
+        {/* Comment / Counter form — slides in below buttons */}
+        {showCF&&(
+          <div style={{background:C.bg,border:`1.5px solid ${cf.type==="counter"?C.amber:C.blue}`,borderRadius:"10px",padding:"14px",marginTop:"4px"}}>
+            <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"10px",color:cf.type==="counter"?C.amber:C.blue}}>
+              {cf.type==="counter"?"Counter proposal — propose a different time or court":"Leave a comment"}
             </div>
-          )}
-
-          {/* Action buttons - always visible when canAct */}
-          <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-            {canAct&&!overLimit&&!showCF&&<>
-              <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>Accept</button>
-              <button style={btn(C.gray,"#fff",{fontSize:"13px",minHeight:"44px"})} onClick={()=>{setSwipeId(null);setCf({rid:req.id,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""});}}>Comment</button>
-              <button style={btn(C.amber,"#fff",{minHeight:"44px"})} onClick={()=>{setSwipeId(null);setCf({rid:req.id,type:"counter",msg:"",cdate:"",ctime:"",ccourt:""});}}>Counter</button>
-              {mobile&&<span style={{fontSize:"11px",color:C.faint,alignSelf:"center"}}>← Swipe to accept</span>}
-            </>}
-            {canAct&&overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team this season.</span>}
-            {isOwn&&!isAcc&&!isCancelled&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"40px"})} onClick={()=>cancelReq(req.id)}>Cancel request</button>}
-            {isCancelled&&<Tag c="gray">Cancelled</Tag>}
-          </div>
-
-          {/* Comment / Counter form */}
-          {showCF&&(
-            <div style={{background:C.bg,border:`1.5px solid ${cf.type==="counter"?"#f59e0b":C.blueBorder}`,borderRadius:"8px",padding:"14px",marginTop:"12px"}}>
-              <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"10px",color:cf.type==="counter"?C.amber:C.blue}}>{cf.type==="counter"?"Counter proposal":"Leave a comment"}</div>
-              <Lbl>Message</Lbl>
-              <input style={{...inp(),marginBottom:"10px"}} placeholder={cf.type==="counter"?"e.g. That time doesn't work — how about...":"e.g. We're interested! What court area?"} value={cf.msg} onChange={e=>upC("msg",e.target.value)}/>
-              {cf.type==="counter"&&<div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
+            <Lbl>Message</Lbl>
+            <input
+              style={{...inp(),marginBottom:"10px"}}
+              placeholder={cf.type==="counter"?"e.g. That time doesn't work — how about Saturday at 2pm?":"e.g. We're interested! Is this court covered or outdoor?"}
+              value={cf.msg}
+              onChange={e=>upC("msg",e.target.value)}
+              autoFocus
+            />
+            {cf.type==="counter"&&(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
                 <div><Lbl>Alt date</Lbl><input style={inp()} placeholder="Mar 25" value={cf.cdate} onChange={e=>upC("cdate",e.target.value)}/></div>
                 <div><Lbl>Alt time</Lbl><input style={inp()} placeholder="2:00 PM" value={cf.ctime} onChange={e=>upC("ctime",e.target.value)}/></div>
                 <div><Lbl>Alt court</Lbl><input style={inp()} placeholder="Court name" value={cf.ccourt} onChange={e=>upC("ccourt",e.target.value)}/></div>
-              </div>}
-              <div style={{display:"flex",gap:"8px"}}>
-                <button style={btn(cf.type==="counter"?C.amber:C.text,"#fff",{minHeight:"44px"})} onClick={()=>submitComment(req.id)} disabled={!cf.msg.trim()||busy}>{cf.type==="counter"?"Send counter":"Post comment"}</button>
-                <button style={btn(C.gray,"#fff",{minHeight:"44px"})} onClick={()=>setCf({rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""})}>Cancel</button>
               </div>
+            )}
+            <div style={{display:"flex",gap:"8px"}}>
+              <button style={btn(cf.type==="counter"?C.amber:C.text,"#fff",{minHeight:"44px",flex:1})} onClick={()=>submitComment(req.id)} disabled={!cf.msg.trim()||busy}>
+                {cf.type==="counter"?"Send counter":"Post comment"}
+              </button>
+              <button style={btn(C.gray,"#fff",{minHeight:"44px",padding:"10px 16px"})} onClick={()=>setCf({rid:null,type:"comment",msg:"",cdate:"",ctime:"",ccourt:""})}>
+                Cancel
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
