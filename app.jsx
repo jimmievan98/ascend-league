@@ -174,12 +174,28 @@ const timeAgo = ts => {
   if (s<86400) return `${Math.floor(s/3600)}h ago`;
   return `${Math.floor(s/86400)}d ago`;
 };
-const countdown = ts => {
-  const diff = new Date(ts) - Date.now();
+const parseMatchDateTime = (date, time) => {
+  if (!date || !time) return null;
+  try {
+    // Handle "10:00 AM" / "2:30 PM" formats
+    const [timePart, meridiem] = time.split(" ");
+    let [hours, minutes] = timePart.split(":").map(Number);
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    const d = new Date(date);
+    d.setHours(hours, minutes || 0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+  } catch { return null; }
+};
+
+const countdown = (date, time) => {
+  const dt = parseMatchDateTime(date, time);
+  if (!dt) return null;
+  const diff = dt - Date.now();
   if (diff <= 0) return "Now";
-  const d = Math.floor(diff/86400000);
-  const h = Math.floor((diff%86400000)/3600000);
-  const m = Math.floor((diff%3600000)/60000);
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
@@ -665,11 +681,18 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
   };
   const myStreak = myTeam?getStreak(myTeam.id):0;
 
-  // Today matches
   const todayMatches = myMatches.filter(m=>{
-    const d=new Date(m.match_date+"T00:00:00");
-    const n=new Date(); return d.getDate()===n.getDate()&&d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();
+    const dt = parseMatchDateTime(m.match_date, m.match_time);
+    if (!dt) return false;
+    const n = new Date();
+    return dt.getDate()===n.getDate()&&dt.getMonth()===n.getMonth()&&dt.getFullYear()===n.getFullYear();
   });
+
+  const today = (date) => {
+    const dt = new Date(date);
+    const n = new Date();
+    return dt.getDate()===n.getDate()&&dt.getMonth()===n.getMonth()&&dt.getFullYear()===n.getFullYear();
+  };
 
   return(
     <div>
@@ -719,19 +742,21 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
           {myMatches.length===0?<p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>No confirmed matches yet. Post a match request to get started.</p>:
           myMatches.map(m=>{
             const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
-            const matchDt=new Date(m.match_date+"T"+m.match_time);
+            const matchToday=today(m.match_date);
             const today=isToday(m.match_date);
             return(
               <div key={m.id} style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
-                <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>vs {opp?.name}{today&&" 🏓"}</div>
+                <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" 🏓":""}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{m.match_date} · {m.match_time}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginBottom:"6px"}}>{m.court}</div>
-                {!today&&m.match_date&&<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {countdown(m.match_date+"T"+m.match_time)}</div>}
+                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&!today?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginBottom:"6px"}}>⏱ {ct}</div>:null;})()}
                 <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
                   <Tag c="green">Confirmed</Tag>
-                  <button style={btn(C.text,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"36px"})} onClick={()=>openChat(m)}>Chat</button>
-                  <button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"36px"})} onClick={()=>setTab("scores")}>Score</button>
-                  <button style={btn(C.red,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"36px"})} onClick={()=>openCancel(m)}>Cancel</button>
+                  <div style={{display:"flex",gap:"6px",flex:1,flexWrap:"wrap"}}>
+                    <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 0",minHeight:"36px",flex:1,minWidth:"60px"})} onClick={()=>openChat(m)}>Chat</button>
+                    <button style={btn(C.amber,"#fff",{fontSize:"12px",padding:"6px 0",minHeight:"36px",flex:1,minWidth:"60px"})} onClick={()=>setTab("scores")}>Score</button>
+                    <button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 0",minHeight:"36px",flex:1,minWidth:"60px"})} onClick={()=>openCancel(m)}>Cancel</button>
+                  </div>
                 </div>
               </div>
             );
@@ -1112,10 +1137,10 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
                 <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"3px"}}>vs {opp?.name}</div>
                 <div style={{fontSize:"12px",color:C.muted}}>{m.match_date} · {m.match_time} · {m.court}</div>
               </div>
-              <div style={{display:"flex",gap:"8px",alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap",minWidth:"0"}}>
                 <Tag c={m.status==="confirmed"?"green":m.status==="score_pending"?"amber":m.status==="completed"?"gray":"red"}>{m.status==="confirmed"?"Confirmed":m.status==="score_pending"?"Score Pending":m.status==="completed"?"Completed":"Disputed"}</Tag>
-                <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"5px 12px",minHeight:"36px"})} onClick={()=>openChat(m)}>Chat</button>
-                {m.status==="confirmed"&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"5px 12px",minHeight:"36px"})} onClick={()=>openCancel(m)}>Cancel</button>}
+                <button style={btn(C.text,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",minWidth:"64px"})} onClick={()=>openChat(m)}>Chat</button>
+                {m.status==="confirmed"&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",minWidth:"64px"})} onClick={()=>openCancel(m)}>Cancel</button>}
               </div>
             </div>
             {canSubmit&&<>
@@ -1167,8 +1192,120 @@ function Scores({ myTeam, teams, matches, setMatches, openChat, openCancel }) {
 }
 
 // ── STANDINGS ─────────────────────────────────────────────────
+// ── TEAM PROFILE MODAL ───────────────────────────────────────
+function TeamProfileModal({ team, teams, matches, myTeam, onClose }) {
+  const mobile = useMobile();
+  if (!team) return null;
+
+  const teamMatches = [...matches.filter(m =>
+    (m.t1_id===team.id||m.t2_id===team.id) && m.status==="completed"
+  )].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  const tName = id => teams.find(t=>t.id===id)?.name ?? "Unknown";
+
+  const getStreak = () => {
+    let s=0;
+    for (const m of teamMatches) { if(m.winner_id===team.id)s++; else break; }
+    return s;
+  };
+
+  const streak = getStreak();
+  const pct = team.wins+team.losses>0 ? Math.round(team.wins/(team.wins+team.losses)*100) : 0;
+  const totalGamesWon = teamMatches.reduce((acc,m)=>{
+    if(!m.games)return acc;
+    return acc + m.games.filter(g=>m.winner_id===team.id?g.s1>g.s2:g.s2>g.s1).length;
+  },0);
+  const totalGames = teamMatches.reduce((acc,m)=>acc+(m.games?.length||0),0);
+  const pointDiff = teamMatches.reduce((acc,m)=>{
+    if(!m.games)return acc;
+    const mine = m.t1_id===team.id;
+    return acc + m.games.reduce((a,g)=>a+(mine?g.s1-g.s2:g.s2-g.s1),0);
+  },0);
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:C.white,borderRadius:"16px 16px 0 0",width:"100%",maxWidth:"560px",maxHeight:"88vh",display:"flex",flexDirection:"column",animation:"slideUp .25s ease"}}>
+
+        {/* Header */}
+        <div style={{padding:"20px 20px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>{team.name}{streak>=3?` 🔥`:""}</div>
+              <div style={{fontSize:"13px",color:C.muted,marginBottom:"8px"}}>{team.p1_name} &amp; {team.p2_name}</div>
+              <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+                <Tag c={team.division==="low"?"gray":"blue"}>{dL(team.division)}</Tag>
+                {team.id===myTeam?.id&&<Tag c="blue">Your team</Tag>}
+                {streak>=3&&<Tag c="orange">{streak} win streak 🔥</Tag>}
+              </div>
+            </div>
+            <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"26px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          </div>
+        </div>
+
+        <div style={{flex:1,overflowY:"auto",padding:"16px 20px"}}>
+
+          {/* Stat grid */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px",marginBottom:"20px"}}>
+            {[
+              {n:team.wins,  l:"Wins",      c:C.green},
+              {n:team.losses,l:"Losses",    c:C.red},
+              {n:team.points,l:"Points",    c:C.blue},
+              {n:`${pct}%`,  l:"Win Rate",  c:pct>=50?C.green:C.muted},
+              {n:teamMatches.length,l:"Matches",c:C.purple},
+              {n:streak>0?`${streak}W`:"—",l:"Streak",c:streak>=3?C.orange:C.muted},
+            ].map((x,i)=>(
+              <div key={i} style={{background:C.bg,borderRadius:"10px",padding:"12px",textAlign:"center"}}>
+                <div style={{fontSize:"22px",fontWeight:"800",color:x.c,lineHeight:"1"}}>{x.n}</div>
+                <div style={{fontSize:"10px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginTop:"4px"}}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Extended stats */}
+          <div style={{...card({padding:"14px"}),marginBottom:"16px"}}>
+            <div style={{fontSize:"13px",fontWeight:"700",marginBottom:"10px"}}>Season stats</div>
+            {[
+              ["Games won",`${totalGamesWon} of ${totalGames}`],
+              ["Point differential",`${pointDiff>=0?"+":""}${pointDiff}`],
+              ["Skill ratings",`${team.p1_name}: ${team.p1_skill} · ${team.p2_name}: ${team.p2_skill}`],
+            ].map(([l,v])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
+                <span style={{fontSize:"13px",color:C.muted}}>{l}</span>
+                <span style={{fontSize:"13px",fontWeight:"600"}}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Match history */}
+          {teamMatches.length>0&&(
+            <div style={card({padding:"14px"})}>
+              <div style={{fontSize:"13px",fontWeight:"700",marginBottom:"10px"}}>Match history</div>
+              {teamMatches.map(m=>{
+                const opp = tName(m.t1_id===team.id?m.t2_id:m.t1_id);
+                const won = m.winner_id===team.id;
+                const scores = m.games?.map(g=>m.t1_id===team.id?`${g.s1}-${g.s2}`:`${g.s2}-${g.s1}`).join("  ") || "—";
+                return(
+                  <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
+                    <div>
+                      <div style={{fontSize:"13px",fontWeight:"600"}}>vs {opp}</div>
+                      <div style={{fontSize:"11px",color:C.muted}}>{m.match_date} · {scores}</div>
+                    </div>
+                    <Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {teamMatches.length===0&&<p style={{fontSize:"13px",color:C.muted,textAlign:"center",padding:"20px 0"}}>No completed matches yet.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Standings({ myTeam, teams, matches, division, setDivision }) {
   const mobile=useMobile();
+  const [profileTeam, setProfileTeam] = useState(null);
   const dt=[...teams.filter(t=>t.approved&&t.division===division)].sort((a,b)=>b.points-a.points||b.wins-a.wins);
   const getStreak=id=>{const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed")].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));let s=0;for(const m of tm){if(m.winner_id===id)s++;else break;}return s;};
   const totalPlayed=id=>matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed").length;
@@ -1178,7 +1315,7 @@ function Standings({ myTeam, teams, matches, division, setDivision }) {
   return(
     <div>
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>Standings</div>
-      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>{SEASON} · 2 pts per win · Top {PLAYOFFS} advance to playoffs</div>
+      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>{SEASON} · 2 pts per win · Top {PLAYOFFS} advance · Tap any team to view profile</div>
       <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
         <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
         <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
@@ -1197,10 +1334,10 @@ function Standings({ myTeam, teams, matches, division, setDivision }) {
                 const isMe=t.id===myTeam?.id;
                 const isActive=t.id===mostActiveId&&mp>0;
                 return(
-                  <tr key={t.id} style={{background:isMe?"#eff6ff":""}}>
+                  <tr key={t.id} style={{background:isMe?"#eff6ff":"",cursor:"pointer"}} onClick={()=>setProfileTeam(t)}>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",color:playoff?C.blue:"#ddd",fontSize:"20px",width:"40px"}}>{i+1}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"700"}}>
-                      <div>{t.name}{streak>=3?` 🔥`:""}</div>
+                      <div style={{color:C.blue,textDecoration:"underline",textDecorationStyle:"dotted",textUnderlineOffset:"3px"}}>{t.name}{streak>=3?` 🔥`:""}</div>
                       <div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"3px"}}>
                         {isMe&&<Tag sm c="blue">You</Tag>}
                         {i===0&&<Tag sm c="gray">Leader</Tag>}
@@ -1222,25 +1359,31 @@ function Standings({ myTeam, teams, matches, division, setDivision }) {
           </table>
         </div>
       </div>
+      {profileTeam&&<TeamProfileModal team={profileTeam} teams={teams} matches={matches} myTeam={myTeam} onClose={()=>setProfileTeam(null)}/>}
     </div>
   );
 }
 
 // ── DIVISION CHAT ─────────────────────────────────────────────
-function DivisionChat({ myTeam, isAdmin, adminPauseChat, setAdminPauseChat }) {
-  const mobile=useMobile();
-  // Auto-select user's division
-  const myDiv=myTeam?.division||"low";
-  const [division,setDivision]=useState(myDiv);
-  const [msgs,setMsgs]=useState([]);
-  const [input,setInput]=useState("");
-  const [pinned,setPinned]=useState(null);
-  const endRef=useRef(null);
+function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdminPauseChat }) {
+  const mobile   = useMobile();
+  const myDiv    = myTeam?.division || "low";
+  const [chatTab, setChatTab] = useState("division");
+  const [adminDiv, setAdminDiv] = useState(myDiv);
+  const division = isAdmin ? adminDiv : myDiv; // non-admins always see their own
+  const [msgs,   setMsgs]    = useState([]);
+  const [input,  setInput]   = useState("");
+  const [pinned, setPinned]  = useState(null);
+  const endRef   = useRef(null);
 
-  // Force user to their division on mount
-  useEffect(()=>{ if(myTeam?.division)setDivision(myTeam.division); },[myTeam]);
+  // Active match chats for this team
+  const myMatches = matches.filter(m =>
+    (m.t1_id===myTeam?.id||m.t2_id===myTeam?.id) && !m.cancelled && m.status!=="completed"
+  );
+  const [activeMatchChat, setActiveMatchChat] = useState(null);
 
   useEffect(()=>{
+    if (chatTab!=="division") return;
     sb.from("division_chats").select("*").eq("division",division).order("created_at",{ascending:true}).limit(300).then(({data})=>{
       if(data)setMsgs(data);
       setTimeout(()=>endRef.current?.scrollIntoView(),100);
@@ -1251,105 +1394,242 @@ function DivisionChat({ myTeam, isAdmin, adminPauseChat, setAdminPauseChat }) {
         setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
       }).subscribe();
     return()=>sb.removeChannel(ch);
-  },[division]);
+  },[division, chatTab]);
 
-  const canPost=myTeam?.approved&&myTeam.division===division&&!adminPauseChat;
-  const canSee=isAdmin||(myTeam?.approved&&myTeam.division===division);
+  const canPost = myTeam?.approved && !adminPauseChat;
+  const canSee  = isAdmin || myTeam?.approved;
+  const tName   = id => teams.find(t=>t.id===id)?.name ?? "Unknown";
 
-  const send=async()=>{
+  const send = async()=>{
     if(!input.trim()||!canPost)return;
-    // Handle @mentions
-    const content=input.trim();
-    await sb.from("division_chats").insert({division,team_id:myTeam.id,team_name:myTeam.name,is_admin:false,content});
+    const content = input.trim();
+    await sb.from("division_chats").insert({division,team_id:myTeam.id,team_name:myTeam.name,is_admin:isAdmin,content});
     setInput("");
   };
 
-  const deleteMsg=async(id)=>{
+  const deleteMsg = async(id)=>{
     if(!isAdmin)return;
     await sb.from("division_chats").delete().eq("id",id);
     setMsgs(p=>p.filter(m=>m.id!==id));
   };
 
-  const pinMsg=(msg)=>{ setPinned(m=>m?.id===msg.id?null:msg); };
+  const pinMsg = (msg)=>{ setPinned(m=>m?.id===msg.id?null:msg); };
 
-  // Format message with @mentions highlighted
-  const formatMsg=(content)=>{
+  const formatMsg = (content)=>{
     const parts=content.split(/(@\w[\w\s]*)/g);
     return parts.map((p,i)=>p.startsWith("@")?<span key={i} style={{color:C.blue,fontWeight:"600"}}>{p}</span>:p);
   };
 
-  if(!canSee&&!isAdmin){
-    return(
-      <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
-        <div style={{fontSize:"40px",marginBottom:"12px"}}>🔒</div>
-        <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"8px"}}>Division Chat</div>
-        <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>Division chat is only available to approved teams. Your account must be activated by admin to participate.</p>
-      </div>
-    );
-  }
+  if(!canSee) return(
+    <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
+      <div style={{fontSize:"40px",marginBottom:"12px"}}>🔒</div>
+      <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"8px"}}>Chat</div>
+      <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.6"}}>Chat is only available to approved teams. Your account must be activated by admin to participate.</p>
+    </div>
+  );
 
   return(
     <div>
-      <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>Division Chat</div>
-      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"16px"}}>Private to your division only</div>
+      <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>Chat</div>
+      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"16px"}}>Division chat · Match threads · Private</div>
 
-      {/* Division pills — only admin can see both, users see only their own */}
-      <div style={{display:"flex",gap:"8px",marginBottom:"16px",flexWrap:"wrap"}}>
-        {isAdmin?<>
-          <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
-          <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
-        </>:<div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-          <Pill d={myDiv} active={true} onClick={()=>{}}/>
-          <span style={{fontSize:"12px",color:C.faint}}>Your division</span>
-        </div>}
-        {isAdmin&&<button onClick={()=>setAdminPauseChat(p=>!p)} style={btn(adminPauseChat?C.green:C.amber,"#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"40px",display:"flex",alignItems:"center",gap:"6px"})}>
-          <Icon n={adminPauseChat?"check":"pause"} size={14}/>{adminPauseChat?"Resume Chat":"Pause Chat"}
-        </button>}
+      {/* Chat tabs */}
+      <div style={{display:"flex",gap:"6px",marginBottom:"16px",flexWrap:"wrap",alignItems:"center"}}>
+        <button style={btn(chatTab==="division"?C.text:C.gray,"#fff",{fontSize:"13px",padding:"8px 16px",minHeight:"40px"})} onClick={()=>setChatTab("division")}>
+          {dL(division)} Division
+        </button>
+        <button style={btn(chatTab==="matches"?C.text:C.gray,"#fff",{fontSize:"13px",padding:"8px 16px",minHeight:"40px"})} onClick={()=>setChatTab("matches")}>
+          My Matches {myMatches.length>0&&`(${myMatches.length})`}
+        </button>
+        {/* Admin can switch divisions */}
+        {isAdmin&&chatTab==="division"&&<>
+          <div style={{width:"1px",height:"28px",background:C.border}}/>
+          <Pill d="low"  active={adminDiv==="low"}  onClick={()=>setAdminDiv("low")}/>
+          <Pill d="high" active={adminDiv==="high"} onClick={()=>setAdminDiv("high")}/>
+          <button onClick={()=>setAdminPauseChat(p=>!p)} style={btn(adminPauseChat?C.green:C.amber,"#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"40px"})}>
+            {adminPauseChat?"Resume":"Pause"}
+          </button>
+        </>}
       </div>
 
-      {adminPauseChat&&<Alert type="warn">Chat is currently paused by admin.</Alert>}
+      {adminPauseChat&&chatTab==="division"&&<Alert type="warn">Division chat is currently paused by admin.</Alert>}
 
-      {/* Pinned message */}
-      {pinned&&(
-        <div style={{background:"#fef9c3",border:`1px solid ${C.amber}30`,borderRadius:"8px",padding:"10px 14px",marginBottom:"14px",display:"flex",gap:"10px",alignItems:"flex-start"}}>
-          <Icon n="pin" size={14}/>
-          <div style={{flex:1}}>
-            <div style={{fontSize:"11px",fontWeight:"600",color:C.amber,marginBottom:"3px"}}>PINNED · {pinned.team_name}</div>
-            <div style={{fontSize:"13px",color:C.text}}>{pinned.content}</div>
-          </div>
-          {isAdmin&&<button onClick={()=>setPinned(null)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"18px",lineHeight:1}}>×</button>}
-        </div>
-      )}
+      {/* DIVISION CHAT TAB */}
+      {chatTab==="division"&&<>
+        {/* Non-admin division label */}
+        {!isAdmin&&<div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"12px"}}>
+          <Tag c={myDiv==="low"?"gray":"blue"}>{dL(myDiv)} Division</Tag>
+          <span style={{fontSize:"12px",color:C.faint}}>Your division chat</span>
+        </div>}
 
-      <div style={{...card(),display:"flex",flexDirection:"column",height:mobile?"calc(100vh - 280px)":"480px"}}>
-        <div style={{flex:1,overflowY:"auto",paddingBottom:"6px"}}>
-          {!canSee?<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>You can only view your own division's chat.</div>:
-          msgs.length===0?<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>No messages yet in this division. Be the first!</div>:
-          msgs.map(m=>(
-            <div key={m.id} style={{marginBottom:"16px",position:"relative"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px",flexWrap:"wrap"}}>
-                <span style={{fontSize:"13px",fontWeight:"700",color:m.is_admin?C.amber:dC(division)}}>{m.team_name}</span>
-                {m.is_admin&&<Tag c="amber">Admin</Tag>}
-                {pinned?.id===m.id&&<Tag c="amber">Pinned</Tag>}
-                <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(m.created_at)}</span>
-                {/* Admin message controls */}
-                {isAdmin&&<div style={{marginLeft:"auto",display:"flex",gap:"4px"}}>
-                  <button onClick={()=>pinMsg(m)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,padding:"2px 4px",fontSize:"12px"}} title="Pin">📌</button>
-                  <button onClick={()=>deleteMsg(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:C.red,padding:"2px 4px",fontSize:"12px"}} title="Delete">🗑</button>
-                </div>}
-              </div>
-              <div style={{fontSize:"14px",color:"#222",lineHeight:"1.6"}}>{formatMsg(m.content)}</div>
+        {/* Pinned message */}
+        {pinned&&(
+          <div style={{background:"#fef9c3",border:`1px solid ${C.amber}30`,borderRadius:"8px",padding:"10px 14px",marginBottom:"12px",display:"flex",gap:"10px",alignItems:"flex-start"}}>
+            <span>📌</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:"11px",fontWeight:"600",color:C.amber,marginBottom:"2px"}}>PINNED · {pinned.team_name}</div>
+              <div style={{fontSize:"13px",color:C.text}}>{pinned.content}</div>
             </div>
-          ))}
+            {isAdmin&&<button onClick={()=>setPinned(null)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"18px",lineHeight:1}}>×</button>}
+          </div>
+        )}
+
+        <div style={{...card(),display:"flex",flexDirection:"column",height:mobile?"calc(100vh - 340px)":"460px"}}>
+          <div style={{flex:1,overflowY:"auto",paddingBottom:"6px"}}>
+            {msgs.length===0
+              ?<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>No messages yet in this division. Be the first!</div>
+              :msgs.map(m=>(
+              <div key={m.id} style={{marginBottom:"16px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px",flexWrap:"wrap"}}>
+                  <span style={{fontSize:"13px",fontWeight:"700",color:m.is_admin?C.amber:dC(division)}}>{m.team_name}</span>
+                  {m.is_admin&&<Tag c="amber">Admin</Tag>}
+                  {pinned?.id===m.id&&<Tag c="amber">Pinned</Tag>}
+                  <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(m.created_at)}</span>
+                  {isAdmin&&<div style={{marginLeft:"auto",display:"flex",gap:"4px"}}>
+                    <button onClick={()=>pinMsg(m)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,padding:"2px 5px",fontSize:"13px"}}>📌</button>
+                    <button onClick={()=>deleteMsg(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:C.red,padding:"2px 5px",fontSize:"13px"}}>🗑</button>
+                  </div>}
+                </div>
+                <div style={{fontSize:"14px",color:"#222",lineHeight:"1.6"}}>{formatMsg(m.content)}</div>
+              </div>
+            ))}
+            <div ref={endRef}/>
+          </div>
+          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:"12px",marginTop:"6px"}}>
+            {!canPost&&<p style={{fontSize:"12px",color:C.faint,marginBottom:"8px"}}>{adminPauseChat?"Chat paused by admin.":"Account must be activated to chat."}</p>}
+            <div style={{display:"flex",gap:"8px"}}>
+              <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder={canPost?`Message ${dL(division)}... use @TeamName to mention`:"Read only"} disabled={!canPost}/>
+              <button style={btn(C.text,"#fff",{minHeight:"44px",padding:"10px 16px"})} onClick={send} disabled={!canPost}>Send</button>
+            </div>
+          </div>
+        </div>
+      </>}
+
+      {/* MATCH CHATS TAB */}
+      {chatTab==="matches"&&<>
+        {myMatches.length===0
+          ?<div style={{...card(),textAlign:"center",padding:"40px 20px"}}><p style={{color:C.faint,fontSize:"14px"}}>No active matches yet. Accept a match request to open a private match chat.</p></div>
+          :<>
+            {!activeMatchChat&&(
+              <div>
+                {myMatches.map(m=>{
+                  const opp=teams.find(t=>t.id===(m.t1_id===myTeam.id?m.t2_id:m.t1_id));
+                  return(
+                    <div key={m.id} style={{...card(),marginBottom:"10px",cursor:"pointer"}} onClick={()=>setActiveMatchChat(m)}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div>
+                          <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"3px"}}>vs {opp?.name}</div>
+                          <div style={{fontSize:"12px",color:C.muted}}>{m.match_date} · {m.match_time} · {m.court}</div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                          <Tag c="green">Active</Tag>
+                          <span style={{color:C.muted,fontSize:"20px"}}>›</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {activeMatchChat&&<>
+              <button style={btn(C.gray,"#fff",{fontSize:"13px",padding:"8px 14px",minHeight:"40px",marginBottom:"14px"})} onClick={()=>setActiveMatchChat(null)}>← Back to match list</button>
+              <InlineMatchChat match={activeMatchChat} myTeam={myTeam} teams={teams}/>
+            </>}
+          </>
+        }
+      </>}
+    </div>
+  );
+}
+
+// ── INLINE MATCH CHAT ─────────────────────────────────────────
+function InlineMatchChat({ match, myTeam, teams }) {
+  const mobile   = useMobile();
+  const [msgs,   setMsgs]   = useState([]);
+  const [input,  setInput]  = useState("");
+  const [uploading,setUploading]=useState(false);
+  const endRef   = useRef(null);
+  const fileRef  = useRef(null);
+  const opp      = teams.find(t=>t.id===(match.t1_id===myTeam.id?match.t2_id:match.t1_id));
+  const isClosed = match.chat_closed_at && new Date(match.chat_closed_at) < new Date();
+
+  useEffect(()=>{
+    sb.from("match_chats").select("*").eq("match_id",match.id).order("created_at",{ascending:true}).then(({data})=>{
+      if(data)setMsgs(data);
+      setTimeout(()=>endRef.current?.scrollIntoView(),100);
+    });
+    const ch=sb.channel(`mc-inline-${match.id}`)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"match_chats",filter:`match_id=eq.${match.id}`},p=>{
+        setMsgs(prev=>[...prev,p.new]);
+        setTimeout(()=>endRef.current?.scrollIntoView({behavior:"smooth"}),50);
+      }).subscribe();
+    return()=>sb.removeChannel(ch);
+  },[match.id]);
+
+  const send=async()=>{
+    if(!input.trim()||isClosed)return;
+    await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:input.trim()});
+    setInput("");
+  };
+
+  const sendPhoto=async(e)=>{
+    const file=e.target.files[0];if(!file)return;
+    setUploading(true);
+    const path=`match-chats/${match.id}/${Date.now()}.${file.name.split(".").pop()}`;
+    const{error}=await sb.storage.from("match-photos").upload(path,file,{upsert:true});
+    if(!error){
+      const{data:urlData}=sb.storage.from("match-photos").getPublicUrl(path);
+      await sb.from("match_chats").insert({match_id:match.id,team_id:myTeam.id,team_name:myTeam.name,content:`[photo]${urlData.publicUrl}`});
+    }
+    setUploading(false);
+  };
+
+  return(
+    <div>
+      <div style={{...card({padding:"12px 14px"}),marginBottom:"10px",background:C.bg}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
+          <div>
+            <div style={{fontWeight:"700",fontSize:"15px"}}>vs {opp?.name}</div>
+            <div style={{fontSize:"12px",color:C.muted}}>{match.match_date} · {match.match_time} · {match.court}</div>
+          </div>
+          <button onClick={()=>window.open(`https://maps.google.com/?q=${encodeURIComponent(match.court+" Charlotte NC")}`,"_blank")} style={btn(C.blue,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"36px",display:"flex",alignItems:"center",gap:"5px"})}>
+            <Icon n="map" size={14}/> Court Map
+          </button>
+        </div>
+      </div>
+      {isClosed&&<Alert type="warn">This match chat is archived.</Alert>}
+      <div style={{...card(),display:"flex",flexDirection:"column",height:mobile?"calc(100vh - 400px)":"420px"}}>
+        <div style={{flex:1,overflowY:"auto",paddingBottom:"6px"}}>
+          {msgs.length===0&&<div style={{textAlign:"center",color:C.faint,fontSize:"13px",padding:"24px 0"}}>Chat is open! Coordinate your match details here.</div>}
+          {msgs.map(m=>{
+            const mine=m.team_id===myTeam.id;
+            const isPhoto=m.content?.startsWith("[photo]");
+            const photoUrl=isPhoto?m.content.replace("[photo]",""):null;
+            return(
+              <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:"8px",marginBottom:"14px",alignItems:"flex-end"}}>
+                <div style={{maxWidth:"78%"}}>
+                  {!mine&&<div style={{fontSize:"11px",color:C.muted,marginBottom:"3px",fontWeight:"600"}}>{m.team_name}</div>}
+                  {isPhoto
+                    ?<img src={photoUrl} alt="shared" style={{maxWidth:"200px",borderRadius:"12px",display:"block"}}/>
+                    :<div style={{background:mine?"#111":"#f0f0ee",color:mine?"#fff":C.text,borderRadius:mine?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"10px 14px",fontSize:"14px",lineHeight:"1.5",wordBreak:"break-word"}}>{m.content}</div>
+                  }
+                  <div style={{fontSize:"10px",color:C.faint,marginTop:"3px",textAlign:mine?"right":"left"}}>{timeAgo(m.created_at)}</div>
+                </div>
+              </div>
+            );
+          })}
           <div ref={endRef}/>
         </div>
-        <div style={{borderTop:`1px solid ${C.border}`,paddingTop:"12px",marginTop:"6px"}}>
-          {!canPost&&<p style={{fontSize:"12px",color:C.faint,marginBottom:"8px"}}>{adminPauseChat?"Chat paused by admin.":!myTeam?.approved?"Account must be activated to chat.":"You can only post in your own division."}</p>}
-          <div style={{display:"flex",gap:"8px"}}>
-            <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder={canPost?`Message ${dL(division)} division... (use @TeamName to mention)`:"Read only"} disabled={!canPost}/>
-            <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={send} disabled={!canPost}>Send</button>
+        {!isClosed&&<div style={{borderTop:`1px solid ${C.border}`,paddingTop:"12px",marginTop:"6px"}}>
+          <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+            <input type="file" ref={fileRef} accept="image/*" style={{display:"none"}} onChange={sendPhoto}/>
+            <button onClick={()=>fileRef.current?.click()} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:"8px",cursor:"pointer",padding:"9px",color:C.muted,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}} disabled={uploading}>
+              <Icon n="image" size={18}/>
+            </button>
+            <input style={{...inp(),flex:1}} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message your opponent..."/>
+            <button style={btn(C.text,"#fff",{minHeight:"44px",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"center"})} onClick={send}><Icon n="send" size={18}/></button>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
@@ -2025,7 +2305,7 @@ export default function AscendLeague() {
         {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision}/>}
         {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
         {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision}/>}
-        {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
+        {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} teams={teams} matches={matches} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
         {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision}/>}
         {tab==="admin"&&isAdmin&&<AdminPanel teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} userId={userId} adminBanner={adminBanner} setAdminBanner={setAdminBanner} weekDeadline={weekDeadline} setWeekDeadline={setWeekDeadline}/>}
         {tab==="settings" &&<Settings userId={userId} myTeam={myTeam} teams={teams} matches={matches} signOut={signOut} openReport={()=>setShowReport(true)} notifications={notifications} setNotifications={setNotifications}/>}
