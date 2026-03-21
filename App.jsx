@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.7";
+const APP_VERSION   = "v2.2.8";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1371,41 +1371,6 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         🏓 <strong>Match day!</strong> You have {todayMatches.length} match{todayMatches.length>1?"es":""} today. Good luck out there!
       </Alert>}
 
-      {myTeam&&!myTeam.approved&&(()=>{
-        const p1Paid = myTeam.p1_paid;
-        const p2Paid = myTeam.p2_paid;
-        const bothPaid = p1Paid && p2Paid;
-        const iAmP1 = myTeam.p1_email?.toLowerCase()===userEmail?.toLowerCase();
-        const iAmP2 = myTeam.p2_email?.toLowerCase()===userEmail?.toLowerCase();
-        const myPaid = iAmP1 ? p1Paid : iAmP2 ? p2Paid : false;
-        return(
-          <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"16px",marginBottom:"16px"}}>
-            <div style={{fontSize:"14px",fontWeight:"700",color:"#78350f",marginBottom:"10px"}}>⏳ Team pending activation</div>
-            <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"12px"}}>
-              {[
-                {name:myTeam.p1_name,paid:p1Paid,label:"Player 1"},
-                {name:myTeam.p2_name,paid:p2Paid,label:"Player 2"},
-              ].map(({name,paid,label})=>(
-                <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",background:"rgba(0,0,0,.04)",borderRadius:"8px",padding:"8px 10px"}}>
-                  <span style={{fontSize:"14px"}}>{paid?"✅":"⏳"}</span>
-                  <span style={{fontSize:"13px",flex:1,color:"#78350f"}}><strong>{label}:</strong> {name} — {paid?"$25 paid":"payment pending"}</span>
-                </div>
-              ))}
-            </div>
-            {bothPaid
-              ? <p style={{fontSize:"12px",color:"#78350f",marginBottom:"0",lineHeight:"1.6"}}>Both payments received. Admin will activate your team within 24 hours.</p>
-              : <>
-                  <p style={{fontSize:"12px",color:"#78350f",marginBottom:myPaid?"0":"10px",lineHeight:"1.6"}}>
-                    {myPaid
-                      ? "Your payment is confirmed — waiting on your partner's payment."
-                      : "Your team won't be active until both players have paid $25 and admin has approved."}
-                  </p>
-                  {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
-                </>
-            }
-          </div>
-        );
-      })()}
       {clinched&&<Alert type="success">🎉 <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
 
       {/* Yellow notification — scores needing action */}
@@ -3675,25 +3640,39 @@ export default function App() {
       {/* Page */}
       <div style={{padding:mobile?"16px 14px":"28px 20px",maxWidth:"960px",margin:"0 auto"}}>
 
-        {/* GLOBAL PAYMENT BANNER — shows on every tab until both players have paid */}
+        {/* PAYMENT PENDING — shows on every tab until team is approved */}
         {myTeam&&!myTeam.approved&&(()=>{
+          const p1Paid=myTeam.p1_paid;
+          const p2Paid=myTeam.p2_paid;
+          const bothPaid=p1Paid&&p2Paid;
           const iAmP1=myTeam.p1_email?.toLowerCase()===userEmail?.toLowerCase();
           const iAmP2=myTeam.p2_email?.toLowerCase()===userEmail?.toLowerCase();
-          const myPaid=iAmP1?myTeam.p1_paid:iAmP2?myTeam.p2_paid:true;
-          const partnerPaid=iAmP1?myTeam.p2_paid:iAmP2?myTeam.p1_paid:true;
-          if(myPaid&&partnerPaid)return null;
+          const myPaid=iAmP1?p1Paid:iAmP2?p2Paid:false;
           return(
-            <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"14px 16px",marginBottom:"18px",display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
-              <span style={{fontSize:"20px"}}>⏳</span>
-              <div style={{flex:1,minWidth:"200px"}}>
-                <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"2px"}}>Team pending activation</div>
-                <div style={{fontSize:"12px",color:"#92400e",lineHeight:"1.5"}}>
-                  {!myPaid
-                    ? "Your $25 payment hasn't been received yet. Pay now to activate your team."
-                    : "Your payment is confirmed — waiting on your partner's $25 payment."}
-                </div>
+            <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"16px",marginBottom:"18px"}}>
+              <div style={{fontSize:"14px",fontWeight:"700",color:"#78350f",marginBottom:"10px"}}>⏳ Team pending activation</div>
+              <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"12px"}}>
+                {[
+                  {name:myTeam.p1_name,paid:p1Paid,label:"Player 1"},
+                  {name:myTeam.p2_name,paid:p2Paid,label:"Player 2"},
+                ].map(({name,paid,label})=>(
+                  <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",background:"rgba(0,0,0,.04)",borderRadius:"8px",padding:"8px 10px"}}>
+                    <span style={{fontSize:"14px"}}>{paid?"✅":"⏳"}</span>
+                    <span style={{fontSize:"13px",flex:1,color:"#78350f"}}><strong>{label}:</strong> {name} — {paid?"$25 paid":"payment pending"}</span>
+                  </div>
+                ))}
               </div>
-              {!myPaid&&<button style={btn("#78350f","#fff",{fontSize:"12px",padding:"8px 14px",minHeight:"38px",fontWeight:"700",whiteSpace:"nowrap"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay $25 now</button>}
+              {bothPaid
+                ?<p style={{fontSize:"12px",color:"#78350f",marginBottom:"0",lineHeight:"1.6"}}>Both payments received. Admin will activate your team within 24 hours.</p>
+                :<>
+                  <p style={{fontSize:"12px",color:"#78350f",marginBottom:myPaid?"0":"10px",lineHeight:"1.6"}}>
+                    {myPaid
+                      ?"Your payment is confirmed — waiting on your partner's payment."
+                      :"Your team won't be active until both players have paid $25 and admin has approved."}
+                  </p>
+                  {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
+                </>
+              }
             </div>
           );
         })()}
