@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.7";
+const APP_VERSION   = "v2.1.8";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -926,7 +926,7 @@ const friendlyError = (msg) => {
   return msg;
 };
 
-function AuthScreen({ oauthUser=null, onRegistered=null }) {
+function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=null, onRegistrationEnd=null }) {
   const [mode, setMode] = useState("login"); // login | register | forgot | join
   const [step, setStep] = useState(1);       // 1=account 2=team 3=partner 4=waiver 5=review
 
@@ -1016,6 +1016,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
 
   const submitReg = async()=>{
     setErr(""); setBusy(true);
+    if(onRegistrationStart) onRegistrationStart(); // block loadUser from firing
     const code = genCode();
     const div  = form.division || "low";
     const skill = div==="low" ? "3.0-3.5" : "3.5-4.0";
@@ -1026,10 +1027,10 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
         userEmail = oauthUser.email;
       } else {
         const{data:auth,error}=await sb.auth.signUp({email:form.email,password:form.password});
-        if(error){setErr(friendlyError(error.message));setBusy(false);return;}
+        if(error){setErr(friendlyError(error.message));setBusy(false);if(onRegistrationEnd)onRegistrationEnd();return;}
         uid       = auth.user?.id||auth.session?.user?.id;
         userEmail = form.email;
-        if(!uid){setErr("Account created — please check your email to confirm, then sign in.");setBusy(false);return;}
+        if(!uid){setErr("Account created — please check your email to confirm, then sign in.");setBusy(false);if(onRegistrationEnd)onRegistrationEnd();return;}
       }
 
       // Create the team
@@ -1040,23 +1041,24 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
         division:div, paid:false, approved:false,
         join_code:code, p2_joined:false
       }).select().single();
-      if(te){setErr(friendlyError(te.message));setBusy(false);return;}
+      if(te){setErr(friendlyError(te.message));setBusy(false);if(onRegistrationEnd)onRegistrationEnd();return;}
 
-      // Link profile to team — catch errors silently so they don't block the UI
+      // Link profile to team
       await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id}).catch(()=>{});
       await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
       await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`}).catch(()=>{});
 
-      // Always show code modal — this must run even if background ops fail
+      // Show code modal
       setCreatedCode(code);
       setBusy(false);
-      // Open Shopify in background for email users (popup may be blocked — that's ok)
       if(!isOAuth){ try{window.open(SHOPIFY_URL,"_blank");}catch(e){} }
       setShowCodeModal(true);
+      // Don't call onRegistrationEnd here — we want to keep blocking until user dismisses modal
 
     } catch(e){
       setErr(friendlyError(e.message));
       setBusy(false);
+      if(onRegistrationEnd) onRegistrationEnd();
     }
   };
 
@@ -1130,6 +1132,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
             }}>📤 Share with {form.p2Name}</button>
             <button style={btn(C.gray,"#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{
               setShowCodeModal(false);
+              if(onRegistrationEnd) onRegistrationEnd();
               if(isOAuth&&onRegistered){
                 sb.from("teams").select("*").eq("join_code",createdCode).single().then(({data})=>{if(data)onRegistered(data);});
               } else {
@@ -3220,7 +3223,8 @@ export default function App() {
   const [teams,         setTeams]         = useState([]);
   const [matches,       setMatches]       = useState([]);
   const [requests,      setRequests]      = useState([]);
-  const [needsRegistration, setNeedsRegistration] = useState(null); // {uid, email}
+  const [needsRegistration, setNeedsRegistration] = useState(null); // {uid, email, name}
+  const isRegistering = useRef(false); // prevents loadUser from firing during active signup
   const [notifications, setNotifications] = useState([]);
   const [showNotifs,    setShowNotifs]    = useState(false);
   const [activeChat,    setActiveChat]    = useState(null);
@@ -3243,8 +3247,12 @@ export default function App() {
     });
     const{data:sub}=sb.auth.onAuthStateChange((_,session)=>{
       setSession(session);
-      if(session)loadUser(session.user.id);
-      else{setMyTeam(null);setIsAdmin(false);setLoading(false);}
+      if(session){
+        // Don't run loadUser if registration is in progress — it would race and break the flow
+        if(!isRegistering.current) loadUser(session.user.id);
+      } else {
+        setMyTeam(null);setIsAdmin(false);setLoading(false);
+      }
     });
     return()=>sub.subscription.unsubscribe();
   },[]);
@@ -3441,8 +3449,8 @@ export default function App() {
     </div>
   );
 
-  if(!session)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen/></div>;
-  if(needsRegistration)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen oauthUser={needsRegistration} onRegistered={(team)=>{setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);}}/></div>;
+  if(!session)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen onRegistrationStart={()=>isRegistering.current=true} onRegistrationEnd={()=>isRegistering.current=false}/></div>;
+  if(needsRegistration)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen oauthUser={needsRegistration} onRegistrationStart={()=>isRegistering.current=true} onRegistrationEnd={()=>isRegistering.current=false} onRegistered={(team)=>{isRegistering.current=false;setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);}}/></div>;
 
   const navTabs=isAdmin
     ?[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"],["admin","Admin"],["settings","Settings"]]
