@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.5";
+const APP_VERSION   = "v2.0.7";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1981,24 +1981,21 @@ function ScoreConfirmModal({ mid, myTeam, teams, matches, entry, setEntry, setMa
 function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCancel }) {
   const mobile = useMobile();
   const [entry, setEntry] = useState({});
+  const [showCancelled, setShowCancelled] = useState(false);
 
-  // Derive confirm modal mid from entry state — avoids extra state variable
   const confirmMid = Object.keys(entry).find(k=>k.startsWith("__confirm_"))?.replace("__confirm_","") || null;
   const closeConfirm = () => setEntry(e=>{const n={...e};Object.keys(n).filter(k=>k.startsWith("__confirm_")).forEach(k=>delete n[k]);return n;});
 
-  // Active non-cancelled, completed separate
-  const myMatches = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled);
-  const active    = myMatches.filter(m=>m.status!=="completed");
-  const completed = myMatches.filter(m=>m.status==="completed");
+  const allMine = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id));
+  const active    = allMine.filter(m=>!m.cancelled&&m.status!=="completed");
+  const completed = allMine.filter(m=>!m.cancelled&&m.status==="completed");
+  const cancelled = allMine.filter(m=>m.cancelled);
 
   const confirmScore=async(mid)=>{
     const m=matches.find(x=>x.id===mid);
     if(!m)return;
-    // Call RPC to update DB
     await sb.rpc("confirm_match_score",{match_id:mid});
-    // Update match locally
     setMatches(p=>p.map(x=>x.id===mid?{...x,status:"completed"}:x));
-    // Refresh teams from DB to get accurate standings
     const{data:freshTeams}=await sb.from("teams").select("*").order("points",{ascending:false});
     if(freshTeams)setTeams(freshTeams);
   };
@@ -2008,12 +2005,13 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>My Matches</div>
       <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>Submit scores · Confirm results · Full history</div>
 
-      {active.length===0&&completed.length===0&&(
+      {active.length===0&&completed.length===0&&cancelled.length===0&&(
         <div style={{...card(),textAlign:"center",padding:"48px 20px"}}>
           <p style={{color:C.faint}}>No matches yet. Accept a request on the Match Board to get started.</p>
         </div>
       )}
 
+      {/* Active matches */}
       {active.map(m=>{
         const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
         const canSubmit=m.status==="confirmed";
@@ -2023,9 +2021,12 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
           <div key={m.id} style={{...card(),marginBottom:"14px",opacity:scoreSubmitted?0.85:1}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"14px",flexWrap:"wrap",gap:"8px"}}>
               <div>
-                <div style={{fontSize:"20px",fontWeight:"800",marginBottom:"3px",letterSpacing:"-.3px"}}>vs {opp?.name}</div>
-                <div style={{fontSize:"13px",color:C.muted}}>{fmtDateTime(m.match_date,m.match_time)}</div>
-                <div style={{fontSize:"12px",color:C.muted}}>{m.court}</div>
+                <div style={{fontSize:"20px",fontWeight:"800",marginBottom:"6px",letterSpacing:"-.3px"}}>vs {opp?.name}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:"6px",marginBottom:"2px"}}>
+                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>📅 {fmtDate(m.match_date)}</span>
+                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>🕐 {fmtTime(m.match_time)}</span>
+                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>📍 {m.court}</span>
+                </div>
               </div>
               <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}}>
                 <Tag c={canSubmit?"green":scoreSubmitted?"amber":m.status==="disputed"?"red":"gray"}>{canSubmit?"Confirmed":scoreSubmitted?"Score Pending":"Disputed"}</Tag>
@@ -2033,7 +2034,6 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
                 {canSubmit&&<button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>openCancel(m)}>Cancel</button>}
               </div>
             </div>
-
             {canSubmit&&<ScoreEntry mid={m.id} myTeam={myTeam} opp={opp} entry={entry} setEntry={setEntry}/>}
             {scoreSubmitted&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
             {canConfirm&&<ScoreConfirmFlow match={m} myTeam={myTeam} opp={opp} setMatches={setMatches} confirmScore={confirmScore}/>}
@@ -2041,6 +2041,7 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
         );
       })}
 
+      {/* Completed matches */}
       {completed.length>0&&(
         <>
           <div style={{fontSize:"12px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",margin:"24px 0 10px"}}>Completed</div>
@@ -2051,11 +2052,42 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
               <div key={m.id} style={{...card(),marginBottom:"10px",opacity:0.5}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
                   <div>
-                    <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"2px"}}>vs {opp?.name}</div>
-                    <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}</div>
-                    {m.games&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{m.games.map(g=>`${g.s1}–${g.s2}`).join("  ")}</div>}
+                    <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"4px"}}>vs {opp?.name}</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:"4px",marginBottom:"3px"}}>
+                      <span style={{fontSize:"11px",color:C.muted}}>📅 {fmtDate(m.match_date)}</span>
+                      <span style={{fontSize:"11px",color:C.faint}}>·</span>
+                      <span style={{fontSize:"11px",color:C.muted}}>📍 {m.court}</span>
+                    </div>
+                    {m.games&&<div style={{fontSize:"12px",color:C.muted}}>{m.games.map(g=>`${g.s1}–${g.s2}`).join("  ")}</div>}
                   </div>
                   <Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Cancelled matches — collapsible section */}
+      {cancelled.length>0&&(
+        <>
+          <button
+            onClick={()=>setShowCancelled(s=>!s)}
+            style={{...btn(C.gray,"#fff",{fontSize:"12px",padding:"6px 14px",minHeight:"36px",marginTop:"20px",marginBottom:"10px"})}}
+          >
+            {showCancelled?"Hide":"Show"} Cancelled ({cancelled.length})
+          </button>
+          {showCancelled&&cancelled.map(m=>{
+            const opp=teams.find(t=>t.id===(m.t1_id===myTeam?.id?m.t2_id:m.t1_id));
+            return(
+              <div key={m.id} style={{...card(),marginBottom:"10px",opacity:0.4,borderLeft:`3px solid ${C.red}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"8px"}}>
+                  <div>
+                    <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"2px"}}>vs {opp?.name}</div>
+                    <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}</div>
+                    {m.cancel_reason&&<div style={{fontSize:"11px",color:C.faint,marginTop:"2px"}}>Reason: {m.cancel_reason}</div>}
+                  </div>
+                  <Tag c="red">Cancelled</Tag>
                 </div>
               </div>
             );
@@ -3065,7 +3097,6 @@ function BottomNav({ tab, setTab, isAdmin, unreadCount, openRequestCount }) {
           <Icon n={iconMap[id]} size={20}/>
           {label}
           {id==="chat"&&unreadCount>0&&<span style={{position:"absolute",top:"6px",right:"calc(50% - 20px)",background:C.red,color:"#fff",borderRadius:"10px",minWidth:"18px",height:"18px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px"}}>{unreadCount>99?"99+":unreadCount}</span>}
-          {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"6px",right:"calc(50% - 20px)",background:C.blue,color:"#fff",borderRadius:"10px",minWidth:"18px",height:"18px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px"}}>{openRequestCount>99?"99+":openRequestCount}</span>}
         </button>
       ))}
     </div>
@@ -3256,7 +3287,6 @@ export default function App() {
             <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#111":"transparent",border:"none",color:tab===id?"#fff":C.muted,padding:"6px 10px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",fontWeight:tab===id?"600":"500",transition:"all .12s",whiteSpace:"nowrap",position:"relative"}}>
               {lbl}
               {id==="chat"&&msgUnread>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.red,color:"#fff",borderRadius:"10px",minWidth:"16px",height:"16px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{msgUnread>99?"99+":msgUnread}</span>}
-              {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.blue,color:"#fff",borderRadius:"10px",minWidth:"16px",height:"16px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{openRequestCount>99?"99+":openRequestCount}</span>}
             </button>
           ))}
         </>}
