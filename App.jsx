@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.6";
+const APP_VERSION   = "v2.1.7";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1031,6 +1031,8 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
         userEmail = form.email;
         if(!uid){setErr("Account created — please check your email to confirm, then sign in.");setBusy(false);return;}
       }
+
+      // Create the team
       const{data:team,error:te}=await sb.from("teams").insert({
         name:form.teamName, p1_name:form.p1Name, p1_email:userEmail,
         p2_name:form.p2Name, p2_email:form.p2Email,
@@ -1039,13 +1041,19 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
         join_code:code, p2_joined:false
       }).select().single();
       if(te){setErr(friendlyError(te.message));setBusy(false);return;}
-      await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id});
+
+      // Link profile to team — catch errors silently so they don't block the UI
+      await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id}).catch(()=>{});
       await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
       await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`}).catch(()=>{});
+
+      // Always show code modal — this must run even if background ops fail
       setCreatedCode(code);
       setBusy(false);
-      if(!isOAuth) window.open(SHOPIFY_URL,"_blank");
+      // Open Shopify in background for email users (popup may be blocked — that's ok)
+      if(!isOAuth){ try{window.open(SHOPIFY_URL,"_blank");}catch(e){} }
       setShowCodeModal(true);
+
     } catch(e){
       setErr(friendlyError(e.message));
       setBusy(false);
@@ -3249,27 +3257,42 @@ export default function App() {
     if(!profile){
       const{data:{user}}=await sb.auth.getUser();
       const email=user?.email||"";
-      await sb.from("profiles").upsert({id:uid,email});
-      const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",email).maybeSingle();
-      if(teamAsP2){
-        await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
-        await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",teamAsP2.id);
-        setMyTeam(teamAsP2);setDivision(teamAsP2.division);
+      const name=user?.user_metadata?.full_name||user?.user_metadata?.name||"";
+      await sb.from("profiles").upsert({id:uid,email}).catch(()=>{});
+      const[{data:teamAsP1},{data:teamAsP2}]=await Promise.all([
+        sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
+        sb.from("teams").select("*").eq("p2_email",email).maybeSingle(),
+      ]);
+      const foundTeam = teamAsP1 || teamAsP2;
+      if(foundTeam){
+        await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid).catch(()=>{});
+        setMyTeam(foundTeam);setDivision(foundTeam.division);
       } else {
-        setNeedsRegistration({uid,email});
+        setNeedsRegistration({uid,email,name});
         setLoading(false);
         return;
       }
     } else if(!profile.team_id && !profile.is_admin){
-      // Profile exists but no team — OAuth user who signed in but never finished registration
+      // Profile exists but no team — check if they registered a team (profile upsert may have failed)
       const{data:{user}}=await sb.auth.getUser();
       const email=user?.email||profile.email||"";
-      const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",email).maybeSingle();
-      if(teamAsP2){
-        await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
-        setMyTeam(teamAsP2);setDivision(teamAsP2.division);
+      // Check if they're p1 (registered a team) OR p2 (invited)
+      const[{data:teamAsP1},{data:teamAsP2}]=await Promise.all([
+        sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
+        sb.from("teams").select("*").eq("p2_email",email).maybeSingle(),
+      ]);
+      const foundTeam = teamAsP1 || teamAsP2;
+      if(foundTeam){
+        // Auto-link profile to the team they already created
+        await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid).catch(()=>{});
+        if(teamAsP2&&!teamAsP2.p2_joined){
+          await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",foundTeam.id).catch(()=>{});
+        }
+        setMyTeam(foundTeam);setDivision(foundTeam.division);
       } else {
-        setNeedsRegistration({uid,email});
+        // Truly new user with no team — send to registration
+        const{data:{user:u}}=await sb.auth.getUser();
+        setNeedsRegistration({uid, email, name:u?.user_metadata?.full_name||u?.user_metadata?.name||""});
         setLoading(false);
         return;
       }
