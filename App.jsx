@@ -911,6 +911,8 @@ function NotifPrefsModal({ userId, onClose }) {
 }
 
 // ── AUTH SCREEN ───────────────────────────────────────────────
+const genCode = () => Math.random().toString(36).substring(2,8).toUpperCase();
+
 // ── FRIENDLY ERROR MESSAGES ──────────────────────────────────
 const friendlyError = (msg) => {
   if(!msg) return "Something went wrong. Please try again.";
