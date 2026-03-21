@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.2";
+const APP_VERSION   = "v2.2.3";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -3431,19 +3431,60 @@ export default function App() {
     </div>
   );
 
+  // Code modal renderer — used at every render gate
+  const CodeModal = pendingCode ? (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{...card(),width:"100%",maxWidth:"420px",textAlign:"center",animation:"fadeIn .2s ease"}}>
+        <div style={{fontSize:"36px",marginBottom:"8px"}}>🏓</div>
+        <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>You're registered!</div>
+        <p style={{fontSize:"13px",color:C.muted,marginBottom:"18px",lineHeight:"1.6"}}>
+          Share this code with <strong>{pendingCode.p2Name}</strong> so they can create their account and join the team.
+        </p>
+        <div style={{background:"#1d1d1f",borderRadius:"14px",padding:"20px",marginBottom:"14px"}}>
+          <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Team join code</div>
+          <div style={{fontSize:"48px",fontWeight:"900",color:"#00BFFF",letterSpacing:"10px",fontFamily:"monospace",lineHeight:"1"}}>{pendingCode.code}</div>
+          <div style={{fontSize:"12px",color:"rgba(255,255,255,.4)",marginTop:"10px"}}>app.ascendpb.com → "Join with team code"</div>
+        </div>
+        <div style={{background:C.bg,borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",textAlign:"left",fontSize:"13px",color:C.text,lineHeight:"1.8"}}>
+          <strong>Send {pendingCode.p2Name} these steps:</strong><br/>
+          1. Go to app.ascendpb.com<br/>
+          2. Tap <strong>"Join with team code"</strong><br/>
+          3. Enter: <strong style={{color:"#00BFFF",fontFamily:"monospace",letterSpacing:"2px"}}>{pendingCode.code}</strong><br/>
+          4. Create their account &amp; pay $25
+        </div>
+        <div style={{background:"#eff6ff",borderRadius:"8px",padding:"10px 12px",marginBottom:"16px",fontSize:"12px",color:C.blue,textAlign:"left"}}>
+          💡 You can always find this code in <strong>Settings</strong> if you need to reshare it later.
+        </div>
+        <button style={btn(C.blue,"#fff",{width:"100%",marginBottom:"10px",minHeight:"46px",fontWeight:"700"})} onClick={()=>{
+          const text=`Hey ${pendingCode.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${pendingCode.code}\n4. Create your account & pay $25\n\nSee you on the courts!`;
+          if(navigator.share)navigator.share({text});
+          else{navigator.clipboard.writeText(text);alert("Copied to clipboard!");}
+        }}>📤 Share with {pendingCode.p2Name}</button>
+        <button style={btn(C.text,"#fff",{width:"100%",minHeight:"44px"})} onClick={async()=>{
+          const uid=pendingCode.uid;
+          setPendingCode(null);
+          setRegisteringSync(false);
+          if(uid) await loadUser(uid);
+          else{const{data:{session:s}}=await sb.auth.getSession();if(s)await loadUser(s.user.id);}
+        }}>Go to my dashboard →</button>
+      </div>
+    </div>
+  ) : null;
+
   if(!session||registering)return(
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
+      {CodeModal}
       <AuthScreen
         onRegistrationStart={()=>setRegisteringSync(true)}
         onRegistrationDone={(result)=>{
           setPendingCode(result);
-          // Don't clear registering yet — wait until pendingCode modal dismissed
         }}
       />
     </div>
   );
   if(needsRegistration)return(
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
+      {CodeModal}
       <AuthScreen
         oauthUser={needsRegistration}
         onRegistrationStart={()=>setRegisteringSync(true)}
@@ -3463,48 +3504,8 @@ export default function App() {
   return(
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",color:C.text,paddingBottom:mobile?"74px":"0"}}>
 
-      {/* ROOT-LEVEL CODE MODAL — survives AuthScreen unmount */}
-      {pendingCode&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
-          <div style={{...card(),width:"100%",maxWidth:"420px",textAlign:"center",animation:"fadeIn .2s ease"}}>
-            <div style={{fontSize:"36px",marginBottom:"8px"}}>🏓</div>
-            <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>You're registered!</div>
-            <p style={{fontSize:"13px",color:C.muted,marginBottom:"18px",lineHeight:"1.6"}}>
-              Share this code with <strong>{pendingCode.p2Name}</strong> so they can create their account and join the team.
-            </p>
-            <div style={{background:"#1d1d1f",borderRadius:"14px",padding:"20px",marginBottom:"14px"}}>
-              <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Team join code</div>
-              <div style={{fontSize:"48px",fontWeight:"900",color:"#00BFFF",letterSpacing:"10px",fontFamily:"monospace",lineHeight:"1"}}>{pendingCode.code}</div>
-              <div style={{fontSize:"12px",color:"rgba(255,255,255,.4)",marginTop:"10px"}}>app.ascendpb.com → "Join with team code"</div>
-            </div>
-            <div style={{background:C.bg,borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",textAlign:"left",fontSize:"13px",color:C.text,lineHeight:"1.8"}}>
-              <strong>Send {pendingCode.p2Name} these steps:</strong><br/>
-              1. Go to app.ascendpb.com<br/>
-              2. Tap <strong>"Join with team code"</strong><br/>
-              3. Enter: <strong style={{color:"#00BFFF",fontFamily:"monospace",letterSpacing:"2px"}}>{pendingCode.code}</strong><br/>
-              4. Create their account &amp; pay $25
-            </div>
-            <div style={{background:"#eff6ff",borderRadius:"8px",padding:"10px 12px",marginBottom:"16px",fontSize:"12px",color:C.blue,textAlign:"left"}}>
-              💡 You can always find this code in <strong>Settings</strong> if you need to reshare it later.
-            </div>
-            <button style={btn(C.blue,"#fff",{width:"100%",marginBottom:"10px",minHeight:"46px",fontWeight:"700"})} onClick={()=>{
-              const text=`Hey ${pendingCode.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${pendingCode.code}\n4. Create your account & pay $25\n\nSee you on the courts!`;
-              if(navigator.share)navigator.share({text});
-              else{navigator.clipboard.writeText(text);alert("Copied to clipboard!");}
-            }}>📤 Share with {pendingCode.p2Name}</button>
-            <button style={btn(C.text,"#fff",{width:"100%",minHeight:"44px"})} onClick={async()=>{
-              const uid = pendingCode.uid;
-              setPendingCode(null);
-              setRegisteringSync(false);
-              if(uid) await loadUser(uid);
-              else {
-                const{data:{session:s}}=await sb.auth.getSession();
-                if(s) await loadUser(s.user.id);
-              }
-            }}>Go to my dashboard →</button>
-          </div>
-        </div>
-      )}
+      {/* ROOT-LEVEL CODE MODAL */}
+      {CodeModal}
 
       {/* Week deadline banner */}
       {weekDeadline&&<div style={{background:C.amber,color:"#fff",textAlign:"center",padding:"8px 16px",fontSize:"13px",fontWeight:"600"}}>⏰ {weekDeadline}</div>}
