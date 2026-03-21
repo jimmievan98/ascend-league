@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.1";
+const APP_VERSION   = "v2.0.2";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1029,9 +1029,12 @@ function AuthScreen() {
           <Lbl>Password</Lbl>
           <input style={{...inp(),marginBottom:"18px"}} type="password" placeholder="Password" value={form.password} onChange={e=>up("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
           <button style={{...btn(C.text,"#fff",{width:"100%",marginBottom:"10px"})}} onClick={doLogin} disabled={busy}>{busy?"Signing in...":"Sign in"}</button>
-          <button style={{...btn(C.gray,"#fff",{width:"100%",marginBottom:"18px"})}} onClick={doGoogle}>Continue with Google</button>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:"13px",marginBottom:"16px"}}>
-            <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("register");setStep(1);setErr("");}}>Register new team</span>
+          <button style={{...btn(C.gray,"#fff",{width:"100%",marginBottom:"14px"})}} onClick={doGoogle}>Continue with Google</button>
+          <div style={{height:"1px",background:C.border,marginBottom:"14px"}}>
+            <div style={{textAlign:"center",position:"relative",top:"-10px"}}><span style={{background:C.white,padding:"0 10px",fontSize:"11px",color:C.faint}}>OR</span></div>
+          </div>
+          <button style={btn("#00BFFF","#fff",{width:"100%",marginBottom:"14px",minHeight:"50px",fontSize:"15px",fontWeight:"800",letterSpacing:".3px"})} onClick={()=>{setMode("register");setStep(1);setErr("");}}>🏓 Register a New Team</button>
+          <div style={{display:"flex",justifyContent:"flex-end",fontSize:"13px",marginBottom:"16px"}}>
             <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("forgot");setErr("");}}>Forgot password?</span>
           </div>
           <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"10px",padding:"14px",textAlign:"center"}}>
@@ -2262,19 +2265,28 @@ function Standings({ myTeam, teams, matches, division, setDivision, isAdmin }) {
 }
 
 // ── SEASON SCHEDULE ───────────────────────────────────────────
-function SeasonSchedule({ matches, teams, division, setDivision }) {
+function SeasonSchedule({ matches, teams, division, setDivision, myTeam, isAdmin }) {
   const mobile=useMobile();
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
+  // Non-admins locked to their division
+  const activeDivision = isAdmin ? division : (myTeam?.division || division);
   return(
     <div>
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px",marginBottom:"2px"}}>Season Schedule</div>
       <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>{SEASON} · 6 weeks + playoffs</div>
-      <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
-        <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
-        <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
-      </div>
+      {isAdmin?(
+        <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
+          <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
+          <Pill d="high" active={division==="high"} onClick={()=>setDivision("high")}/>
+        </div>
+      ):(
+        <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"20px"}}>
+          <Pill d={activeDivision} active={true} onClick={()=>{}}/>
+          <span style={{fontSize:"12px",color:C.faint}}>Your division</span>
+        </div>
+      )}
       {WEEK_DATES.map(w=>{
-        const wMatches=matches.filter(m=>m.division===division);
+        const wMatches=matches.filter(m=>m.division===activeDivision);
         const isCurrentWeek=w.week===CURRENT_WEEK;
         return(
           <div key={w.week} style={{...card(),marginBottom:"12px",borderLeft:`4px solid ${isCurrentWeek?C.blue:C.border}`}}>
@@ -2356,16 +2368,19 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
             </div>
           ))}
           <div style={{marginTop:"14px"}}>
+            <div style={{background:"#fef9c3",border:"1px solid #fde68a",borderRadius:"8px",padding:"10px 12px",marginBottom:"10px",fontSize:"12px",color:"#78350f"}}>
+              <strong>Need to update your skill rating (DUPR)?</strong> Once the season starts, ratings cannot be self-edited. Submit a request and admin will review it.
+            </div>
             {sent?<Alert type="success">Edit request sent to admin.</Alert>:
             editReq?<>
               <Lbl>What would you like changed?</Lbl>
-              <textarea style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px"}} placeholder="e.g. Change team name, correct a player name spelling..." value={editMsg} onChange={e=>setEditMsg(e.target.value)}/>
+              <textarea style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px"}} placeholder="e.g. Update P1 DUPR to 3.4, correct team name spelling..." value={editMsg} onChange={e=>setEditMsg(e.target.value)}/>
               <div style={{display:"flex",gap:"8px"}}>
                 <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={sendEditRequest} disabled={!editMsg.trim()}>Send Request</button>
                 <button style={btn(C.gray,"#fff",{minHeight:"44px"})} onClick={()=>setEditReq(false)}>Cancel</button>
               </div>
             </>:
-            <button style={btn(C.gray,"#fff",{fontSize:"13px"})} onClick={()=>setEditReq(true)}>Request a team info edit</button>}
+            <button style={btn(C.gray,"#fff",{fontSize:"13px",width:"100%",minHeight:"44px"})} onClick={()=>setEditReq(true)}>✏ Request a team info or rating edit</button>}
           </div>
         </>:<p style={{fontSize:"13px",color:C.muted}}>Admin account — no team assigned.</p>}
       </div>
@@ -3109,24 +3124,30 @@ export default function App() {
         if(p.new?.id===myTeam?.id)setMyTeam(p.new);
       })
       .on("postgres_changes",{event:"DELETE",schema:"public",table:"teams"},p=>{
-        setTeams(prev=>prev.filter(x=>x.id!==p.old.id));
+        if(p.old?.id){
+          setTeams(prev=>prev.filter(x=>x.id!==p.old.id));
+        } else {
+          sb.from("teams").select("*").order("points",{ascending:false}).then(({data})=>{if(data)setTeams(data);});
+        }
       })
       .subscribe();
     const matchesCh=sb.channel("rt-matches")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches"},p=>{
-        // New match — add to local state
         setMatches(prev=>{
           if(prev.find(x=>x.id===p.new.id))return prev;
           return [p.new,...prev];
         });
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches"},p=>{
-        // Updated match — replace in local state
         setMatches(prev=>prev.map(x=>x.id===p.new.id?p.new:x));
       })
       .on("postgres_changes",{event:"DELETE",schema:"public",table:"matches"},p=>{
-        // Deleted match — remove from local state immediately, no re-fetch
-        setMatches(prev=>prev.filter(x=>x.id!==p.old.id));
+        // p.old.id available when replica identity = FULL; fallback: refetch
+        if(p.old?.id){
+          setMatches(prev=>prev.filter(x=>x.id!==p.old.id));
+        } else {
+          sb.from("matches").select("*").order("created_at",{ascending:false}).then(({data})=>{if(data)setMatches(data);});
+        }
       })
       .subscribe();
     const requestsCh=sb.channel("rt-requests")
@@ -3156,8 +3177,14 @@ export default function App() {
   };
 
   if(loading)return(
-    <div style={{background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
-      <div style={{textAlign:"center"}}><AscendLogo height={60}/><div style={{fontSize:"12px",color:C.faint,marginTop:"10px"}}>Loading...</div></div>
+    <div style={{background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",gap:"24px"}}>
+      <AscendLogo height={72}/>
+      <div style={{position:"relative",width:"48px",height:"48px"}}>
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid #e4e4e0"}}/>
+        <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#00BFFF",animation:"spin 0.8s linear infinite"}}/>
+      </div>
+      <div style={{fontSize:"13px",color:C.faint,letterSpacing:".5px"}}>Loading your league...</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
@@ -3202,7 +3229,7 @@ export default function App() {
         {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
         {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} teams={teams} matches={matches} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
-        {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision}/>}
+        {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision} myTeam={myTeam} isAdmin={isAdmin}/>}
         {tab==="admin"&&isAdmin&&<AdminPanel teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} userId={userId} adminBanner={adminBanner} setAdminBanner={setAdminBanner} weekDeadline={weekDeadline} setWeekDeadline={setWeekDeadline}/>}
         {tab==="settings" &&<Settings userId={userId} myTeam={myTeam} teams={teams} matches={matches} signOut={signOut} openReport={()=>setShowReport(true)} notifications={notifications} setNotifications={setNotifications}/>}
       </div>
