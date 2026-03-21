@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.2";
+const APP_VERSION   = "v2.1.3";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -915,9 +915,16 @@ function NotifPrefsModal({ userId, onClose }) {
 const genCode = () => Math.random().toString(36).substring(2,8).toUpperCase();
 
 function AuthScreen({ oauthUser=null, onRegistered=null }) {
-  // If oauthUser is set, skip straight to team registration (steps 2-5)
-  const [mode, setMode] = useState(oauthUser ? "register" : "login");
-  const [step, setStep] = useState(oauthUser ? 2 : 1);
+  const [mode, setMode] = useState("login");
+  const [step, setStep] = useState(1);
+
+  // When oauthUser is passed, automatically start registration flow
+  useEffect(()=>{
+    if(oauthUser){
+      setMode("register");
+      setStep(2);
+    }
+  },[oauthUser]);
   const [form, setForm] = useState({
     email:"", password:"", confirm:"",
     teamName:"", p1Name:"",
@@ -1157,7 +1164,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
                 return(
                   <button key={d} onClick={()=>up("division",d)} style={{flex:1,padding:"16px 10px",borderRadius:"12px",border:`2px solid ${sel?dC(d):C.border}`,background:sel?dC(d):C.white,color:sel?"#fff":C.muted,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all .15s",textAlign:"center"}}>
                     <div style={{fontSize:"18px",fontWeight:"800",marginBottom:"4px"}}>{dL(d)}</div>
-                    <div style={{fontSize:"11px",opacity:0.8}}>{d==="low"?"DUPR 3.0 to 3.4":"DUPR 3.5 to 4.0"}</div>
+                    <div style={{fontSize:"11px",opacity:0.8}}>{d==="low"?"Intermediate":"Advanced"}</div>
                   </button>
                 );
               })}
