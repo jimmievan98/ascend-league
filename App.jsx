@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.0";
+const APP_VERSION   = "v2.2.1";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -929,7 +929,7 @@ const friendlyError = (msg) => {
   return msg;
 };
 
-function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=null, onRegistrationEnd=null }) {
+function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=null, onRegistrationDone=null }) {
   const [mode, setMode] = useState("login"); // login | register | forgot | join
   const [step, setStep] = useState(1);       // 1=account 2=team 3=partner 4=waiver 5=review
 
@@ -942,8 +942,6 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     division:"", agreed:false
   });
 
-  const [showCodeModal, setShowCodeModal] = useState(false);
-  const [createdCode,   setCreatedCode]   = useState("");
   const [err,  setErr]  = useState("");
   const [msg,  setMsg]  = useState("");
   const [busy, setBusy] = useState(false);
@@ -1024,8 +1022,8 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     // Helper to reset state and show error
     const fail = (msg) => {
       setBusy(false);
-      if(onRegistrationEnd) onRegistrationEnd(null);
       setErr(msg || "Something went wrong. Please try again.");
+      // Don't clear registering on fail — user is still on the form
     };
 
     try {
@@ -1065,12 +1063,12 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
       }
       await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`}).catch(()=>{});
 
-      // ✅ Success — show code modal
-      setCreatedCode(code);
+      // ✅ Success — pass code up to root so modal survives AuthScreen unmount
       setBusy(false);
-      // Keep isRegistering=true until modal dismissed so loadUser doesn't race
       if(!isOAuth){ try{ window.open(SHOPIFY_URL,"_blank"); }catch(e){} }
-      setShowCodeModal(true);
+      if(onRegistrationDone) onRegistrationDone({
+        code, teamName:form.teamName, p2Name:form.p2Name, p2Email:form.p2Email, uid
+      });
 
     } catch(e){
       fail(friendlyError(e?.message));
@@ -1115,51 +1113,6 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
 
   return(
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",background:C.bg}}>
-
-      {/* ── CODE MODAL ── */}
-      {showCodeModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
-          <div style={{...card(),width:"100%",maxWidth:"420px",textAlign:"center",animation:"fadeIn .2s ease"}}>
-            <div style={{fontSize:"36px",marginBottom:"8px"}}>🏓</div>
-            <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>You're registered!</div>
-            <p style={{fontSize:"13px",color:C.muted,marginBottom:"18px",lineHeight:"1.6"}}>
-              Share this code with <strong>{form.p2Name}</strong> so they can create their account and join the team.
-            </p>
-            <div style={{background:"#1d1d1f",borderRadius:"14px",padding:"20px",marginBottom:"14px"}}>
-              <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Team join code</div>
-              <div style={{fontSize:"48px",fontWeight:"900",color:"#00BFFF",letterSpacing:"10px",fontFamily:"monospace",lineHeight:"1"}}>{createdCode}</div>
-              <div style={{fontSize:"12px",color:"rgba(255,255,255,.4)",marginTop:"10px"}}>app.ascendpb.com → "Join with team code"</div>
-            </div>
-            <div style={{background:C.bg,borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",textAlign:"left",fontSize:"13px",color:C.text,lineHeight:"1.8"}}>
-              <strong>Send {form.p2Name} these steps:</strong><br/>
-              1. Go to app.ascendpb.com<br/>
-              2. Tap <strong>"Join with team code"</strong><br/>
-              3. Enter code: <strong style={{color:"#00BFFF",fontFamily:"monospace",letterSpacing:"2px"}}>{createdCode}</strong><br/>
-              4. Create their account &amp; pay $25
-            </div>
-            <div style={{background:"#eff6ff",borderRadius:"8px",padding:"10px 12px",marginBottom:"16px",fontSize:"12px",color:C.blue,textAlign:"left"}}>
-              💡 You can always find this code in <strong>Settings</strong> if you need to reshare it later.
-            </div>
-            <button style={btn(C.blue,"#fff",{width:"100%",marginBottom:"10px",minHeight:"46px",fontWeight:"700"})} onClick={()=>{
-              const text=`Hey ${form.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${createdCode}\n4. Create your account & pay $25\n\nSee you on the courts!`;
-              if(navigator.share)navigator.share({text});
-              else{navigator.clipboard.writeText(text);alert("Copied to clipboard!");}
-            }}>📤 Share with {form.p2Name}</button>
-            <button style={btn(C.gray,"#fff",{width:"100%",minHeight:"44px"})} onClick={async()=>{
-              setShowCodeModal(false);
-              if(isOAuth&&onRegistered){
-                // OAuth path — fetch the newly created team and pass to parent
-                const{data:t}=await sb.from("teams").select("*").eq("join_code",createdCode).single();
-                if(t)onRegistered(t);
-                else if(onRegistrationEnd) onRegistrationEnd(oauthUser?.uid);
-              } else {
-                // Email path — call onRegistrationEnd which will run loadUser on current session
-                if(onRegistrationEnd) onRegistrationEnd(null);
-              }
-            }}>{isOAuth?"Go to my dashboard →":"Continue to sign in"}</button>
-          </div>
-        </div>
-      )}
 
       <div style={{marginBottom:"24px",display:"flex",flexDirection:"column",alignItems:"center"}}>
         <AscendLogo height={76}/>
@@ -3241,8 +3194,9 @@ export default function App() {
   const [teams,         setTeams]         = useState([]);
   const [matches,       setMatches]       = useState([]);
   const [requests,      setRequests]      = useState([]);
-  const [needsRegistration, setNeedsRegistration] = useState(null); // {uid, email, name}
-  const [registering, setRegistering] = useState(false); // keeps AuthScreen mounted during signup
+  const [needsRegistration, setNeedsRegistration] = useState(null);
+  const [registering, setRegistering] = useState(false);
+  const [pendingCode, setPendingCode] = useState(null); // {code, teamName, p2Name, p2Email, uid}
   const [notifications, setNotifications] = useState([]);
   const [showNotifs,    setShowNotifs]    = useState(false);
   const [activeChat,    setActiveChat]    = useState(null);
@@ -3257,19 +3211,24 @@ export default function App() {
   const msgUnread=notifications.filter(n=>!n.read&&["message","match_message","division_message"].includes(n.type)).length;
   const openRequestCount=requests.filter(r=>r.status==="open"&&r.division===(myTeam?.division||"low")).length;
 
+  // Ref shadow of registering state — lets onAuthStateChange read it without stale closure
+  const registeringRef = useRef(false);
+  const setRegisteringSync = (v) => { registeringRef.current = v; setRegistering(v); };
+
   useEffect(()=>{
     sb.auth.getSession().then(({data})=>{
       setSession(data.session);
-      if(data.session)loadUser(data.session.user.id);
+      if(data.session) loadUser(data.session.user.id);
       else setLoading(false);
     });
     const{data:sub}=sb.auth.onAuthStateChange((_,session)=>{
       setSession(session);
       if(session){
-        // loadUser is called explicitly after registration completes
-        // Don't call it here — we check registering state in render
+        // Only call loadUser for normal sign-ins, not during active registration
+        if(!registeringRef.current) loadUser(session.user.id);
       } else {
-        setMyTeam(null);setIsAdmin(false);setLoading(false);setRegistering(false);
+        setMyTeam(null);setIsAdmin(false);setLoading(false);
+        setRegisteringSync(false);setPendingCode(null);
       }
     });
     return()=>sub.subscription.unsubscribe();
@@ -3475,11 +3434,10 @@ export default function App() {
   if(!session||registering)return(
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
       <AuthScreen
-        onRegistrationStart={()=>setRegistering(true)}
-        onRegistrationEnd={async(uid)=>{
-          setRegistering(false);
-          if(uid) await loadUser(uid);
-          else if(session) await loadUser(session.user.id);
+        onRegistrationStart={()=>setRegisteringSync(true)}
+        onRegistrationDone={(result)=>{
+          setPendingCode(result);
+          // Don't clear registering yet — wait until pendingCode modal dismissed
         }}
       />
     </div>
@@ -3488,14 +3446,12 @@ export default function App() {
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
       <AuthScreen
         oauthUser={needsRegistration}
-        onRegistrationStart={()=>setRegistering(true)}
-        onRegistrationEnd={async(uid)=>{
-          setRegistering(false);
+        onRegistrationStart={()=>setRegisteringSync(true)}
+        onRegistrationDone={(result)=>{
+          setPendingCode(result);
           setNeedsRegistration(null);
-          if(uid) await loadUser(uid);
-          else if(session) await loadUser(session.user.id);
         }}
-        onRegistered={(team)=>{setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);setRegistering(false);}}
+        onRegistered={(team)=>{setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);setRegisteringSync(false);}}
       />
     </div>
   );
@@ -3506,6 +3462,49 @@ export default function App() {
 
   return(
     <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",color:C.text,paddingBottom:mobile?"74px":"0"}}>
+
+      {/* ROOT-LEVEL CODE MODAL — survives AuthScreen unmount */}
+      {pendingCode&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div style={{...card(),width:"100%",maxWidth:"420px",textAlign:"center",animation:"fadeIn .2s ease"}}>
+            <div style={{fontSize:"36px",marginBottom:"8px"}}>🏓</div>
+            <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>You're registered!</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"18px",lineHeight:"1.6"}}>
+              Share this code with <strong>{pendingCode.p2Name}</strong> so they can create their account and join the team.
+            </p>
+            <div style={{background:"#1d1d1f",borderRadius:"14px",padding:"20px",marginBottom:"14px"}}>
+              <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Team join code</div>
+              <div style={{fontSize:"48px",fontWeight:"900",color:"#00BFFF",letterSpacing:"10px",fontFamily:"monospace",lineHeight:"1"}}>{pendingCode.code}</div>
+              <div style={{fontSize:"12px",color:"rgba(255,255,255,.4)",marginTop:"10px"}}>app.ascendpb.com → "Join with team code"</div>
+            </div>
+            <div style={{background:C.bg,borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",textAlign:"left",fontSize:"13px",color:C.text,lineHeight:"1.8"}}>
+              <strong>Send {pendingCode.p2Name} these steps:</strong><br/>
+              1. Go to app.ascendpb.com<br/>
+              2. Tap <strong>"Join with team code"</strong><br/>
+              3. Enter: <strong style={{color:"#00BFFF",fontFamily:"monospace",letterSpacing:"2px"}}>{pendingCode.code}</strong><br/>
+              4. Create their account &amp; pay $25
+            </div>
+            <div style={{background:"#eff6ff",borderRadius:"8px",padding:"10px 12px",marginBottom:"16px",fontSize:"12px",color:C.blue,textAlign:"left"}}>
+              💡 You can always find this code in <strong>Settings</strong> if you need to reshare it later.
+            </div>
+            <button style={btn(C.blue,"#fff",{width:"100%",marginBottom:"10px",minHeight:"46px",fontWeight:"700"})} onClick={()=>{
+              const text=`Hey ${pendingCode.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${pendingCode.code}\n4. Create your account & pay $25\n\nSee you on the courts!`;
+              if(navigator.share)navigator.share({text});
+              else{navigator.clipboard.writeText(text);alert("Copied to clipboard!");}
+            }}>📤 Share with {pendingCode.p2Name}</button>
+            <button style={btn(C.text,"#fff",{width:"100%",minHeight:"44px"})} onClick={async()=>{
+              const uid = pendingCode.uid;
+              setPendingCode(null);
+              setRegisteringSync(false);
+              if(uid) await loadUser(uid);
+              else {
+                const{data:{session:s}}=await sb.auth.getSession();
+                if(s) await loadUser(s.user.id);
+              }
+            }}>Go to my dashboard →</button>
+          </div>
+        </div>
+      )}
 
       {/* Week deadline banner */}
       {weekDeadline&&<div style={{background:C.amber,color:"#fff",textAlign:"center",padding:"8px 16px",fontSize:"13px",fontWeight:"600"}}>⏰ {weekDeadline}</div>}
