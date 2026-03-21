@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.8";
+const APP_VERSION   = "v2.0.9";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -375,7 +375,7 @@ function CancelMatchModal({ match, myTeam, teams, onConfirm, onClose }) {
         <Lbl>Reason for cancellation</Lbl>
         <textarea style={{ ...inp({minHeight:"90px",resize:"vertical"}), marginBottom:"16px" }} placeholder="e.g. Scheduling conflict — can we reschedule next week?" value={reason} onChange={e=>setReason(e.target.value)}/>
         <div style={{ display:"flex", gap:"8px" }}>
-          <button style={btn(C.red,"#fff",{flex:1})} onClick={()=>reason.trim()&&onConfirm(reason)} disabled={!reason.trim()}>Cancel Match</button>
+          <button style={btn(C.red,"#fff",{flex:1})} onClick={()=>reason.trim()&&onConfirm(match,reason)} disabled={!reason.trim()}>Cancel Match</button>
           <button style={btn(C.gray,"#fff",{flex:1})} onClick={onClose}>Go Back</button>
         </div>
       </div>
@@ -2651,43 +2651,36 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
     if(!window.confirm("Permanently delete this match? Standings will be updated if completed."))return;
     const m=matches.find(x=>x.id===mid);
 
-    // 1. Blacklist immediately — no realtime event can re-add this match
+    // Optimistic — remove immediately from all views
     if(window.__deletedMatchIds)window.__deletedMatchIds.add(mid);
-
-    // 2. Remove from local state immediately
     setMatches(p=>p.filter(x=>x.id!==mid));
 
-    // 3. Roll back standings if completed
+    // Roll back standings locally if completed
     if(m?.status==="completed"&&m.winner_id&&m.loser_id){
+      setTeams(p=>p.map(t=>{
+        if(t.id===m.winner_id)return{...t,wins:Math.max(0,t.wins-1),points:Math.max(0,t.points-2)};
+        if(t.id===m.loser_id)return{...t,losses:Math.max(0,t.losses-1)};
+        return t;
+      }));
+      // Update DB standings
       const winner=teams.find(t=>t.id===m.winner_id);
       const loser=teams.find(t=>t.id===m.loser_id);
-      if(winner){
-        const newWins=Math.max(0,winner.wins-1);
-        const newPts=Math.max(0,winner.points-2);
-        await sb.from("teams").update({wins:newWins,points:newPts}).eq("id",m.winner_id);
-        setTeams(p=>p.map(t=>t.id===m.winner_id?{...t,wins:newWins,points:newPts}:t));
-      }
-      if(loser){
-        const newLosses=Math.max(0,loser.losses-1);
-        await sb.from("teams").update({losses:newLosses}).eq("id",m.loser_id);
-        setTeams(p=>p.map(t=>t.id===m.loser_id?{...t,losses:newLosses}:t));
-      }
+      if(winner)await sb.from("teams").update({wins:Math.max(0,winner.wins-1),points:Math.max(0,winner.points-2)}).eq("id",m.winner_id);
+      if(loser)await sb.from("teams").update({losses:Math.max(0,loser.losses-1)}).eq("id",m.loser_id);
     }
 
-    // 4. Delete from DB
+    // Delete from DB
     const{error}=await sb.from("matches").delete().eq("id",mid);
     if(error){
       alert("Delete failed: "+error.message);
-      // Undo local removal on error
-      if(m)setMatches(p=>[m,...p].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)));
+      // Revert
       if(window.__deletedMatchIds)window.__deletedMatchIds.delete(mid);
+      await refreshMatchesAndTeams();
       return;
     }
 
-    // 5. Refetch teams only (not matches — blacklist handles that)
-    const{data:ft}=await sb.from("teams").select("*").order("points",{ascending:false});
-    if(ft)setTeams(ft);
-
+    // Full refresh to guarantee all views sync
+    await refreshMatchesAndTeams();
     await logAction("Deleted match","match",mid,`${tName(m?.t1_id)} vs ${tName(m?.t2_id)}`);
   };
 
@@ -3200,7 +3193,7 @@ export default function App() {
         }
       })
       .subscribe();
-    // Track deleted AND cancelled match IDs — prevents realtime from resurrecting them
+    // Track deleted/cancelled IDs to protect during realtime race window
     const deletedMatchIds = new Set();
     const cancelledMatchIds = new Set();
 
@@ -3214,7 +3207,6 @@ export default function App() {
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches"},p=>{
         if(deletedMatchIds.has(p.new.id))return;
-        // If we've already marked it cancelled locally, force cancelled:true regardless of what DB sends
         if(cancelledMatchIds.has(p.new.id)){
           setMatches(prev=>prev.map(x=>x.id===p.new.id?{...p.new,cancelled:true}:x));
           return;
@@ -3230,7 +3222,7 @@ export default function App() {
       })
       .subscribe();
 
-    window.__deletedMatchIds  = deletedMatchIds;
+    window.__deletedMatchIds   = deletedMatchIds;
     window.__cancelledMatchIds = cancelledMatchIds;
     const requestsCh=sb.channel("rt-requests")
       .on("postgres_changes",{event:"*",schema:"public",table:"match_requests"},()=>{
@@ -3250,16 +3242,36 @@ export default function App() {
 
   const signOut=async()=>{await sb.auth.signOut();setSession(null);setMyTeam(null);setIsAdmin(false);};
 
+  // Shared helper — fetch fresh matches and teams from DB
+  const refreshMatchesAndTeams=async()=>{
+    const[{data:m},{data:t}]=await Promise.all([
+      sb.from("matches").select("*").order("created_at",{ascending:false}),
+      sb.from("teams").select("*").order("points",{ascending:false}),
+    ]);
+    if(m)setMatches(m);
+    if(t)setTeams(t);
+  };
+
   const handleCancelMatch=async(match,reason)=>{
-    // Blacklist immediately so realtime UPDATE can't overwrite cancelled:true
-    if(window.__cancelledMatchIds)window.__cancelledMatchIds.add(match.id);
-    // Update local state first
-    setMatches(p=>p.map(m=>m.id===match.id?{...m,cancelled:true,cancel_reason:reason}:m));
     setCancelMatch(null);
-    // Then write to DB
-    await sb.from("matches").update({cancelled:true,cancel_reason:reason,updated_at:new Date().toISOString()}).eq("id",match.id);
-    await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason});
-    alert("Match cancelled. Both teams and admin have been notified.");
+    // Optimistic — remove from active view immediately
+    setMatches(p=>p.map(m=>m.id===match.id?{...m,cancelled:true,cancel_reason:reason}:m));
+    // Write to DB
+    const{error}=await sb.from("matches").update({
+      cancelled:true,
+      cancel_reason:reason,
+      updated_at:new Date().toISOString()
+    }).eq("id",match.id);
+    if(error){
+      alert("Error cancelling match: "+error.message+"\n\nPlease ask admin to cancel.");
+      // Revert optimistic update
+      setMatches(p=>p.map(m=>m.id===match.id?{...m,cancelled:false,cancel_reason:null}:m));
+      return;
+    }
+    // Also log to cancellations table
+    await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason}).catch(()=>{});
+    // Full refresh so all views are in sync
+    await refreshMatchesAndTeams();
   };
 
   if(loading)return(
@@ -3325,7 +3337,7 @@ export default function App() {
 
       {/* Modals */}
       {activeChat  &&<MatchChatWindow   match={activeChat}  myTeam={myTeam} teams={teams} onClose={()=>setActiveChat(null)}/>}
-      {cancelMatch &&<CancelMatchModal  match={cancelMatch} myTeam={myTeam} teams={teams} onConfirm={handleCancelMatch} onClose={()=>setCancelMatch(null)}/>}
+      {cancelMatch &&<CancelMatchModal  match={cancelMatch} myTeam={myTeam} teams={teams} onConfirm={(reason)=>handleCancelMatch(cancelMatch,reason)} onClose={()=>setCancelMatch(null)}/>}
       {showReport  &&<ReportModal       myTeam={myTeam} onClose={()=>setShowReport(false)}/>}
       {showNotifPrefs&&<NotifPrefsModal userId={userId} onClose={()=>setShowNotifPrefs(false)}/>}
     </div>
