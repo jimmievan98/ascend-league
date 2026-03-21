@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.2";
+const APP_VERSION   = "v2.0.3";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1241,11 +1241,11 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
   const daysUntil =Math.max(0,Math.ceil((playoffDate-new Date())/86400000));
   const myRank    = standings.findIndex(t=>t.id===myTeam?.id);
   const clinched  = myRank>=0&&myRank<PLAYOFFS&&(standings[PLAYOFFS]?.points||0)<(myTeam?.points||0);
-  const totalMatchesPlayed = id => matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed").length;
+  const totalMatchesPlayed = id => matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed"&&!m.cancelled).length;
 
   // Win streak
   const getStreak = id => {
-    const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed")].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed"&&!m.cancelled)].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     let s=0; for(const m of tm){if(m.winner_id===id)s++;else break;} return s;
   };
   const myStreak = myTeam?getStreak(myTeam.id):0;
@@ -2088,7 +2088,7 @@ function TeamProfileModal({ team, teams, matches, myTeam, onClose }) {
   if (!team) return null;
 
   const teamMatches = [...matches.filter(m =>
-    (m.t1_id===team.id||m.t2_id===team.id) && m.status==="completed"
+    (m.t1_id===team.id||m.t2_id===team.id) && m.status==="completed" && !m.cancelled
   )].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
   const tName = id => teams.find(t=>t.id===id)?.name ?? "Unknown";
@@ -2199,8 +2199,8 @@ function Standings({ myTeam, teams, matches, division, setDivision, isAdmin }) {
   // Non-admins locked to their own division
   const activeDivision = isAdmin ? division : (myTeam?.division || division);
   const dt=[...teams.filter(t=>t.approved&&t.division===activeDivision)].sort((a,b)=>b.points-a.points||b.wins-a.wins);
-  const getStreak=id=>{const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed")].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));let s=0;for(const m of tm){if(m.winner_id===id)s++;else break;}return s;};
-  const totalPlayed=id=>matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed").length;
+  const getStreak=id=>{const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed"&&!m.cancelled)].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));let s=0;for(const m of tm){if(m.winner_id===id)s++;else break;}return s;};
+  const totalPlayed=id=>matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed"&&!m.cancelled).length;
   const maxPlayed=Math.max(...teams.map(t=>totalPlayed(t.id)),0);
   const mostActiveId=maxPlayed>0?teams.find(t=>totalPlayed(t.id)===maxPlayed)?.id:null;
 
@@ -2319,7 +2319,7 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
   const [prefs,setPrefs]=useState(null);
   const [prefsSaved,setPrefsSaved]=useState(false);
 
-  const myMatchHistory=matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&m.status==="completed").sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const myMatchHistory=matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&m.status==="completed"&&!m.cancelled).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
   const unread=notifications.filter(n=>!n.read).length;
 
@@ -2548,8 +2548,8 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
   const [deadlineDraft,setDeadlineDraft]=useState(weekDeadline||"");
 
   const pending=teams.filter(t=>!t.approved);
-  const disputes=matches.filter(m=>m.status==="disputed");
-  const completed=matches.filter(m=>m.status==="completed");
+  const disputes=matches.filter(m=>m.status==="disputed"&&!m.cancelled);
+  const completed=matches.filter(m=>m.status==="completed"&&!m.cancelled);
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
   const totalRev=teams.filter(t=>t.paid).length*25;
 
@@ -2624,14 +2624,17 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
       const loser=teams.find(t=>t.id===m.loser_id);
       if(winner)await sb.from("teams").update({wins:Math.max(0,winner.wins-1),points:Math.max(0,winner.points-2)}).eq("id",m.winner_id);
       if(loser)await sb.from("teams").update({losses:Math.max(0,loser.losses-1)}).eq("id",m.loser_id);
-      setTeams(p=>p.map(t=>{
-        if(t.id===m.winner_id)return{...t,wins:Math.max(0,t.wins-1),points:Math.max(0,t.points-2)};
-        if(t.id===m.loser_id)return{...t,losses:Math.max(0,t.losses-1)};
-        return t;
-      }));
     }
     await sb.from("matches").delete().eq("id",mid);
+    // Force immediate local removal + full refetch to guarantee sync
     setMatches(p=>p.filter(x=>x.id!==mid));
+    // Full refetch after short delay to ensure DB consistency
+    setTimeout(async()=>{
+      const{data:freshMatches}=await sb.from("matches").select("*").order("created_at",{ascending:false});
+      if(freshMatches)setMatches(freshMatches);
+      const{data:freshTeams}=await sb.from("teams").select("*").order("points",{ascending:false});
+      if(freshTeams)setTeams(freshTeams);
+    },500);
     await logAction("Deleted match","match",mid,`${tName(m?.t1_id)} vs ${tName(m?.t2_id)}`);
   };
 
@@ -2717,8 +2720,8 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
             {[
               {n:teams.filter(t=>t.approved).length,l:"Active teams",c:C.green},
               {n:teams.filter(t=>!t.approved).length,l:"Pending",c:C.amber},
-              {n:matches.filter(m=>m.status==="completed").length,l:"Matches played",c:C.blue},
-              {n:matches.filter(m=>m.status==="confirmed").length,l:"Upcoming",c:C.purple},
+              {n:matches.filter(m=>m.status==="completed"&&!m.cancelled).length,l:"Matches played",c:C.blue},
+              {n:matches.filter(m=>m.status==="confirmed"&&!m.cancelled).length,l:"Upcoming",c:C.purple},
               {n:disputes.length,l:"Disputes",c:C.red},
               {n:`$${totalRev}`,l:"Revenue",c:C.green},
             ].map((x,i)=>(
@@ -3171,8 +3174,14 @@ export default function App() {
   const handleCancelMatch=async(match,reason)=>{
     await sb.from("matches").update({cancelled:true,cancel_reason:reason,updated_at:new Date().toISOString()}).eq("id",match.id);
     await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason});
+    // Immediately remove from local state
     setMatches(p=>p.map(m=>m.id===match.id?{...m,cancelled:true,cancel_reason:reason}:m));
     setCancelMatch(null);
+    // Force full refetch to guarantee sync across all views
+    setTimeout(async()=>{
+      const{data:freshMatches}=await sb.from("matches").select("*").order("created_at",{ascending:false});
+      if(freshMatches)setMatches(freshMatches);
+    },400);
     alert("Match cancelled. Both teams and admin have been notified.");
   };
 
