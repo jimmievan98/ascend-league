@@ -1058,10 +1058,10 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
 
       // Link profile best-effort
       if(uid){
-        await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id}).catch(()=>{});
-        await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
+        try{await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id});}catch(e){}
+        try{await sb.from("notification_prefs").insert({user_id:uid});}catch(e){}
       }
-      await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`}).catch(()=>{});
+      try{await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`});}catch(e){}
 
       // ✅ Success — pass code up to root so modal survives AuthScreen unmount
       setBusy(false);
@@ -1097,9 +1097,9 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     const uid=auth.user?.id;
     if(uid){
       await sb.from("profiles").upsert({id:uid,email:joinEmail,team_id:joinTeam.id});
-      await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
+      try{await sb.from("notification_prefs").insert({user_id:uid});}catch(e){}
       await sb.from("teams").update({p2_joined:true,p2_email:joinEmail}).eq("id",joinTeam.id);
-      await sb.from("admin_activity_log").insert({action:"Player 2 joined",details:`${joinEmail} joined "${joinTeam.name}"`}).catch(()=>{});
+      try{await sb.from("admin_activity_log").insert({action:"Player 2 joined",details:`${joinEmail} joined "${joinTeam.name}"`});}catch(e){}
     }
     setBusy(false);
     window.open(SHOPIFY_URL,"_blank");
@@ -3243,14 +3243,14 @@ export default function App() {
       const{data:{user}}=await sb.auth.getUser();
       const email=user?.email||"";
       const name=user?.user_metadata?.full_name||user?.user_metadata?.name||"";
-      await sb.from("profiles").upsert({id:uid,email}).catch(()=>{});
+      try{await sb.from("profiles").upsert({id:uid,email});}catch(e){}
       const[{data:teamAsP1},{data:teamAsP2}]=await Promise.all([
         sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
         sb.from("teams").select("*").eq("p2_email",email).maybeSingle(),
       ]);
       const foundTeam = teamAsP1 || teamAsP2;
       if(foundTeam){
-        await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid).catch(()=>{});
+        try{await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid);}catch(e){}
         setMyTeam(foundTeam);setDivision(foundTeam.division);
       } else {
         setNeedsRegistration({uid,email,name});
@@ -3269,9 +3269,9 @@ export default function App() {
       const foundTeam = teamAsP1 || teamAsP2;
       if(foundTeam){
         // Auto-link profile to the team they already created
-        await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid).catch(()=>{});
+        try{await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid);}catch(e){}
         if(teamAsP2&&!teamAsP2.p2_joined){
-          await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",foundTeam.id).catch(()=>{});
+          try{await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",foundTeam.id);}catch(e){}
         }
         setMyTeam(foundTeam);setDivision(foundTeam.division);
       } else {
@@ -3295,7 +3295,7 @@ export default function App() {
         ]);
         const found=asP1||asP2;
         if(found){
-          await sb.from("profiles").update({team_id:found.id}).eq("id",uid).catch(()=>{});
+          try{await sb.from("profiles").update({team_id:found.id}).eq("id",uid);}catch(e){}
           setMyTeam(found);setDivision(found.division);
         }
       }
@@ -3414,7 +3414,7 @@ export default function App() {
       return;
     }
     // Also log to cancellations table
-    await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason}).catch(()=>{});
+    try{await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason});}catch(e){}
     // Full refresh so all views are in sync
     await refreshMatchesAndTeams();
   };
