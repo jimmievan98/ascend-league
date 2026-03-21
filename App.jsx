@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.5";
+const APP_VERSION   = "v2.2.6";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1314,7 +1314,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
   );
 }
 // ── DASHBOARD ─────────────────────────────────────────────────
-function Dashboard({ myTeam, teams, matches, requests, division, setDivision, setTab, openChat, openCancel, notifications, adminBanner, isAdmin }) {
+function Dashboard({ myTeam, teams, matches, requests, division, setDivision, setTab, openChat, openCancel, notifications, adminBanner, isAdmin, userEmail }) {
   const mobile = useMobile();
   const myReqs    = requests.filter(r=>r.team_id===myTeam?.id&&r.status==="open");
   const myMatches = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled&&m.status!=="completed");
@@ -1375,11 +1375,12 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         const p1Paid = myTeam.p1_paid;
         const p2Paid = myTeam.p2_paid;
         const bothPaid = p1Paid && p2Paid;
-        const userIsP1 = myTeam.p1_email?.toLowerCase()===myTeam.p1_email?.toLowerCase(); // always true for P1
+        const iAmP1 = myTeam.p1_email?.toLowerCase()===userEmail?.toLowerCase();
+        const iAmP2 = myTeam.p2_email?.toLowerCase()===userEmail?.toLowerCase();
+        const myPaid = iAmP1 ? p1Paid : iAmP2 ? p2Paid : false;
         return(
           <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"16px",marginBottom:"16px"}}>
             <div style={{fontSize:"14px",fontWeight:"700",color:"#78350f",marginBottom:"10px"}}>⏳ Team pending activation</div>
-            {/* Per-player payment status */}
             <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"12px"}}>
               {[
                 {name:myTeam.p1_name,paid:p1Paid,label:"Player 1"},
@@ -1394,11 +1395,12 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
             {bothPaid
               ? <p style={{fontSize:"12px",color:"#78350f",marginBottom:"0",lineHeight:"1.6"}}>Both payments received. Admin will activate your team within 24 hours.</p>
               : <>
-                  <p style={{fontSize:"12px",color:"#78350f",marginBottom:"10px",lineHeight:"1.6"}}>
-                    {!p1Paid&&!p2Paid?"Neither player has paid yet. ":!p1Paid?"Your payment hasn't been recorded yet. ":"Waiting on your partner's payment. "}
-                    Your team won't be active until both players have paid $25 and admin has approved.
+                  <p style={{fontSize:"12px",color:"#78350f",marginBottom:myPaid?"0":"10px",lineHeight:"1.6"}}>
+                    {myPaid
+                      ? "Your payment is confirmed — waiting on your partner's payment."
+                      : "Your team won't be active until both players have paid $25 and admin has approved."}
                   </p>
-                  {!p1Paid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
+                  {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
                 </>
             }
           </div>
@@ -2463,7 +2465,7 @@ function SeasonSchedule({ matches, teams, division, setDivision, myTeam, isAdmin
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────
-function Settings({ userId, myTeam, teams, matches, signOut, openReport, notifications, setNotifications }) {
+function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openReport, notifications, setNotifications }) {
   const mobile=useMobile();
   const [editReq,setEditReq]=useState(false);
   const [editMsg,setEditMsg]=useState("");
@@ -2515,8 +2517,9 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
         {myTeam?<>
           {[
             ["Team name",myTeam.name],
-            ["Player 1",`${myTeam.p1_name}`],
-            ["Player 2",`${myTeam.p2_name}`],
+            ["Your email",userEmail||"—"],
+            ["Player 1",myTeam.p1_name],
+            ["Player 2",myTeam.p2_name],
             ["Division",dL(myTeam.division)],
             ["Status",myTeam.approved?"✅ Active":"⏳ Pending activation"],
             ["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`],
@@ -2526,20 +2529,23 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
               <span style={{fontSize:"13px",fontWeight:"600",textAlign:"right"}}>{v}</span>
             </div>
           ))}
-          {/* Per-player payment status */}
+          {/* Per-player payment status — pay button only for the viewing user */}
           <div style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
             <div style={{fontSize:"11px",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",fontWeight:"600",marginBottom:"8px"}}>Payment status</div>
             {[
-              {name:myTeam.p1_name,paid:myTeam.p1_paid,label:"P1"},
-              {name:myTeam.p2_name,paid:myTeam.p2_paid,label:"P2"},
-            ].map(({name,paid,label})=>(
-              <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
-                <span style={{fontSize:"13px"}}>{paid?"✅":"⏳"}</span>
-                <span style={{fontSize:"13px",flex:1}}>{name}</span>
-                <Tag c={paid?"green":"red"}>{paid?"$25 paid":"Unpaid"}</Tag>
-                {!paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"30px"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>Pay now</button>}
-              </div>
-            ))}
+              {name:myTeam.p1_name, email:myTeam.p1_email, paid:myTeam.p1_paid, label:"P1"},
+              {name:myTeam.p2_name, email:myTeam.p2_email, paid:myTeam.p2_paid, label:"P2"},
+            ].map(({name,email,paid,label})=>{
+              const isMe = email?.toLowerCase()===userEmail?.toLowerCase();
+              return(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
+                  <span style={{fontSize:"13px"}}>{paid?"✅":"⏳"}</span>
+                  <span style={{fontSize:"13px",flex:1}}>{name}{isMe&&<span style={{fontSize:"11px",color:C.faint}}> (you)</span>}</span>
+                  <Tag c={paid?"green":"red"}>{paid?"$25 paid":"Unpaid"}</Tag>
+                  {!paid&&isMe&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"30px"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>Pay now</button>}
+                </div>
+              );
+            })}
           </div>
           {/* Join code — always visible so Player 1 can reshare */}
           {myTeam.join_code&&(
@@ -3317,6 +3323,7 @@ export default function App() {
   const [session,       setSession]       = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [userId,        setUserId]        = useState(null);
+  const [userEmail,     setUserEmail]     = useState("");
   const [myTeam,        setMyTeam]        = useState(null);
   const [isAdmin,       setIsAdmin]       = useState(false);
   const [tab,           setTab]           = useState("dashboard");
@@ -3366,6 +3373,9 @@ export default function App() {
 
   const loadUser=async uid=>{
     setUserId(uid);
+    const{data:{user:authUser}}=await sb.auth.getUser();
+    const email=authUser?.email||"";
+    setUserEmail(email);
     const{data:profile}=await sb.from("profiles").select("*").eq("id",uid).single();
 
     // New OAuth user — no profile exists yet, send to registration
@@ -3664,14 +3674,14 @@ export default function App() {
 
       {/* Page */}
       <div style={{padding:mobile?"16px 14px":"28px 20px",maxWidth:"960px",margin:"0 auto"}}>
-        {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner} isAdmin={isAdmin}/>}
+        {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner} isAdmin={isAdmin} userEmail={userEmail}/>}
         {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
         {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="chat"     &&<DivisionChat myTeam={myTeam} isAdmin={isAdmin} teams={teams} matches={matches} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat}/>}
         {tab==="schedule" &&<SeasonSchedule matches={matches} teams={teams} division={division} setDivision={setDivision} myTeam={myTeam} isAdmin={isAdmin}/>}
         {tab==="admin"&&isAdmin&&<AdminPanel teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} userId={userId} adminBanner={adminBanner} setAdminBanner={setAdminBanner} weekDeadline={weekDeadline} setWeekDeadline={setWeekDeadline}/>}
-        {tab==="settings" &&<Settings userId={userId} myTeam={myTeam} teams={teams} matches={matches} signOut={signOut} openReport={()=>setShowReport(true)} notifications={notifications} setNotifications={setNotifications}/>}
+        {tab==="settings" &&<Settings userId={userId} userEmail={userEmail} myTeam={myTeam} teams={teams} matches={matches} signOut={signOut} openReport={()=>setShowReport(true)} notifications={notifications} setNotifications={setNotifications}/>}
       </div>
 
       {/* Mobile bottom nav */}
