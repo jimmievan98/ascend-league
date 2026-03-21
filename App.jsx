@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.6";
+const APP_VERSION   = "v2.2.7";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -3674,6 +3674,29 @@ export default function App() {
 
       {/* Page */}
       <div style={{padding:mobile?"16px 14px":"28px 20px",maxWidth:"960px",margin:"0 auto"}}>
+
+        {/* GLOBAL PAYMENT BANNER — shows on every tab until both players have paid */}
+        {myTeam&&!myTeam.approved&&(()=>{
+          const iAmP1=myTeam.p1_email?.toLowerCase()===userEmail?.toLowerCase();
+          const iAmP2=myTeam.p2_email?.toLowerCase()===userEmail?.toLowerCase();
+          const myPaid=iAmP1?myTeam.p1_paid:iAmP2?myTeam.p2_paid:true;
+          const partnerPaid=iAmP1?myTeam.p2_paid:iAmP2?myTeam.p1_paid:true;
+          if(myPaid&&partnerPaid)return null;
+          return(
+            <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"14px 16px",marginBottom:"18px",display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
+              <span style={{fontSize:"20px"}}>⏳</span>
+              <div style={{flex:1,minWidth:"200px"}}>
+                <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"2px"}}>Team pending activation</div>
+                <div style={{fontSize:"12px",color:"#92400e",lineHeight:"1.5"}}>
+                  {!myPaid
+                    ? "Your $25 payment hasn't been received yet. Pay now to activate your team."
+                    : "Your payment is confirmed — waiting on your partner's $25 payment."}
+                </div>
+              </div>
+              {!myPaid&&<button style={btn("#78350f","#fff",{fontSize:"12px",padding:"8px 14px",minHeight:"38px",fontWeight:"700",whiteSpace:"nowrap"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay $25 now</button>}
+            </div>
+          );
+        })()}
         {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner} isAdmin={isAdmin} userEmail={userEmail}/>}
         {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
