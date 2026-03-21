@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.7";
+const APP_VERSION   = "v2.0.8";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -3200,8 +3200,9 @@ export default function App() {
         }
       })
       .subscribe();
-    // Track deleted match IDs — prevents any realtime event from re-adding them
+    // Track deleted AND cancelled match IDs — prevents realtime from resurrecting them
     const deletedMatchIds = new Set();
+    const cancelledMatchIds = new Set();
 
     const matchesCh=sb.channel("rt-matches")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches"},p=>{
@@ -3212,11 +3213,16 @@ export default function App() {
         });
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches"},p=>{
-        if(deletedMatchIds.has(p.new.id))return; // never re-add deleted matches
+        if(deletedMatchIds.has(p.new.id))return;
+        // If we've already marked it cancelled locally, force cancelled:true regardless of what DB sends
+        if(cancelledMatchIds.has(p.new.id)){
+          setMatches(prev=>prev.map(x=>x.id===p.new.id?{...p.new,cancelled:true}:x));
+          return;
+        }
         setMatches(prev=>prev.map(x=>x.id===p.new.id?p.new:x));
       })
       .on("postgres_changes",{event:"DELETE",schema:"public",table:"matches"},p=>{
-        const id = p.old?.id;
+        const id=p.old?.id;
         if(id){
           deletedMatchIds.add(id);
           setMatches(prev=>prev.filter(x=>x.id!==id));
@@ -3224,8 +3230,8 @@ export default function App() {
       })
       .subscribe();
 
-    // Expose deletedMatchIds to deleteMatch via window (same session only)
-    window.__deletedMatchIds = deletedMatchIds;
+    window.__deletedMatchIds  = deletedMatchIds;
+    window.__cancelledMatchIds = cancelledMatchIds;
     const requestsCh=sb.channel("rt-requests")
       .on("postgres_changes",{event:"*",schema:"public",table:"match_requests"},()=>{
         sb.from("match_requests").select("*,responses:request_responses(*)").order("created_at",{ascending:false}).then(({data})=>{if(data)setRequests(data);});
@@ -3245,10 +3251,14 @@ export default function App() {
   const signOut=async()=>{await sb.auth.signOut();setSession(null);setMyTeam(null);setIsAdmin(false);};
 
   const handleCancelMatch=async(match,reason)=>{
-    await sb.from("matches").update({cancelled:true,cancel_reason:reason,updated_at:new Date().toISOString()}).eq("id",match.id);
-    await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason});
+    // Blacklist immediately so realtime UPDATE can't overwrite cancelled:true
+    if(window.__cancelledMatchIds)window.__cancelledMatchIds.add(match.id);
+    // Update local state first
     setMatches(p=>p.map(m=>m.id===match.id?{...m,cancelled:true,cancel_reason:reason}:m));
     setCancelMatch(null);
+    // Then write to DB
+    await sb.from("matches").update({cancelled:true,cancel_reason:reason,updated_at:new Date().toISOString()}).eq("id",match.id);
+    await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason});
     alert("Match cancelled. Both teams and admin have been notified.");
   };
 
