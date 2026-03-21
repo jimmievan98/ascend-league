@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.3";
+const APP_VERSION   = "v2.1.4";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1051,21 +1051,22 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
           <Lbl>Email</Lbl>
           <input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)}/>
           <Lbl>Password</Lbl>
-          <input style={{...inp(),marginBottom:"18px"}} type="password" placeholder="Password" value={form.password} onChange={e=>up("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
+          <input style={{...inp(),marginBottom:"6px"}} type="password" placeholder="Password" value={form.password} onChange={e=>up("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
+          <div style={{textAlign:"right",marginBottom:"16px"}}>
+            <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("forgot");setErr("");}}>Forgot password?</span>
+          </div>
           <button style={{...btn(C.text,"#fff",{width:"100%",marginBottom:"10px"})}} onClick={doLogin} disabled={busy}>{busy?"Signing in...":"Sign in"}</button>
           <button style={{...btn(C.gray,"#fff",{width:"100%",marginBottom:"14px"})}} onClick={doGoogle}>Continue with Google</button>
           <div style={{height:"1px",background:C.border,marginBottom:"14px"}}>
             <div style={{textAlign:"center",position:"relative",top:"-10px"}}><span style={{background:C.white,padding:"0 10px",fontSize:"11px",color:C.faint}}>OR</span></div>
           </div>
           <button style={btn("#00BFFF","#fff",{width:"100%",marginBottom:"14px",minHeight:"50px",fontSize:"15px",fontWeight:"800",letterSpacing:".3px"})} onClick={()=>{setMode("register");setStep(1);setErr("");}}>🏓 Register a New Team</button>
-          <div style={{display:"flex",justifyContent:"flex-end",fontSize:"13px",marginBottom:"16px"}}>
-            <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("forgot");setErr("");}}>Forgot password?</span>
-          </div>
-          <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"10px",padding:"14px",textAlign:"center"}}>
+          <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"10px",padding:"14px",textAlign:"center",marginBottom:"16px"}}>
             <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"6px"}}>📧 Got a team invite?</div>
             <div style={{fontSize:"12px",color:"#92400e",marginBottom:"10px"}}>Your partner registered the team and shared a 6-character code with you. Use it to create your account.</div>
             <button style={btn("#78350f","#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{setMode("join");setJoinStep(1);setJoinErr("");}}>Join with team code →</button>
           </div>
+          <div style={{textAlign:"center",fontSize:"11px",color:C.faint}}>{APP_VERSION}</div>
         </>}
 
         {/* FORGOT */}
