@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.1";
+const APP_VERSION   = "v2.1.2";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -920,8 +920,8 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
   const [step, setStep] = useState(oauthUser ? 2 : 1);
   const [form, setForm] = useState({
     email:"", password:"", confirm:"",
-    teamName:"", p1Name:"", p1Skill:"3.2",
-    p2Name:"", p2Email:"", p2Skill:"3.2",
+    teamName:"", p1Name:"",
+    p2Name:"", p2Email:"",
     division:"", agreed:false
   });
   const [joinCode,   setJoinCode]   = useState("");
@@ -930,15 +930,14 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
   const [joinPassC,  setJoinPassC]  = useState("");
   const [joinTeam,   setJoinTeam]   = useState(null);
   const [joinErr,    setJoinErr]    = useState("");
-  const [joinStep,   setJoinStep]   = useState(1); // 1=enter code 2=confirm 3=create account 4=done
+  const [joinStep,   setJoinStep]   = useState(1);
   const [createdCode,setCreatedCode]= useState("");
   const [err,  setErr]  = useState("");
   const [msg,  setMsg]  = useState("");
   const [busy, setBusy] = useState(false);
   const wRef = useRef(null);
   const up = (k,v) => setForm(f=>({...f,[k]:v}));
-  const autoDiv = () => { const m=Math.max(parseFloat(form.p1Skill),parseFloat(form.p2Skill)); return m>3.5?"high":m<3.5?"low":form.division||""; };
-  const needs35 = () => Math.max(parseFloat(form.p1Skill),parseFloat(form.p2Skill))===3.5;
+  const autoDiv = () => form.division || "low";
 
   const doLogin  = async()=>{ setErr(""); setBusy(true); const{error}=await sb.auth.signInWithPassword({email:form.email,password:form.password}); setBusy(false); if(error)setErr(error.message); };
   const doGoogle = async()=>{ await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}}); };
@@ -978,50 +977,52 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
     if(step===1&&form.password!==form.confirm){setErr("Passwords do not match.");return;}
     if(step===2&&!form.teamName.trim()){setErr("Team name required.");return;}
     if(step===2&&!form.p1Name.trim()){setErr("Your name is required.");return;}
+    if(step===2&&!form.division){setErr("Please select your division.");return;}
     if(step===3&&!form.p2Name.trim()){setErr("Partner's name is required.");return;}
     if(step===3&&!form.p2Email.trim()){setErr("Partner's email is required — they need it to receive their join code.");return;}
     if(step===3&&!/\S+@\S+\.\S+/.test(form.p2Email)){setErr("Enter a valid email for your partner.");return;}
-    if(step===3&&needs35()&&!form.division){setErr("Please choose a division.");return;}
     if(step===4&&!form.agreed){setErr("You must agree to the rules and waiver.");return;}
     setStep(s=>s+1);
   };
 
   const submitReg=async()=>{
     setErr(""); setBusy(true);
-    const div=autoDiv();
     const code=genCode();
     let uid, userEmail;
 
-    if(oauthUser){
-      // OAuth user — already authenticated, just create the team
-      uid = oauthUser.uid;
-      userEmail = oauthUser.email;
-    } else {
-      const{data:authData,error}=await sb.auth.signUp({email:form.email,password:form.password});
-      if(error){setErr(error.message);setBusy(false);return;}
-      uid = authData.user?.id;
-      userEmail = form.email;
-    }
+    try{
+      if(oauthUser){
+        uid = oauthUser.uid;
+        userEmail = oauthUser.email;
+      } else {
+        const{data:authData,error}=await sb.auth.signUp({email:form.email,password:form.password});
+        if(error){setErr(error.message);setBusy(false);return;}
+        // Supabase may require email confirmation — user.id still exists
+        uid = authData.user?.id || authData.session?.user?.id;
+        userEmail = form.email;
+        if(!uid){setErr("Account created but could not get user ID. Try signing in.");setBusy(false);return;}
+      }
 
-    const{data:team,error:te}=await sb.from("teams").insert({
-      name:form.teamName,p1_name:form.p1Name,p1_email:userEmail,p1_skill:form.p1Skill,
-      p2_name:form.p2Name,p2_email:form.p2Email,p2_skill:form.p2Skill,
-      division:div,paid:false,approved:false,join_code:code,p2_joined:false
-    }).select().single();
-    if(te){setErr(te.message);setBusy(false);return;}
-    if(uid){
+      const div = form.division || "low";
+      const{data:team,error:te}=await sb.from("teams").insert({
+        name:form.teamName, p1_name:form.p1Name, p1_email:userEmail,
+        p2_name:form.p2Name, p2_email:form.p2Email,
+        division:div, paid:false, approved:false, join_code:code, p2_joined:false
+      }).select().single();
+      if(te){setErr(te.message);setBusy(false);return;}
+
       await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id});
       await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
-    }
-    await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} — P2 invite sent to ${form.p2Email}. Code: ${code}`}).catch(()=>{});
-    setCreatedCode(code);
-    setBusy(false);
-    if(oauthUser && onRegistered){
-      // OAuth path — show code screen then call onRegistered
+      await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} — P2 invite sent to ${form.p2Email}. Code: ${code}`}).catch(()=>{});
+
+      setCreatedCode(code);
+      setBusy(false);
+      if(!oauthUser) window.open(SHOPIFY_URL,"_blank");
       setStep(6);
-    } else {
-      window.open(SHOPIFY_URL,"_blank");
-      setStep(6);
+
+    } catch(e){
+      setErr("Something went wrong: "+e.message);
+      setBusy(false);
     }
   };
 
@@ -1144,10 +1145,23 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
             <Lbl>Confirm password</Lbl><input style={inp()} type="password" placeholder="Repeat password" value={form.confirm} onChange={e=>up("confirm",e.target.value)}/>
           </>}
           {step===2&&<>
-            <Lbl>Team name</Lbl><input style={{...inp(),marginBottom:"12px"}} placeholder="e.g. The Drop Shot Duo" value={form.teamName} onChange={e=>up("teamName",e.target.value)}/>
-            <Lbl>Your name (Player 1)</Lbl><input style={{...inp(),marginBottom:"12px"}} placeholder="Full name" value={form.p1Name} onChange={e=>up("p1Name",e.target.value)}/>
-            <Lbl>Your DUPR skill level</Lbl>
-            <select style={{...inp(),appearance:"none"}} value={form.p1Skill} onChange={e=>up("p1Skill",e.target.value)}>{SKILLS.map(s=><option key={s}>{s}</option>)}</select>
+            <Lbl>Team name</Lbl>
+            <input style={{...inp(),marginBottom:"12px"}} placeholder="e.g. The Drop Shot Duo" value={form.teamName} onChange={e=>up("teamName",e.target.value)}/>
+            <Lbl>Your name (Player 1)</Lbl>
+            <input style={{...inp(),marginBottom:"16px"}} placeholder="Full name" value={form.p1Name} onChange={e=>up("p1Name",e.target.value)}/>
+            <Lbl>Your division</Lbl>
+            <p style={{fontSize:"12px",color:C.muted,marginBottom:"10px",lineHeight:"1.5"}}>Select the rating range that matches both players. This determines which division you compete in.</p>
+            <div style={{display:"flex",gap:"10px"}}>
+              {["low","high"].map(d=>{
+                const sel=form.division===d;
+                return(
+                  <button key={d} onClick={()=>up("division",d)} style={{flex:1,padding:"16px 10px",borderRadius:"12px",border:`2px solid ${sel?dC(d):C.border}`,background:sel?dC(d):C.white,color:sel?"#fff":C.muted,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all .15s",textAlign:"center"}}>
+                    <div style={{fontSize:"18px",fontWeight:"800",marginBottom:"4px"}}>{dL(d)}</div>
+                    <div style={{fontSize:"11px",opacity:0.8}}>{d==="low"?"DUPR 3.0 to 3.4":"DUPR 3.5 to 4.0"}</div>
+                  </button>
+                );
+              })}
+            </div>
           </>}
           {step===3&&<>
             <Lbl>Partner's name (Player 2)</Lbl>
@@ -1158,14 +1172,6 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
             </div>
             <input style={{...inp(),marginBottom:"4px"}} type="email" placeholder="partner@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
             <p style={{fontSize:"11px",color:C.muted,marginBottom:"12px",lineHeight:"1.5"}}>Your partner needs this to receive their join code and create their account.</p>
-            <Lbl>Partner's DUPR skill level</Lbl>
-            <select style={{...inp(),appearance:"none",marginBottom:needs35()?"14px":"0"}} value={form.p2Skill} onChange={e=>up("p2Skill",e.target.value)}>{SKILLS.map(s=><option key={s}>{s}</option>)}</select>
-            {needs35()&&<div style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:"8px",padding:"14px",marginTop:"10px"}}>
-              <Lbl c={C.blue}>Choose division (3.5 player)</Lbl>
-              <div style={{display:"flex",gap:"8px",marginTop:"6px"}}>
-                {["low","high"].map(d=><button key={d} onClick={()=>up("division",d)} style={{flex:1,padding:"10px",borderRadius:"8px",border:`2px solid ${form.division===d?dC(d):C.border}`,background:form.division===d?dC(d):C.white,color:form.division===d?"#fff":C.muted,cursor:"pointer",fontSize:"14px",fontWeight:"600",minHeight:"44px"}}>{dL(d)}</button>)}
-              </div>
-            </div>}
           </>}
           {step===4&&<>
             <Lbl>Rules and liability waiver</Lbl>
@@ -1184,8 +1190,8 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
             <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"14px",marginBottom:"14px"}}>
               <Lbl>Team summary</Lbl>
               <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"4px"}}>{form.teamName||"Unnamed Team"}</div>
-              <div style={{fontSize:"13px",color:C.muted,marginBottom:"8px"}}>{form.p1Name} ({form.p1Skill}) and {form.p2Name} ({form.p2Skill})</div>
-              <Tag c={autoDiv()==="low"?"gray":"blue"}>{dL(autoDiv()||"low")} Division</Tag>
+              <div style={{fontSize:"13px",color:C.muted,marginBottom:"8px"}}>{form.p1Name} and {form.p2Name}</div>
+              <Tag c={autoDiv()==="low"?"gray":"blue"}>{dL(autoDiv())} Division</Tag>
             </div>
             <div style={{background:C.blueBg,border:`1px solid ${C.blueBorder}`,borderRadius:"8px",padding:"16px",textAlign:"center",marginBottom:"14px"}}>
               <div style={{fontSize:"11px",fontWeight:"600",color:C.blue,textTransform:"uppercase",letterSpacing:".8px"}}>Your fee</div>
@@ -3169,18 +3175,26 @@ export default function App() {
     if(!profile){
       const{data:{user}}=await sb.auth.getUser();
       const email=user?.email||"";
-      // Create a bare profile so we can track them
       await sb.from("profiles").upsert({id:uid,email});
-      // Check if they're a P2 invite
       const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",email).maybeSingle();
       if(teamAsP2){
         await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
         await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",teamAsP2.id);
-        setMyTeam(teamAsP2);
-        setDivision(teamAsP2.division);
+        setMyTeam(teamAsP2);setDivision(teamAsP2.division);
       } else {
-        // Brand new user — needs to register a team
-        // Set a flag so AuthScreen shows registration
+        setNeedsRegistration({uid,email});
+        setLoading(false);
+        return;
+      }
+    } else if(!profile.team_id && !profile.is_admin){
+      // Profile exists but no team — OAuth user who signed in but never finished registration
+      const{data:{user}}=await sb.auth.getUser();
+      const email=user?.email||profile.email||"";
+      const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",email).maybeSingle();
+      if(teamAsP2){
+        await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
+        setMyTeam(teamAsP2);setDivision(teamAsP2.division);
+      } else {
         setNeedsRegistration({uid,email});
         setLoading(false);
         return;
