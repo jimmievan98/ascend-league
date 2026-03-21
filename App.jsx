@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.9";
+const APP_VERSION   = "v2.2.0";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1024,7 +1024,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     // Helper to reset state and show error
     const fail = (msg) => {
       setBusy(false);
-      if(onRegistrationEnd) onRegistrationEnd();
+      if(onRegistrationEnd) onRegistrationEnd(null);
       setErr(msg || "Something went wrong. Please try again.");
     };
 
@@ -1147,21 +1147,16 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
             }}>📤 Share with {form.p2Name}</button>
             <button style={btn(C.gray,"#fff",{width:"100%",minHeight:"44px"})} onClick={async()=>{
               setShowCodeModal(false);
-              if(onRegistrationEnd) onRegistrationEnd();
               if(isOAuth&&onRegistered){
+                // OAuth path — fetch the newly created team and pass to parent
                 const{data:t}=await sb.from("teams").select("*").eq("join_code",createdCode).single();
                 if(t)onRegistered(t);
+                else if(onRegistrationEnd) onRegistrationEnd(oauthUser?.uid);
               } else {
-                // For email users — try to sign them in automatically
-                // loadUser will pick up their team by p1_email if profile link worked
-                const{data:{session:s}}=await sb.auth.getSession();
-                if(s){
-                  setMode("login"); // triggers re-render to app since session exists
-                } else {
-                  setMode("login");setStep(1);
-                }
+                // Email path — call onRegistrationEnd which will run loadUser on current session
+                if(onRegistrationEnd) onRegistrationEnd(null);
               }
-            }}>{isOAuth?"Go to my dashboard →":"Sign in & go to dashboard"}</button>
+            }}>{isOAuth?"Go to my dashboard →":"Continue to sign in"}</button>
           </div>
         </div>
       )}
@@ -3247,7 +3242,7 @@ export default function App() {
   const [matches,       setMatches]       = useState([]);
   const [requests,      setRequests]      = useState([]);
   const [needsRegistration, setNeedsRegistration] = useState(null); // {uid, email, name}
-  const isRegistering = useRef(false); // prevents loadUser from firing during active signup
+  const [registering, setRegistering] = useState(false); // keeps AuthScreen mounted during signup
   const [notifications, setNotifications] = useState([]);
   const [showNotifs,    setShowNotifs]    = useState(false);
   const [activeChat,    setActiveChat]    = useState(null);
@@ -3271,15 +3266,10 @@ export default function App() {
     const{data:sub}=sb.auth.onAuthStateChange((_,session)=>{
       setSession(session);
       if(session){
-        if(!isRegistering.current){
-          loadUser(session.user.id);
-        } else {
-          // Registration in progress — session changed but don't run loadUser yet
-          // Just make sure loading gets cleared so UI doesn't freeze
-          setLoading(false);
-        }
+        // loadUser is called explicitly after registration completes
+        // Don't call it here — we check registering state in render
       } else {
-        setMyTeam(null);setIsAdmin(false);setLoading(false);
+        setMyTeam(null);setIsAdmin(false);setLoading(false);setRegistering(false);
       }
     });
     return()=>sub.subscription.unsubscribe();
@@ -3337,12 +3327,17 @@ export default function App() {
       if(profile.team_id){
         const{data:team}=await sb.from("teams").select("*").eq("id",profile.team_id).single();
         if(team){setMyTeam(team);setDivision(team.division);}
-      } else if(profile.email){
-        const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",profile.email).maybeSingle();
-        if(teamAsP2){
-          await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
-          setMyTeam(teamAsP2);
-          setDivision(teamAsP2.division);
+      } else {
+        // No team_id — try to find team by email (covers admin users who also have a team)
+        const email=profile.email||"";
+        const[{data:asP1},{data:asP2}]=await Promise.all([
+          sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
+          sb.from("teams").select("*").eq("p2_email",email).maybeSingle(),
+        ]);
+        const found=asP1||asP2;
+        if(found){
+          await sb.from("profiles").update({team_id:found.id}).eq("id",uid).catch(()=>{});
+          setMyTeam(found);setDivision(found.division);
         }
       }
     }
@@ -3477,8 +3472,33 @@ export default function App() {
     </div>
   );
 
-  if(!session)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen onRegistrationStart={()=>isRegistering.current=true} onRegistrationEnd={()=>isRegistering.current=false}/></div>;
-  if(needsRegistration)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen oauthUser={needsRegistration} onRegistrationStart={()=>isRegistering.current=true} onRegistrationEnd={()=>isRegistering.current=false} onRegistered={(team)=>{isRegistering.current=false;setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);}}/></div>;
+  if(!session||registering)return(
+    <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
+      <AuthScreen
+        onRegistrationStart={()=>setRegistering(true)}
+        onRegistrationEnd={async(uid)=>{
+          setRegistering(false);
+          if(uid) await loadUser(uid);
+          else if(session) await loadUser(session.user.id);
+        }}
+      />
+    </div>
+  );
+  if(needsRegistration)return(
+    <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}>
+      <AuthScreen
+        oauthUser={needsRegistration}
+        onRegistrationStart={()=>setRegistering(true)}
+        onRegistrationEnd={async(uid)=>{
+          setRegistering(false);
+          setNeedsRegistration(null);
+          if(uid) await loadUser(uid);
+          else if(session) await loadUser(session.user.id);
+        }}
+        onRegistered={(team)=>{setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);setRegistering(false);}}
+      />
+    </div>
+  );
 
   const navTabs=isAdmin
     ?[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"],["admin","Admin"],["settings","Settings"]]
