@@ -3021,7 +3021,7 @@ function BottomNav({ tab, setTab, isAdmin, unreadCount }) {
 }
 
 // ── ROOT APP ──────────────────────────────────────────────────
-export default function AscendLeague() {
+export default function App() {
   useFonts();
   const mobile=useMobile();
   const [session,       setSession]       = useState(null);
