@@ -3169,14 +3169,8 @@ export default function App() {
         }
       })
       .subscribe();
-    // Use a ref to track deleted match IDs — prevents any realtime event from re-adding them
+    // Track deleted match IDs — prevents any realtime event from re-adding them
     const deletedMatchIds = new Set();
-    const safeSetMatches = (updater) => {
-      setMatches(prev => {
-        const next = typeof updater === 'function' ? updater(prev) : updater;
-        return next.filter(x => !deletedMatchIds.has(x.id));
-      });
-    };
 
     const matchesCh=sb.channel("rt-matches")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches"},p=>{
