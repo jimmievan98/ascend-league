@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.3";
+const APP_VERSION   = "v2.0.4";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1414,7 +1414,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         </div>
         <div className="tscroll">
           <table style={{width:"100%",borderCollapse:"collapse",minWidth:"300px"}}>
-            <thead><tr>{["#","Team","W","L","Pts","MP"].map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
+            <thead><tr>{["#","Team","Win","Loss","Points","Played"].map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
             <tbody>
               {standings.map((t,i)=>{
                 const streak=getStreak(t.id);
@@ -1884,55 +1884,42 @@ function ScoreEntry({ mid, myTeam, opp, entry, setEntry }) {
   const hasEnough = games.length >= 2;
 
   const inputStyle = (val) => ({
-    width:"0", flex:1, textAlign:"center", fontSize:"26px", fontWeight:"800",
+    width:"56px", textAlign:"center", fontSize:"20px", fontWeight:"800",
     background:C.white, border:`2px solid ${val?"#111":C.border}`,
-    borderRadius:"12px", padding:"12px 4px", outline:"none",
-    fontFamily:"'DM Sans',sans-serif", minWidth:"0", color:C.text,
-    WebkitAppearance:"none", MozAppearance:"textfield",
+    borderRadius:"10px", padding:"8px 4px", outline:"none",
+    fontFamily:"'DM Sans',sans-serif", color:C.text,
+    WebkitAppearance:"none", MozAppearance:"textfield", flexShrink:0,
   });
 
   return(
-    <div>
-      {/* Team labels — large */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px",padding:"0 2px"}}>
-        <span style={{fontSize:"16px",fontWeight:"800",color:C.text,flex:1}}>{myTeam?.name}</span>
-        <span style={{fontSize:"13px",color:C.faint,padding:"0 10px"}}>vs</span>
-        <span style={{fontSize:"16px",fontWeight:"800",color:C.text,flex:1,textAlign:"right"}}>{opp?.name}</span>
+    <div style={{maxWidth:"480px"}}>
+      {/* Team labels */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+        <span style={{fontSize:"13px",fontWeight:"700",color:C.text,flex:1}}>{myTeam?.name}</span>
+        <span style={{fontSize:"11px",color:C.faint,padding:"0 8px"}}>vs</span>
+        <span style={{fontSize:"13px",fontWeight:"700",color:C.text,flex:1,textAlign:"right"}}>{opp?.name}</span>
       </div>
-
-      {/* Game rows */}
+      {/* Game rows — compact */}
       {[1,2,3].map(g=>(
-        <div key={g} style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"10px",background:C.bg,borderRadius:"12px",padding:"12px 14px"}}>
-          <span style={{fontSize:"12px",color:C.muted,width:"60px",flexShrink:0,fontWeight:"600"}}>
-            {g===3?"Game 3*":`Game ${g}`}
-          </span>
-          <div style={{display:"flex",alignItems:"center",gap:"10px",flex:1}}>
-            <input
-              type="number" min="0" max="25" inputMode="numeric" pattern="[0-9]*"
-              placeholder="0"
-              value={s[`g${g}s1`]||""}
-              onChange={e=>upE(`g${g}s1`,e.target.value)}
-              style={inputStyle(s[`g${g}s1`])}
-            />
-            <span style={{fontSize:"20px",color:"#ccc",fontWeight:"300",flexShrink:0}}>—</span>
-            <input
-              type="number" min="0" max="25" inputMode="numeric" pattern="[0-9]*"
-              placeholder="0"
-              value={s[`g${g}s2`]||""}
-              onChange={e=>upE(`g${g}s2`,e.target.value)}
-              style={inputStyle(s[`g${g}s2`])}
-            />
+        <div key={g} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px",background:C.bg,borderRadius:"10px",padding:"8px 12px"}}>
+          <span style={{fontSize:"11px",color:C.muted,width:"54px",flexShrink:0,fontWeight:"600"}}>{g===3?"Game 3*":`Game ${g}`}</span>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",flex:1,justifyContent:"center"}}>
+            <input type="number" min="0" max="25" inputMode="numeric" pattern="[0-9]*"
+              placeholder="0" value={s[`g${g}s1`]||""}
+              onChange={e=>upE(`g${g}s1`,e.target.value)} style={inputStyle(s[`g${g}s1`])}/>
+            <span style={{fontSize:"16px",color:"#ccc",fontWeight:"300"}}>—</span>
+            <input type="number" min="0" max="25" inputMode="numeric" pattern="[0-9]*"
+              placeholder="0" value={s[`g${g}s2`]||""}
+              onChange={e=>upE(`g${g}s2`,e.target.value)} style={inputStyle(s[`g${g}s2`])}/>
           </div>
         </div>
       ))}
-      <p style={{fontSize:"11px",color:C.faint,marginBottom:"14px",paddingLeft:"2px"}}>* Game 3 only if needed · Left score = {myTeam?.name} · Right = {opp?.name}</p>
+      <p style={{fontSize:"11px",color:C.faint,marginBottom:"12px"}}>* Game 3 only if needed · Left = {myTeam?.name}</p>
       <button
-        style={btn(hasEnough?C.text:"#ccc","#fff",{width:"100%",minHeight:"52px",fontSize:"16px",fontWeight:"700",cursor:hasEnough?"pointer":"default"})}
+        style={btn(hasEnough?C.text:"#ccc","#fff",{minHeight:"44px",fontSize:"14px",fontWeight:"700",cursor:hasEnough?"pointer":"default",width:"100%",maxWidth:"480px"})}
         disabled={!hasEnough}
         onClick={()=>hasEnough&&setEntry(e=>({...e,[`__confirm_${mid}`]:true}))}
-      >
-        Review &amp; Submit Score
-      </button>
+      >Review &amp; Submit Score</button>
     </div>
   );
 }
@@ -2224,7 +2211,7 @@ function Standings({ myTeam, teams, matches, division, setDivision, isAdmin }) {
         <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>{dL(activeDivision)} — Full standings</div>
         <div className="tscroll">
           <table style={{width:"100%",borderCollapse:"collapse",minWidth:"400px"}}>
-            <thead><tr>{["Rank","Team",!mobile&&"Players","W","L","Pts","MP","Win%","Streak"].filter(Boolean).map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
+            <thead><tr>{["Rank","Team",!mobile&&"Players","Win","Loss","Points","Played","Win%","Streak"].filter(Boolean).map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
             <tbody>
               {dt.map((t,i)=>{
                 const pct=t.wins+t.losses>0?Math.round(t.wins/(t.wins+t.losses)*100):0;
@@ -2361,12 +2348,25 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
       <div style={{...card(),marginBottom:"14px"}}>
         <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Team information</div>
         {myTeam?<>
-          {[["Team name",myTeam.name],["Player 1",`${myTeam.p1_name} — Skill ${myTeam.p1_skill}`],["Player 2",`${myTeam.p2_name} — Skill ${myTeam.p2_skill}`],["Division",dL(myTeam.division)],["Status",myTeam.approved?"Active":"Pending activation"],["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`]].map(([l,v])=>(
+          {[["Team name",myTeam.name],["Player 1",`${myTeam.p1_name} — DUPR ${myTeam.p1_skill}`],["Player 2",`${myTeam.p2_name} — DUPR ${myTeam.p2_skill}`],["Division",dL(myTeam.division)],["Status",myTeam.approved?"Active":"Pending activation"],["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`]].map(([l,v])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
               <span style={{fontSize:"13px",color:C.muted}}>{l}</span>
               <span style={{fontSize:"13px",fontWeight:"600",textAlign:"right"}}>{v}</span>
             </div>
           ))}
+          {/* Join code — always visible so Player 1 can reshare */}
+          {myTeam.join_code&&(
+            <div style={{marginTop:"14px",background:"#1d1d1f",borderRadius:"12px",padding:"14px",textAlign:"center"}}>
+              <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}}>Partner join code</div>
+              <div style={{fontSize:"32px",fontWeight:"900",color:"#00BFFF",letterSpacing:"6px",fontFamily:"monospace"}}>{myTeam.join_code}</div>
+              <div style={{fontSize:"11px",color:"rgba(255,255,255,.4)",marginTop:"6px"}}>Share with {myTeam.p2_name} → app.ascendpb.com → "Join with team code"</div>
+              <button style={{...btn("#00BFFF","#fff",{marginTop:"10px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"}),width:"100%"}} onClick={()=>{
+                const text=`Hey ${myTeam.p2_name}! Join our pickleball team on the Ascend PB League app.\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${myTeam.join_code}\n4. Create your account & pay $25 🏓`;
+                if(navigator.share)navigator.share({text});
+                else{navigator.clipboard.writeText(text);alert("Copied!");}
+              }}>📤 Reshare with {myTeam.p2_name}</button>
+            </div>
+          )}
           <div style={{marginTop:"14px"}}>
             <div style={{background:"#fef9c3",border:"1px solid #fde68a",borderRadius:"8px",padding:"10px 12px",marginBottom:"10px",fontSize:"12px",color:"#78350f"}}>
               <strong>Need to update your skill rating (DUPR)?</strong> Once the season starts, ratings cannot be self-edited. Submit a request and admin will review it.
@@ -2625,16 +2625,20 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
       if(winner)await sb.from("teams").update({wins:Math.max(0,winner.wins-1),points:Math.max(0,winner.points-2)}).eq("id",m.winner_id);
       if(loser)await sb.from("teams").update({losses:Math.max(0,loser.losses-1)}).eq("id",m.loser_id);
     }
-    await sb.from("matches").delete().eq("id",mid);
-    // Force immediate local removal + full refetch to guarantee sync
+    // Delete and wait for confirmation
+    const{error}=await sb.from("matches").delete().eq("id",mid);
+    if(error){alert("Error deleting match: "+error.message);return;}
+    // Immediately remove from local state
     setMatches(p=>p.filter(x=>x.id!==mid));
-    // Full refetch after short delay to ensure DB consistency
+    // Hard refetch both matches and teams after 300ms to guarantee sync
     setTimeout(async()=>{
-      const{data:freshMatches}=await sb.from("matches").select("*").order("created_at",{ascending:false});
-      if(freshMatches)setMatches(freshMatches);
-      const{data:freshTeams}=await sb.from("teams").select("*").order("points",{ascending:false});
-      if(freshTeams)setTeams(freshTeams);
-    },500);
+      const[{data:fm},{data:ft}]=await Promise.all([
+        sb.from("matches").select("*").order("created_at",{ascending:false}),
+        sb.from("teams").select("*").order("points",{ascending:false}),
+      ]);
+      if(fm)setMatches(fm);
+      if(ft)setTeams(ft);
+    },300);
     await logAction("Deleted match","match",mid,`${tName(m?.t1_id)} vs ${tName(m?.t2_id)}`);
   };
 
@@ -2905,30 +2909,42 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
                 </div>
               </div>
               {editM?.type==="score"&&editM.id===m.id&&(
-                <div style={{background:C.bg,borderRadius:"8px",padding:"14px",marginTop:"10px"}}>
-                  <div style={{fontSize:"13px",fontWeight:"700",marginBottom:"12px"}}>Override score — select winner and enter game scores</div>
+                <div style={{background:C.bg,borderRadius:"10px",padding:"16px",marginTop:"10px"}}>
+                  <div style={{fontSize:"13px",fontWeight:"700",marginBottom:"14px"}}>Override score for {tName(m.t1_id)} vs {tName(m.t2_id)}</div>
                   <Lbl>Winner</Lbl>
-                  <div style={{display:"flex",gap:"8px",marginBottom:"14px"}}>
+                  <div style={{display:"flex",gap:"8px",marginBottom:"16px"}}>
                     {[m.t1_id,m.t2_id].map(tid=>{
                       const sel=(editScores[m.id]?.winner_id)===tid;
-                      return <button key={tid} onClick={()=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{t1_id:m.t1_id,t2_id:m.t2_id}),winner_id:tid}}))} style={{flex:1,padding:"10px",borderRadius:"8px",border:`2px solid ${sel?C.green:C.border}`,background:sel?C.greenBg:C.white,color:sel?C.green:C.text,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"13px",fontWeight:"600",minHeight:"44px"}}>{tName(tid)}</button>;
+                      return <button key={tid} onClick={()=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{t1_id:m.t1_id,t2_id:m.t2_id}),winner_id:tid}}))} style={{flex:1,padding:"12px",borderRadius:"8px",border:`2px solid ${sel?C.green:C.border}`,background:sel?C.greenBg:C.white,color:sel?C.green:C.text,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:"14px",fontWeight:"700",minHeight:"48px"}}>{tName(tid)}</button>;
                     })}
                   </div>
                   <Lbl>Game scores</Lbl>
-                  <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"12px"}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"14px"}}>
                     {[1,2,3].map(g=>(
-                      <div key={g} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"10px"}}>
-                        <Lbl>Game {g}{g===3?" (opt.)":""}</Lbl>
-                        <div style={{display:"flex",gap:"5px",alignItems:"center"}}>
-                          <input style={{...inp({width:"44px",textAlign:"center"})}} type="number" min="0" max="25" placeholder="—" value={(editScores[m.id]||{})[`g${g}s1`]||""} onChange={e=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{}),t1_id:m.t1_id,t2_id:m.t2_id,[`g${g}s1`]:e.target.value}}))}/>
-                          <span style={{color:"#ccc"}}>–</span>
-                          <input style={{...inp({width:"44px",textAlign:"center"})}} type="number" min="0" max="25" placeholder="—" value={(editScores[m.id]||{})[`g${g}s2`]||""} onChange={e=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{}),t1_id:m.t1_id,t2_id:m.t2_id,[`g${g}s2`]:e.target.value}}))}/>
+                      <div key={g} style={{display:"flex",alignItems:"center",gap:"10px",background:C.white,border:`1px solid ${C.border}`,borderRadius:"10px",padding:"10px 14px"}}>
+                        <span style={{fontSize:"12px",color:C.muted,width:"60px",flexShrink:0,fontWeight:"600"}}>{g===3?"Game 3*":`Game ${g}`}</span>
+                        <div style={{display:"flex",alignItems:"center",gap:"10px",flex:1}}>
+                          <input
+                            type="number" min="0" max="25" inputMode="numeric"
+                            placeholder="0"
+                            value={(editScores[m.id]||{})[`g${g}s1`]||""}
+                            onChange={e=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{}),t1_id:m.t1_id,t2_id:m.t2_id,[`g${g}s1`]:e.target.value}}))}
+                            style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"800",background:"#f9f9f9",border:`2px solid ${(editScores[m.id]||{})[`g${g}s1`]?"#111":C.border}`,borderRadius:"8px",padding:"8px 4px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0",color:C.text,WebkitAppearance:"none",MozAppearance:"textfield"}}
+                          />
+                          <span style={{fontSize:"18px",color:"#ccc",flexShrink:0}}>—</span>
+                          <input
+                            type="number" min="0" max="25" inputMode="numeric"
+                            placeholder="0"
+                            value={(editScores[m.id]||{})[`g${g}s2`]||""}
+                            onChange={e=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{}),t1_id:m.t1_id,t2_id:m.t2_id,[`g${g}s2`]:e.target.value}}))}
+                            style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"800",background:"#f9f9f9",border:`2px solid ${(editScores[m.id]||{})[`g${g}s2`]?"#111":C.border}`,borderRadius:"8px",padding:"8px 4px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0",color:C.text,WebkitAppearance:"none",MozAppearance:"textfield"}}
+                          />
                         </div>
                       </div>
                     ))}
                   </div>
                   <div style={{display:"flex",gap:"8px"}}>
-                    <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>saveScore(m.id)}>Save & Update Standings</button>
+                    <button style={btn(C.text,"#fff",{minHeight:"44px",flex:1})} onClick={()=>saveScore(m.id)}>Save & Update Standings</button>
                     <button style={btn(C.gray,"#fff",{minHeight:"44px"})} onClick={()=>setEditM(null)}>Cancel</button>
                   </div>
                 </div>
@@ -3020,7 +3036,7 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
 }
 
 // ── BOTTOM NAV ────────────────────────────────────────────────
-function BottomNav({ tab, setTab, isAdmin, unreadCount }) {
+function BottomNav({ tab, setTab, isAdmin, unreadCount, openRequestCount }) {
   const navTabs=isAdmin
     ?[["dashboard","Home"],["board","Board"],["scores","Scores"],["standings","Ranks"],["chat","Chat"],["admin","Admin"]]
     :[["dashboard","Home"],["board","Board"],["scores","Scores"],["standings","Ranks"],["chat","Chat"]];
@@ -3032,6 +3048,7 @@ function BottomNav({ tab, setTab, isAdmin, unreadCount }) {
           <Icon n={iconMap[id]} size={20}/>
           {label}
           {id==="chat"&&unreadCount>0&&<span style={{position:"absolute",top:"8px",right:"calc(50% - 18px)",background:C.red,color:"#fff",borderRadius:"50%",width:"16px",height:"16px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadCount}</span>}
+          {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"8px",right:"calc(50% - 18px)",background:C.blue,color:"#fff",borderRadius:"50%",width:"16px",height:"16px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{openRequestCount>9?"9+":openRequestCount}</span>}
         </button>
       ))}
     </div>
@@ -3064,6 +3081,7 @@ export default function App() {
 
   const unread   =notifications.filter(n=>!n.read).length;
   const msgUnread=notifications.filter(n=>!n.read&&["message","match_message","division_message"].includes(n.type)).length;
+  const openRequestCount=requests.filter(r=>r.status==="open"&&r.division===(myTeam?.division||"low")).length;
 
   useEffect(()=>{
     sb.auth.getSession().then(({data})=>{
@@ -3220,6 +3238,7 @@ export default function App() {
             <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#111":"transparent",border:"none",color:tab===id?"#fff":C.muted,padding:"6px 10px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",fontWeight:tab===id?"600":"500",transition:"all .12s",whiteSpace:"nowrap",position:"relative"}}>
               {lbl}
               {id==="chat"&&msgUnread>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.red,color:"#fff",borderRadius:"50%",width:"15px",height:"15px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{msgUnread>9?"9+":msgUnread}</span>}
+              {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.blue,color:"#fff",borderRadius:"50%",width:"15px",height:"15px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{openRequestCount>9?"9+":openRequestCount}</span>}
             </button>
           ))}
         </>}
@@ -3244,7 +3263,7 @@ export default function App() {
       </div>
 
       {/* Mobile bottom nav */}
-      {mobile&&<BottomNav tab={tab} setTab={setTab} isAdmin={isAdmin} unreadCount={msgUnread}/>}
+      {mobile&&<BottomNav tab={tab} setTab={setTab} isAdmin={isAdmin} unreadCount={msgUnread} openRequestCount={openRequestCount}/>}
 
       {/* Modals */}
       {activeChat  &&<MatchChatWindow   match={activeChat}  myTeam={myTeam} teams={teams} onClose={()=>setActiveChat(null)}/>}
