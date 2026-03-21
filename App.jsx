@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.9";
+const APP_VERSION   = "v2.1.1";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -914,9 +914,10 @@ function NotifPrefsModal({ userId, onClose }) {
 // ── GENERATE JOIN CODE ───────────────────────────────────────
 const genCode = () => Math.random().toString(36).substring(2,8).toUpperCase();
 
-function AuthScreen() {
-  const [mode, setMode] = useState("login"); // login | register | forgot | join
-  const [step, setStep] = useState(1);
+function AuthScreen({ oauthUser=null, onRegistered=null }) {
+  // If oauthUser is set, skip straight to team registration (steps 2-5)
+  const [mode, setMode] = useState(oauthUser ? "register" : "login");
+  const [step, setStep] = useState(oauthUser ? 2 : 1);
   const [form, setForm] = useState({
     email:"", password:"", confirm:"",
     teamName:"", p1Name:"", p1Skill:"3.2",
@@ -989,24 +990,39 @@ function AuthScreen() {
     setErr(""); setBusy(true);
     const div=autoDiv();
     const code=genCode();
-    const{data:authData,error}=await sb.auth.signUp({email:form.email,password:form.password});
-    if(error){setErr(error.message);setBusy(false);return;}
-    const uid=authData.user?.id;
+    let uid, userEmail;
+
+    if(oauthUser){
+      // OAuth user — already authenticated, just create the team
+      uid = oauthUser.uid;
+      userEmail = oauthUser.email;
+    } else {
+      const{data:authData,error}=await sb.auth.signUp({email:form.email,password:form.password});
+      if(error){setErr(error.message);setBusy(false);return;}
+      uid = authData.user?.id;
+      userEmail = form.email;
+    }
+
     const{data:team,error:te}=await sb.from("teams").insert({
-      name:form.teamName,p1_name:form.p1Name,p1_email:form.email,p1_skill:form.p1Skill,
+      name:form.teamName,p1_name:form.p1Name,p1_email:userEmail,p1_skill:form.p1Skill,
       p2_name:form.p2Name,p2_email:form.p2Email,p2_skill:form.p2Skill,
       division:div,paid:false,approved:false,join_code:code,p2_joined:false
     }).select().single();
     if(te){setErr(te.message);setBusy(false);return;}
     if(uid){
-      await sb.from("profiles").upsert({id:uid,email:form.email,team_id:team.id});
-      await sb.from("notification_prefs").insert({user_id:uid});
+      await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id});
+      await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
     }
-    await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} — P2 invite sent to ${form.p2Email}. Code: ${code}`});
+    await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} — P2 invite sent to ${form.p2Email}. Code: ${code}`}).catch(()=>{});
     setCreatedCode(code);
     setBusy(false);
-    window.open(SHOPIFY_URL,"_blank");
-    setStep(6);
+    if(oauthUser && onRegistered){
+      // OAuth path — show code screen then call onRegistered
+      setStep(6);
+    } else {
+      window.open(SHOPIFY_URL,"_blank");
+      setStep(6);
+    }
   };
 
   const Err=({e})=>e?<Alert type="error">{e}</Alert>:null;
@@ -1120,6 +1136,7 @@ function AuthScreen() {
           </div>
           <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"2px"}}>{["","Account","Team Info","Partner","Rules & Waiver","Review & Pay"][step]}</div>
           <div style={{fontSize:"11px",color:C.faint,marginBottom:"18px",textTransform:"uppercase"}}>Step {step} of 5 · You are Player 1</div>
+          {oauthUser&&<div style={{background:C.greenBg,border:`1px solid ${C.green}30`,borderRadius:"8px",padding:"10px 12px",marginBottom:"14px",fontSize:"12px",color:"#166534"}}>✓ Signed in with {oauthUser.email}</div>}
           <Err e={err}/>
           {step===1&&<>
             <Lbl>Your email</Lbl><input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)}/>
@@ -1221,7 +1238,12 @@ function AuthScreen() {
             📤 Share with {form.p2Name}
           </button>
           <p style={{fontSize:"11px",color:C.faint,marginBottom:"14px"}}>We've also noted {form.p2Email} as your partner's email for admin reference.</p>
-          <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>{setMode("login");setStep(1);}}>Back to sign in</button>
+          {oauthUser&&onRegistered
+            ? <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"15px"})} onClick={()=>{
+                sb.from("teams").select("*").eq("join_code",createdCode).single().then(({data})=>{if(data)onRegistered(data);});
+              }}>Go to My Dashboard →</button>
+            : <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>{setMode("login");setStep(1);}}>Back to sign in</button>
+          }
         </div>}
 
       </div>
@@ -3110,6 +3132,7 @@ export default function App() {
   const [teams,         setTeams]         = useState([]);
   const [matches,       setMatches]       = useState([]);
   const [requests,      setRequests]      = useState([]);
+  const [needsRegistration, setNeedsRegistration] = useState(null); // {uid, email}
   const [notifications, setNotifications] = useState([]);
   const [showNotifs,    setShowNotifs]    = useState(false);
   const [activeChat,    setActiveChat]    = useState(null);
@@ -3141,18 +3164,39 @@ export default function App() {
   const loadUser=async uid=>{
     setUserId(uid);
     const{data:profile}=await sb.from("profiles").select("*").eq("id",uid).single();
-    if(profile?.is_admin)setIsAdmin(true);
-    if(profile?.team_id){
-      const{data:team}=await sb.from("teams").select("*").eq("id",profile.team_id).single();
-      if(team){setMyTeam(team);setDivision(team.division);}
-    } else if(profile?.email) {
-      // Auto-link Player 2 — find team where their email is p2_email
-      const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",profile.email).maybeSingle();
+
+    // New OAuth user — no profile exists yet, send to registration
+    if(!profile){
+      const{data:{user}}=await sb.auth.getUser();
+      const email=user?.email||"";
+      // Create a bare profile so we can track them
+      await sb.from("profiles").upsert({id:uid,email});
+      // Check if they're a P2 invite
+      const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",email).maybeSingle();
       if(teamAsP2){
-        // Link this profile to the team
         await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
+        await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",teamAsP2.id);
         setMyTeam(teamAsP2);
         setDivision(teamAsP2.division);
+      } else {
+        // Brand new user — needs to register a team
+        // Set a flag so AuthScreen shows registration
+        setNeedsRegistration({uid,email});
+        setLoading(false);
+        return;
+      }
+    } else {
+      if(profile.is_admin)setIsAdmin(true);
+      if(profile.team_id){
+        const{data:team}=await sb.from("teams").select("*").eq("id",profile.team_id).single();
+        if(team){setMyTeam(team);setDivision(team.division);}
+      } else if(profile.email){
+        const{data:teamAsP2}=await sb.from("teams").select("*").eq("p2_email",profile.email).maybeSingle();
+        if(teamAsP2){
+          await sb.from("profiles").update({team_id:teamAsP2.id}).eq("id",uid);
+          setMyTeam(teamAsP2);
+          setDivision(teamAsP2.division);
+        }
       }
     }
     const{data:notifs}=await sb.from("notifications").select("*").eq("user_id",uid).order("created_at",{ascending:false}).limit(50);
@@ -3287,6 +3331,7 @@ export default function App() {
   );
 
   if(!session)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen/></div>;
+  if(needsRegistration)return <div style={{background:C.bg,minHeight:"100vh",fontFamily:"'DM Sans',sans-serif"}}><AuthScreen oauthUser={needsRegistration} onRegistered={(team)=>{setMyTeam(team);setDivision(team.division);setNeedsRegistration(null);}}/></div>;
 
   const navTabs=isAdmin
     ?[["dashboard","Dashboard"],["board","Match Board"],["scores","My Matches"],["standings","Standings"],["chat","Chat"],["schedule","Schedule"],["admin","Admin"],["settings","Settings"]]
