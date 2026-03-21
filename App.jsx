@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.8";
+const APP_VERSION   = "v2.2.9";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -977,7 +977,16 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     if(error)setErr(friendlyError(error.message));
   };
 
-  const doGoogle = async()=>{ await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:window.location.origin}}); };
+  const doGoogle = async()=>{
+    await sb.auth.signOut(); // clear any existing session first
+    await sb.auth.signInWithOAuth({
+      provider:"google",
+      options:{
+        redirectTo:window.location.origin,
+        queryParams:{ prompt:"select_account" } // always show account picker
+      }
+    });
+  };
 
   const doForgot = async()=>{
     if(!form.email){setErr("Please enter your email address first.");return;}
@@ -3331,6 +3340,7 @@ export default function App() {
       } else {
         setMyTeam(null);setIsAdmin(false);setLoading(false);
         setRegisteringSync(false);setPendingCode(null);
+        setNeedsRegistration(null);setUserEmail("");setUserId(null);
       }
     });
     return()=>sub.subscription.unsubscribe();
@@ -3490,7 +3500,26 @@ export default function App() {
     };
   },[session]);
 
-  const signOut=async()=>{await sb.auth.signOut();setSession(null);setMyTeam(null);setIsAdmin(false);};
+  const signOut=async()=>{
+    // Full hard reset — clears Supabase session, localStorage tokens, and all app state
+    await sb.auth.signOut({scope:"global"});
+    // Clear any lingering Supabase tokens from localStorage
+    Object.keys(localStorage).forEach(k=>{
+      if(k.startsWith("sb-")||k.includes("supabase"))localStorage.removeItem(k);
+    });
+    setSession(null);
+    setMyTeam(null);
+    setIsAdmin(false);
+    setUserId(null);
+    setUserEmail("");
+    setNeedsRegistration(null);
+    setRegistering(false);
+    setPendingCode(null);
+    setTeams([]);
+    setMatches([]);
+    setRequests([]);
+    setNotifications([]);
+  };
 
   // Shared helper — fetch fresh matches and teams from DB
   const refreshMatchesAndTeams=async()=>{
