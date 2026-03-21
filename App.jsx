@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.4";
+const APP_VERSION   = "v2.1.5";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -918,11 +918,14 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
   const [mode, setMode] = useState("login");
   const [step, setStep] = useState(1);
 
-  // When oauthUser is passed, automatically start registration flow
   useEffect(()=>{
     if(oauthUser){
       setMode("register");
       setStep(2);
+    } else {
+      // Always reset to login when no OAuth user
+      setMode("login");
+      setStep(1);
     }
   },[oauthUser]);
   const [form, setForm] = useState({
@@ -939,6 +942,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
   const [joinErr,    setJoinErr]    = useState("");
   const [joinStep,   setJoinStep]   = useState(1);
   const [createdCode,setCreatedCode]= useState("");
+  const [showCodeModal,setShowCodeModal]=useState(false);
   const [err,  setErr]  = useState("");
   const [msg,  setMsg]  = useState("");
   const [busy, setBusy] = useState(false);
@@ -1011,8 +1015,10 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
       }
 
       const div = form.division || "low";
+      const skillDefault = div==="low" ? "3.0-3.5" : "3.5-4.0";
       const{data:team,error:te}=await sb.from("teams").insert({
         name:form.teamName, p1_name:form.p1Name, p1_email:userEmail,
+        p1_skill:skillDefault, p2_skill:skillDefault,
         p2_name:form.p2Name, p2_email:form.p2Email,
         division:div, paid:false, approved:false, join_code:code, p2_joined:false
       }).select().single();
@@ -1025,7 +1031,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
       setCreatedCode(code);
       setBusy(false);
       if(!oauthUser) window.open(SHOPIFY_URL,"_blank");
-      setStep(6);
+      setShowCodeModal(true);
 
     } catch(e){
       setErr("Something went wrong: "+e.message);
@@ -1037,6 +1043,53 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
 
   return(
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",background:C.bg}}>
+      {/* Team code modal — shown after registration */}
+      {showCodeModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
+          <div style={{...card(),width:"100%",maxWidth:"420px",textAlign:"center",animation:"fadeIn .2s ease"}}>
+            <div style={{fontSize:"32px",marginBottom:"10px"}}>🏓</div>
+            <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>You're registered!</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"20px",lineHeight:"1.6"}}>Share this code with <strong>{form.p2Name}</strong> so they can create their account and join the team.</p>
+            <div style={{background:"#1d1d1f",borderRadius:"14px",padding:"20px",marginBottom:"16px"}}>
+              <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Team join code</div>
+              <div style={{fontSize:"48px",fontWeight:"900",color:"#00BFFF",letterSpacing:"10px",fontFamily:"monospace",lineHeight:"1"}}>{createdCode}</div>
+              <div style={{fontSize:"12px",color:"rgba(255,255,255,.4)",marginTop:"10px"}}>app.ascendpb.com → "Join with team code"</div>
+            </div>
+            <div style={{background:C.bg,borderRadius:"10px",padding:"12px",marginBottom:"16px",textAlign:"left"}}>
+              <div style={{fontSize:"12px",color:C.text,lineHeight:"1.7"}}>
+                <strong>Send {form.p2Name} these steps:</strong><br/>
+                1. Go to app.ascendpb.com<br/>
+                2. Tap "Join with team code"<br/>
+                3. Enter: <strong style={{color:"#00BFFF",fontFamily:"monospace"}}>{createdCode}</strong><br/>
+                4. Create account &amp; pay $25
+              </div>
+            </div>
+            <div style={{background:"#eff6ff",borderRadius:"8px",padding:"10px 12px",marginBottom:"16px",fontSize:"12px",color:C.blue,textAlign:"left"}}>
+              💡 You can always find your team code in <strong>Settings</strong> if you need to share it again later.
+            </div>
+            <button
+              style={btn(C.blue,"#fff",{width:"100%",marginBottom:"10px",minHeight:"46px"})}
+              onClick={()=>{
+                const text=`Hey ${form.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${createdCode}\n4. Create your account & pay $25\n\nSee you on the courts!`;
+                if(navigator.share)navigator.share({text});
+                else{navigator.clipboard.writeText(text);alert("Copied to clipboard!");}
+              }}
+            >📤 Share with {form.p2Name}</button>
+            <button
+              style={btn(C.gray,"#fff",{width:"100%",minHeight:"44px"})}
+              onClick={()=>{
+                setShowCodeModal(false);
+                if(oauthUser&&onRegistered){
+                  sb.from("teams").select("*").eq("join_code",createdCode).single().then(({data})=>{if(data)onRegistered(data);});
+                } else {
+                  setMode("login");setStep(1);
+                }
+              }}
+            >{oauthUser?"Go to my dashboard →":"Back to sign in"}</button>
+          </div>
+        </div>
+      )}
+
       <div style={{marginBottom:"28px",display:"flex",flexDirection:"column",alignItems:"center"}}>
         <AscendLogo height={80}/>
         <div style={{fontSize:"12px",color:C.faint,letterSpacing:".5px",marginTop:"12px"}}>Flex League · Charlotte, NC · {SEASON}</div>
@@ -1172,14 +1225,18 @@ function AuthScreen({ oauthUser=null, onRegistered=null }) {
             </div>
           </>}
           {step===3&&<>
-            <Lbl>Partner's name (Player 2)</Lbl>
-            <input style={{...inp(),marginBottom:"12px"}} placeholder="Full name" value={form.p2Name} onChange={e=>up("p2Name",e.target.value)}/>
+            <div style={{marginBottom:"4px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:"11px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px"}}>Partner's name (Player 2)</span>
+              <span style={{fontSize:"11px",background:"#fee2e2",color:C.red,padding:"2px 7px",borderRadius:"6px",fontWeight:"700"}}>Required</span>
+            </div>
+            <input style={{...inp(),marginBottom:"4px"}} placeholder="Full name" value={form.p2Name} onChange={e=>up("p2Name",e.target.value)}/>
+            <p style={{fontSize:"11px",color:C.muted,marginBottom:"12px",lineHeight:"1.5"}}>We'll use their name when sending the team invite email in the future.</p>
             <div style={{marginBottom:"4px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:"11px",fontWeight:"600",color:C.muted,textTransform:"uppercase",letterSpacing:".8px"}}>Partner's email</span>
               <span style={{fontSize:"11px",background:"#fee2e2",color:C.red,padding:"2px 7px",borderRadius:"6px",fontWeight:"700"}}>Required</span>
             </div>
             <input style={{...inp(),marginBottom:"4px"}} type="email" placeholder="partner@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
-            <p style={{fontSize:"11px",color:C.muted,marginBottom:"12px",lineHeight:"1.5"}}>Your partner needs this to receive their join code and create their account.</p>
+            <p style={{fontSize:"11px",color:C.muted,marginBottom:"12px",lineHeight:"1.5"}}>Required so your partner can receive their join code. In the future, they'll get an email invite automatically.</p>
           </>}
           {step===4&&<>
             <Lbl>Rules and liability waiver</Lbl>
