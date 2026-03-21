@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.1.8";
+const APP_VERSION   = "v2.1.9";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -913,16 +913,17 @@ function NotifPrefsModal({ userId, onClose }) {
 // ── AUTH SCREEN ───────────────────────────────────────────────
 // ── FRIENDLY ERROR MESSAGES ──────────────────────────────────
 const friendlyError = (msg) => {
-  if(!msg) return "";
+  if(!msg) return "Something went wrong. Please try again.";
   if(msg.includes("already registered")||msg.includes("already been registered")) return "An account with this email already exists. Try signing in instead.";
-  if(msg.includes("duplicate key")||msg.includes("unique constraint")) return "That team name is already taken. Please choose a different team name.";
+  if(msg.includes("duplicate key")||msg.includes("unique constraint")||msg.includes("already exists")) return "That team name is already taken. Please choose a different team name.";
   if(msg.includes("Invalid login credentials")||msg.includes("invalid_credentials")) return "Incorrect email or password. Please check and try again.";
   if(msg.includes("Email not confirmed")) return "Please check your email and click the confirmation link before signing in.";
-  if(msg.includes("Password should be")) return "Password must be at least 6 characters long.";
-  if(msg.includes("Unable to validate email")) return "Please enter a valid email address.";
-  if(msg.includes("not-null constraint")&&msg.includes("p1_skill")) return "Registration error — please contact admin.";
+  if(msg.includes("Password should be")||msg.includes("password")) return "Password must be at least 6 characters long.";
+  if(msg.includes("Unable to validate email")||msg.includes("valid email")) return "Please enter a valid email address.";
+  if(msg.includes("not-null constraint")) return "A required field is missing. Please go back and fill in all fields.";
   if(msg.includes("violates")) return "There was a problem saving your info. Please try again.";
-  if(msg.includes("network")||msg.includes("fetch")) return "Connection problem. Check your internet and try again.";
+  if(msg.includes("network")||msg.includes("fetch")||msg.includes("Failed to fetch")) return "Connection problem. Check your internet and try again.";
+  if(msg.includes("JWT")||msg.includes("token")) return "Your session expired. Please sign in again.";
   return msg;
 };
 
@@ -1016,49 +1017,61 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
 
   const submitReg = async()=>{
     setErr(""); setBusy(true);
-    if(onRegistrationStart) onRegistrationStart(); // block loadUser from firing
-    const code = genCode();
-    const div  = form.division || "low";
-    const skill = div==="low" ? "3.0-3.5" : "3.5-4.0";
+    if(onRegistrationStart) onRegistrationStart();
+
+    // Helper to reset state and show error
+    const fail = (msg) => {
+      setBusy(false);
+      if(onRegistrationEnd) onRegistrationEnd();
+      setErr(msg || "Something went wrong. Please try again.");
+    };
+
     try {
-      let uid, userEmail;
-      if(isOAuth){
-        uid       = oauthUser.uid;
-        userEmail = oauthUser.email;
-      } else {
+      const code  = genCode();
+      const div   = form.division || "low";
+      const skill = div==="low" ? "3.0-3.5" : "3.5-4.0";
+
+      let uid       = isOAuth ? oauthUser.uid : null;
+      const userEmail = isOAuth ? oauthUser.email : form.email;
+
+      // Email signup
+      if(!isOAuth){
         const{data:auth,error}=await sb.auth.signUp({email:form.email,password:form.password});
-        if(error){setErr(friendlyError(error.message));setBusy(false);if(onRegistrationEnd)onRegistrationEnd();return;}
-        uid       = auth.user?.id||auth.session?.user?.id;
-        userEmail = form.email;
-        if(!uid){setErr("Account created — please check your email to confirm, then sign in.");setBusy(false);if(onRegistrationEnd)onRegistrationEnd();return;}
+        if(error){ fail(friendlyError(error.message)); return; }
+        uid = auth.user?.id || auth.session?.user?.id || null;
       }
 
-      // Create the team
-      const{data:team,error:te}=await sb.from("teams").insert({
+      // Insert team
+      const{data:team,error:teamErr}=await sb.from("teams").insert({
         name:form.teamName, p1_name:form.p1Name, p1_email:userEmail,
         p2_name:form.p2Name, p2_email:form.p2Email,
         p1_skill:skill, p2_skill:skill,
         division:div, paid:false, approved:false,
         join_code:code, p2_joined:false
       }).select().single();
-      if(te){setErr(friendlyError(te.message));setBusy(false);if(onRegistrationEnd)onRegistrationEnd();return;}
 
-      // Link profile to team
-      await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id}).catch(()=>{});
-      await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
+      if(teamErr||!team){
+        const raw = teamErr?.message||teamErr?.details||"";
+        fail(friendlyError(raw || "Could not create your team. Please try again."));
+        return;
+      }
+
+      // Link profile best-effort
+      if(uid){
+        await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id}).catch(()=>{});
+        await sb.from("notification_prefs").insert({user_id:uid}).catch(()=>{});
+      }
       await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`}).catch(()=>{});
 
-      // Show code modal
+      // ✅ Success — show code modal
       setCreatedCode(code);
       setBusy(false);
-      if(!isOAuth){ try{window.open(SHOPIFY_URL,"_blank");}catch(e){} }
+      // Keep isRegistering=true until modal dismissed so loadUser doesn't race
+      if(!isOAuth){ try{ window.open(SHOPIFY_URL,"_blank"); }catch(e){} }
       setShowCodeModal(true);
-      // Don't call onRegistrationEnd here — we want to keep blocking until user dismisses modal
 
     } catch(e){
-      setErr(friendlyError(e.message));
-      setBusy(false);
-      if(onRegistrationEnd) onRegistrationEnd();
+      fail(friendlyError(e?.message));
     }
   };
 
@@ -1130,15 +1143,23 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
               if(navigator.share)navigator.share({text});
               else{navigator.clipboard.writeText(text);alert("Copied to clipboard!");}
             }}>📤 Share with {form.p2Name}</button>
-            <button style={btn(C.gray,"#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{
+            <button style={btn(C.gray,"#fff",{width:"100%",minHeight:"44px"})} onClick={async()=>{
               setShowCodeModal(false);
               if(onRegistrationEnd) onRegistrationEnd();
               if(isOAuth&&onRegistered){
-                sb.from("teams").select("*").eq("join_code",createdCode).single().then(({data})=>{if(data)onRegistered(data);});
+                const{data:t}=await sb.from("teams").select("*").eq("join_code",createdCode).single();
+                if(t)onRegistered(t);
               } else {
-                setMode("login");setStep(1);
+                // For email users — try to sign them in automatically
+                // loadUser will pick up their team by p1_email if profile link worked
+                const{data:{session:s}}=await sb.auth.getSession();
+                if(s){
+                  setMode("login"); // triggers re-render to app since session exists
+                } else {
+                  setMode("login");setStep(1);
+                }
               }
-            }}>{isOAuth?"Go to my dashboard →":"Back to sign in"}</button>
+            }}>{isOAuth?"Go to my dashboard →":"Sign in & go to dashboard"}</button>
           </div>
         </div>
       )}
@@ -3248,8 +3269,13 @@ export default function App() {
     const{data:sub}=sb.auth.onAuthStateChange((_,session)=>{
       setSession(session);
       if(session){
-        // Don't run loadUser if registration is in progress — it would race and break the flow
-        if(!isRegistering.current) loadUser(session.user.id);
+        if(!isRegistering.current){
+          loadUser(session.user.id);
+        } else {
+          // Registration in progress — session changed but don't run loadUser yet
+          // Just make sure loading gets cleared so UI doesn't freeze
+          setLoading(false);
+        }
       } else {
         setMyTeam(null);setIsAdmin(false);setLoading(false);
       }
