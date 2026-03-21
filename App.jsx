@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.3";
+const APP_VERSION   = "v2.2.5";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1314,7 +1314,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
   );
 }
 // ── DASHBOARD ─────────────────────────────────────────────────
-function Dashboard({ myTeam, teams, matches, requests, division, setDivision, setTab, openChat, openCancel, notifications, adminBanner }) {
+function Dashboard({ myTeam, teams, matches, requests, division, setDivision, setTab, openChat, openCancel, notifications, adminBanner, isAdmin }) {
   const mobile = useMobile();
   const myReqs    = requests.filter(r=>r.team_id===myTeam?.id&&r.status==="open");
   const myMatches = matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&!m.cancelled&&m.status!=="completed");
@@ -1349,12 +1349,61 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         <span style={{flex:1,fontSize:"14px",lineHeight:"1.5"}}>{adminBanner}</span>
       </div>}
 
+      {/* Admin — new team registrations alert */}
+      {isAdmin&&(()=>{
+        const pending=teams.filter(t=>!t.approved);
+        const unpaids=teams.filter(t=>!t.p1_paid||!t.p2_paid);
+        if(!pending.length&&!unpaids.length)return null;
+        return(
+          <div style={{background:"#1e3a5f",color:"#fff",borderRadius:"10px",padding:"12px 16px",marginBottom:"16px",display:"flex",gap:"10px",alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:"18px"}}>🔔</span>
+            <div style={{flex:1,fontSize:"13px",lineHeight:"1.6"}}>
+              {pending.length>0&&<div><strong>{pending.length} team{pending.length>1?"s":""} pending approval</strong>{unpaids.length>0&&` · ${unpaids.length} with unpaid players`}</div>}
+              {pending.length===0&&unpaids.length>0&&<div><strong>{unpaids.length} team{unpaids.length>1?"s":""} have unpaid players</strong></div>}
+            </div>
+            <button style={btn("#00BFFF","#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"36px"})} onClick={()=>setTab("admin")}>View →</button>
+          </div>
+        );
+      })()}
+
       {/* Match today banner */}
       {todayMatches.length>0&&<Alert type="success">
         🏓 <strong>Match day!</strong> You have {todayMatches.length} match{todayMatches.length>1?"es":""} today. Good luck out there!
       </Alert>}
 
-      {myTeam&&!myTeam.approved&&<Alert type="warn"><strong>Pending activation</strong> — Registration saved. Admin activates within 24 hours of both players' payments.</Alert>}
+      {myTeam&&!myTeam.approved&&(()=>{
+        const p1Paid = myTeam.p1_paid;
+        const p2Paid = myTeam.p2_paid;
+        const bothPaid = p1Paid && p2Paid;
+        const userIsP1 = myTeam.p1_email?.toLowerCase()===myTeam.p1_email?.toLowerCase(); // always true for P1
+        return(
+          <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"16px",marginBottom:"16px"}}>
+            <div style={{fontSize:"14px",fontWeight:"700",color:"#78350f",marginBottom:"10px"}}>⏳ Team pending activation</div>
+            {/* Per-player payment status */}
+            <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"12px"}}>
+              {[
+                {name:myTeam.p1_name,paid:p1Paid,label:"Player 1"},
+                {name:myTeam.p2_name,paid:p2Paid,label:"Player 2"},
+              ].map(({name,paid,label})=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",background:"rgba(0,0,0,.04)",borderRadius:"8px",padding:"8px 10px"}}>
+                  <span style={{fontSize:"14px"}}>{paid?"✅":"⏳"}</span>
+                  <span style={{fontSize:"13px",flex:1,color:"#78350f"}}><strong>{label}:</strong> {name} — {paid?"$25 paid":"payment pending"}</span>
+                </div>
+              ))}
+            </div>
+            {bothPaid
+              ? <p style={{fontSize:"12px",color:"#78350f",marginBottom:"0",lineHeight:"1.6"}}>Both payments received. Admin will activate your team within 24 hours.</p>
+              : <>
+                  <p style={{fontSize:"12px",color:"#78350f",marginBottom:"10px",lineHeight:"1.6"}}>
+                    {!p1Paid&&!p2Paid?"Neither player has paid yet. ":!p1Paid?"Your payment hasn't been recorded yet. ":"Waiting on your partner's payment. "}
+                    Your team won't be active until both players have paid $25 and admin has approved.
+                  </p>
+                  {!p1Paid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
+                </>
+            }
+          </div>
+        );
+      })()}
       {clinched&&<Alert type="success">🎉 <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
 
       {/* Yellow notification — scores needing action */}
@@ -2464,12 +2513,34 @@ function Settings({ userId, myTeam, teams, matches, signOut, openReport, notific
       <div style={{...card(),marginBottom:"14px"}}>
         <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Team information</div>
         {myTeam?<>
-          {[["Team name",myTeam.name],["Player 1",`${myTeam.p1_name} — DUPR ${myTeam.p1_skill}`],["Player 2",`${myTeam.p2_name} — DUPR ${myTeam.p2_skill}`],["Division",dL(myTeam.division)],["Status",myTeam.approved?"Active":"Pending activation"],["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`]].map(([l,v])=>(
+          {[
+            ["Team name",myTeam.name],
+            ["Player 1",`${myTeam.p1_name}`],
+            ["Player 2",`${myTeam.p2_name}`],
+            ["Division",dL(myTeam.division)],
+            ["Status",myTeam.approved?"✅ Active":"⏳ Pending activation"],
+            ["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`],
+          ].map(([l,v])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
               <span style={{fontSize:"13px",color:C.muted}}>{l}</span>
               <span style={{fontSize:"13px",fontWeight:"600",textAlign:"right"}}>{v}</span>
             </div>
           ))}
+          {/* Per-player payment status */}
+          <div style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+            <div style={{fontSize:"11px",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",fontWeight:"600",marginBottom:"8px"}}>Payment status</div>
+            {[
+              {name:myTeam.p1_name,paid:myTeam.p1_paid,label:"P1"},
+              {name:myTeam.p2_name,paid:myTeam.p2_paid,label:"P2"},
+            ].map(({name,paid,label})=>(
+              <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
+                <span style={{fontSize:"13px"}}>{paid?"✅":"⏳"}</span>
+                <span style={{fontSize:"13px",flex:1}}>{name}</span>
+                <Tag c={paid?"green":"red"}>{paid?"$25 paid":"Unpaid"}</Tag>
+                {!paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"30px"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>Pay now</button>}
+              </div>
+            ))}
+          </div>
           {/* Join code — always visible so Player 1 can reshare */}
           {myTeam.join_code&&(
             <div style={{marginTop:"14px",background:"#1d1d1f",borderRadius:"12px",padding:"14px",textAlign:"center"}}>
@@ -2676,8 +2747,26 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
 
   useEffect(()=>{ if(tab==="log")sb.from("admin_activity_log").select("*").order("created_at",{ascending:false}).limit(50).then(({data})=>{if(data)setLog(data);}); },[tab]);
 
-  const approve   =async id=>{await sb.from("teams").update({approved:true}).eq("id",id);setTeams(p=>p.map(t=>t.id===id?{...t,approved:true}:t));await logAction("Approved team","team",id,tName(id));};
-  const markPaid  =async id=>{await sb.from("teams").update({paid:true}).eq("id",id);setTeams(p=>p.map(t=>t.id===id?{...t,paid:true}:t));await logAction("Marked paid","team",id,tName(id));};
+  const approve    = async id=>{await sb.from("teams").update({approved:true}).eq("id",id);setTeams(p=>p.map(t=>t.id===id?{...t,approved:true}:t));await logAction("Approved team","team",id,tName(id));};
+  const markP1Paid = async id=>{
+    const t=teams.find(x=>x.id===id);
+    const updates={p1_paid:true,paid:true};
+    // Auto-approve if P2 already paid
+    if(t?.p2_paid) updates.approved=true;
+    await sb.from("teams").update(updates).eq("id",id);
+    setTeams(p=>p.map(x=>x.id===id?{...x,...updates}:x));
+    await logAction(updates.approved?"Marked P1 paid + auto-approved":"Marked P1 paid","team",id,tName(id));
+  };
+  const markP2Paid = async id=>{
+    const t=teams.find(x=>x.id===id);
+    const updates={p2_paid:true};
+    // Auto-approve if P1 already paid
+    if(t?.p1_paid) updates.approved=true;
+    await sb.from("teams").update(updates).eq("id",id);
+    setTeams(p=>p.map(x=>x.id===id?{...x,...updates}:x));
+    await logAction(updates.approved?"Marked P2 paid + auto-approved":"Marked P2 paid","team",id,tName(id));
+  };
+  const markPaid = async id=>{await sb.from("teams").update({p1_paid:true,p2_paid:true,paid:true,approved:true}).eq("id",id);setTeams(p=>p.map(t=>t.id===id?{...t,p1_paid:true,p2_paid:true,paid:true,approved:true}:t));await logAction("Marked both paid + approved","team",id,tName(id));};
   const removeTeam=async id=>{if(!window.confirm("Remove this team permanently?"))return;await sb.from("teams").delete().eq("id",id);setTeams(p=>p.filter(t=>t.id!==id));await logAction("Removed team","team",id,tName(id));};
 
   const saveTeamEdit=async()=>{
@@ -2870,16 +2959,34 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
           <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"14px"}}>Pending registrations ({pending.length})</div>
           {pending.length===0?<p style={{fontSize:"13px",color:C.muted}}>No pending registrations.</p>:
           pending.map(t=>(
-            <div key={t.id} style={{padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
-              <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"3px"}}>{t.name}</div>
-              <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>{t.p1_name} ({t.p1_skill}) and {t.p2_name} ({t.p2_skill})</div>
-              <div style={{fontSize:"12px",color:C.muted,marginBottom:"10px"}}>{t.p1_email} · {dL(t.division)}</div>
-              <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-                <Tag c={t.paid?"green":"red"}>{t.paid?"Paid":"Unpaid"}</Tag>
-                {!t.paid&&<button style={btn(C.amber,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"40px"})} onClick={()=>markPaid(t.id)}>Mark paid</button>}
-                <button style={btn(C.green,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"40px"})} onClick={()=>approve(t.id)}>Approve</button>
-                <button style={btn(C.red,"#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"40px"})} onClick={()=>removeTeam(t.id)}>Remove</button>
+            <div key={t.id} style={{background:C.bg,borderRadius:"12px",padding:"14px",marginBottom:"12px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"6px",marginBottom:"10px"}}>
+                <div>
+                  <div style={{fontSize:"15px",fontWeight:"800"}}>{t.name}</div>
+                  <div style={{fontSize:"12px",color:C.muted}}>{dL(t.division)}</div>
+                </div>
+                <div style={{display:"flex",gap:"6px"}}>
+                  <button style={btn(C.green,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>approve(t.id)}>✓ Approve</button>
+                  <button style={btn(C.red,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>removeTeam(t.id)}>Remove</button>
+                </div>
               </div>
+              {/* Per-player payment rows */}
+              {[
+                {name:t.p1_name, email:t.p1_email, paid:t.p1_paid, onMark:()=>markP1Paid(t.id), label:"Player 1"},
+                {name:t.p2_name, email:t.p2_email, paid:t.p2_paid, onMark:()=>markP2Paid(t.id), label:"Player 2"},
+              ].map(({name,email,paid,onMark,label})=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 10px",background:C.white,borderRadius:"8px",marginBottom:"6px",flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:"13px",fontWeight:"600"}}>{label}: {name||"—"}</div>
+                    <div style={{fontSize:"11px",color:C.faint}}>{email||"—"}</div>
+                  </div>
+                  <Tag c={paid?"green":"red"}>{paid?"✓ Paid $25":"Unpaid"}</Tag>
+                  {!paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"34px"})} onClick={onMark}>Mark paid</button>}
+                </div>
+              ))}
+              {t.join_code&&(
+                <div style={{fontSize:"11px",color:C.faint,marginTop:"6px"}}>Join code: <span style={{fontFamily:"monospace",fontWeight:"700",color:C.blue,letterSpacing:"2px"}}>{t.join_code}</span></div>
+              )}
             </div>
           ))}
         </>}
@@ -3083,22 +3190,45 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
         {tab==="payments"&&<>
           <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"16px"}}>Payment tracker</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:"10px",marginBottom:"20px"}}>
-            {[{n:teams.filter(t=>t.paid).length,l:"Paid",c:C.green},{n:teams.filter(t=>!t.paid).length,l:"Unpaid",c:C.red},{n:teams.length,l:"Total teams",c:C.blue},{n:`$${totalRev}`,l:"Revenue",c:C.purple}].map((x,i)=>(
-              <div key={i} style={{background:C.bg,borderRadius:"10px",padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"24px",fontWeight:"800",color:x.c}}>{x.n}</div>
+            {[
+              {n:teams.filter(t=>t.p1_paid).length,  l:"P1 Paid",    c:C.green},
+              {n:teams.filter(t=>t.p2_paid).length,  l:"P2 Paid",    c:C.green},
+              {n:teams.filter(t=>!t.p1_paid).length, l:"P1 Unpaid",  c:C.red},
+              {n:teams.filter(t=>!t.p2_paid).length, l:"P2 Unpaid",  c:C.red},
+              {n:teams.length,                        l:"Teams",      c:C.blue},
+              {n:`$${(teams.filter(t=>t.p1_paid).length+teams.filter(t=>t.p2_paid).length)*25}`, l:"Revenue", c:C.purple},
+            ].map((x,i)=>(
+              <div key={i} style={{background:C.bg,borderRadius:"10px",padding:"12px",textAlign:"center"}}>
+                <div style={{fontSize:"22px",fontWeight:"800",color:x.c}}>{x.n}</div>
                 <div style={{fontSize:"10px",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginTop:"4px"}}>{x.l}</div>
               </div>
             ))}
           </div>
           <div className="tscroll">
-            <table style={{width:"100%",borderCollapse:"collapse",minWidth:"380px"}}>
-              <thead><tr>{["Team","Division","Paid","Action"].map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:"480px"}}>
+              <thead><tr>{["Team","Division","P1 Paid","P2 Paid","Actions"].map(h=><th key={h} style={{textAlign:"left",color:C.muted,fontSize:"11px",fontWeight:"600",letterSpacing:".8px",textTransform:"uppercase",padding:"8px 10px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
               <tbody>{teams.map(t=>(
-                <tr key={t.id}>
-                  <td style={tdS({fontWeight:"700"})}>{t.name}<div style={{fontSize:"11px",color:C.faint}}>{t.p1_email}</div></td>
+                <tr key={t.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                  <td style={tdS({fontWeight:"700"})}>
+                    {t.name}
+                    <div style={{fontSize:"11px",color:C.faint}}>{t.p1_name} &amp; {t.p2_name}</div>
+                  </td>
                   <td style={tdS()}><Tag c={t.division==="low"?"gray":"blue"}>{dL(t.division)}</Tag></td>
-                  <td style={tdS()}><Tag c={t.paid?"green":"red"}>{t.paid?"$25 paid":"Unpaid"}</Tag></td>
-                  <td style={tdS()}>{!t.paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>markPaid(t.id)}>Mark paid</button>}</td>
+                  <td style={tdS()}>
+                    <Tag c={t.p1_paid?"green":"red"}>{t.p1_paid?"✓ Paid":"Unpaid"}</Tag>
+                    <div style={{fontSize:"10px",color:C.faint,marginTop:"2px"}}>{t.p1_name}</div>
+                  </td>
+                  <td style={tdS()}>
+                    <Tag c={t.p2_paid?"green":"red"}>{t.p2_paid?"✓ Paid":"Unpaid"}</Tag>
+                    <div style={{fontSize:"10px",color:C.faint,marginTop:"2px"}}>{t.p2_name||"P2 not joined"}</div>
+                  </td>
+                  <td style={tdS()}>
+                    <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
+                      {!t.p1_paid&&<button style={btn(C.amber,"#fff",{fontSize:"10px",padding:"4px 8px",minHeight:"30px"})} onClick={()=>markP1Paid(t.id)}>P1 paid</button>}
+                      {!t.p2_paid&&<button style={btn(C.amber,"#fff",{fontSize:"10px",padding:"4px 8px",minHeight:"30px"})} onClick={()=>markP2Paid(t.id)}>P2 paid</button>}
+                      {!t.approved&&t.p1_paid&&t.p2_paid&&<button style={btn(C.green,"#fff",{fontSize:"10px",padding:"4px 8px",minHeight:"30px"})} onClick={()=>approve(t.id)}>Approve</button>}
+                    </div>
+                  </td>
                 </tr>
               ))}</tbody>
             </table>
@@ -3534,7 +3664,7 @@ export default function App() {
 
       {/* Page */}
       <div style={{padding:mobile?"16px 14px":"28px 20px",maxWidth:"960px",margin:"0 auto"}}>
-        {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner}/>}
+        {tab==="dashboard"&&<Dashboard myTeam={myTeam} teams={teams} matches={matches} requests={requests} division={division} setDivision={setDivision} setTab={setTab} openChat={setActiveChat} openCancel={setCancelMatch} notifications={notifications} adminBanner={adminBanner} isAdmin={isAdmin}/>}
         {tab==="board"    &&<MatchBoard myTeam={myTeam} teams={teams} requests={requests} setRequests={setRequests} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
         {tab==="scores"   &&<Scores myTeam={myTeam} teams={teams} setTeams={setTeams} matches={matches} setMatches={setMatches} openChat={setActiveChat} openCancel={setCancelMatch}/>}
         {tab==="standings"&&<Standings myTeam={myTeam} teams={teams} matches={matches} division={division} setDivision={setDivision} isAdmin={isAdmin}/>}
