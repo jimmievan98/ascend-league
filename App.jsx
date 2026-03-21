@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.2.9";
+const APP_VERSION   = "v2.3.0";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -987,7 +987,6 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
       }
     });
   };
-
   const doForgot = async()=>{
     if(!form.email){setErr("Please enter your email address first.");return;}
     setErr(""); setBusy(true);
@@ -3325,19 +3324,28 @@ export default function App() {
   // Ref shadow of registering state — lets onAuthStateChange read it without stale closure
   const registeringRef = useRef(false);
   const setRegisteringSync = (v) => { registeringRef.current = v; setRegistering(v); };
+  // Only true when user actively clicked Google sign-in — prevents stale sessions from routing to registration
+  const freshOAuthRef = useRef(false);
 
   useEffect(()=>{
+    let initialLoad = true;
     sb.auth.getSession().then(({data})=>{
       setSession(data.session);
-      if(data.session) loadUser(data.session.user.id);
+      if(data.session) loadUser(data.session.user.id, false); // page load — NOT a fresh OAuth
       else setLoading(false);
+      // Mark initial load done after a tick so onAuthStateChange can detect new vs existing
+      setTimeout(()=>{ initialLoad = false; }, 500);
     });
     const{data:sub}=sb.auth.onAuthStateChange((_,session)=>{
       setSession(session);
       if(session){
-        // Only call loadUser for normal sign-ins, not during active registration
-        if(!registeringRef.current) loadUser(session.user.id);
+        if(!registeringRef.current){
+          const isFresh = !initialLoad; // true only for new sign-ins, not page load
+          freshOAuthRef.current = isFresh;
+          loadUser(session.user.id, isFresh);
+        }
       } else {
+        freshOAuthRef.current = false;
         setMyTeam(null);setIsAdmin(false);setLoading(false);
         setRegisteringSync(false);setPendingCode(null);
         setNeedsRegistration(null);setUserEmail("");setUserId(null);
@@ -3346,18 +3354,16 @@ export default function App() {
     return()=>sub.subscription.unsubscribe();
   },[]);
 
-  const loadUser=async uid=>{
+  const loadUser=async(uid, isFresh=false)=>{
     setUserId(uid);
     const{data:{user:authUser}}=await sb.auth.getUser();
     const email=authUser?.email||"";
     setUserEmail(email);
     const{data:profile}=await sb.from("profiles").select("*").eq("id",uid).single();
 
-    // New OAuth user — no profile exists yet, send to registration
+    // No profile — brand new user
     if(!profile){
-      const{data:{user}}=await sb.auth.getUser();
-      const email=user?.email||"";
-      const name=user?.user_metadata?.full_name||user?.user_metadata?.name||"";
+      const name=authUser?.user_metadata?.full_name||authUser?.user_metadata?.name||"";
       try{await sb.from("profiles").upsert({id:uid,email});}catch(e){}
       const[{data:teamAsP1},{data:teamAsP2}]=await Promise.all([
         sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
@@ -3367,32 +3373,38 @@ export default function App() {
       if(foundTeam){
         try{await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid);}catch(e){}
         setMyTeam(foundTeam);setDivision(foundTeam.division);
-      } else {
+      } else if(isFresh){
+        // Only route to registration if user just signed in (not a stale page load)
         setNeedsRegistration({uid,email,name});
+        setLoading(false);
+        return;
+      } else {
+        // Stale session with no team — sign out cleanly, show login
+        await sb.auth.signOut();
         setLoading(false);
         return;
       }
     } else if(!profile.team_id && !profile.is_admin){
-      // Profile exists but no team — check if they registered a team (profile upsert may have failed)
-      const{data:{user}}=await sb.auth.getUser();
-      const email=user?.email||profile.email||"";
-      // Check if they're p1 (registered a team) OR p2 (invited)
       const[{data:teamAsP1},{data:teamAsP2}]=await Promise.all([
         sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
         sb.from("teams").select("*").eq("p2_email",email).maybeSingle(),
       ]);
       const foundTeam = teamAsP1 || teamAsP2;
       if(foundTeam){
-        // Auto-link profile to the team they already created
         try{await sb.from("profiles").update({team_id:foundTeam.id}).eq("id",uid);}catch(e){}
         if(teamAsP2&&!teamAsP2.p2_joined){
           try{await sb.from("teams").update({p2_joined:true,p2_email:email}).eq("id",foundTeam.id);}catch(e){}
         }
         setMyTeam(foundTeam);setDivision(foundTeam.division);
+      } else if(isFresh){
+        // Fresh OAuth with no team — route to registration
+        const name=authUser?.user_metadata?.full_name||authUser?.user_metadata?.name||"";
+        setNeedsRegistration({uid, email, name});
+        setLoading(false);
+        return;
       } else {
-        // Truly new user with no team — send to registration
-        const{data:{user:u}}=await sb.auth.getUser();
-        setNeedsRegistration({uid, email, name:u?.user_metadata?.full_name||u?.user_metadata?.name||""});
+        // Stale session, profile exists but no team — sign out cleanly
+        await sb.auth.signOut();
         setLoading(false);
         return;
       }
