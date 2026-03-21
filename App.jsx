@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.0.4";
+const APP_VERSION   = "v2.0.5";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── Constants ─────────────────────────────────────────────────
@@ -2616,29 +2616,46 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
   };
 
   const deleteMatch=async(mid)=>{
-    if(!window.confirm("Permanently delete this match? Standings will be updated if the match was completed."))return;
+    if(!window.confirm("Permanently delete this match? Standings will be updated if completed."))return;
     const m=matches.find(x=>x.id===mid);
-    // Roll back standings if completed
+
+    // 1. Blacklist immediately — no realtime event can re-add this match
+    if(window.__deletedMatchIds)window.__deletedMatchIds.add(mid);
+
+    // 2. Remove from local state immediately
+    setMatches(p=>p.filter(x=>x.id!==mid));
+
+    // 3. Roll back standings if completed
     if(m?.status==="completed"&&m.winner_id&&m.loser_id){
       const winner=teams.find(t=>t.id===m.winner_id);
       const loser=teams.find(t=>t.id===m.loser_id);
-      if(winner)await sb.from("teams").update({wins:Math.max(0,winner.wins-1),points:Math.max(0,winner.points-2)}).eq("id",m.winner_id);
-      if(loser)await sb.from("teams").update({losses:Math.max(0,loser.losses-1)}).eq("id",m.loser_id);
+      if(winner){
+        const newWins=Math.max(0,winner.wins-1);
+        const newPts=Math.max(0,winner.points-2);
+        await sb.from("teams").update({wins:newWins,points:newPts}).eq("id",m.winner_id);
+        setTeams(p=>p.map(t=>t.id===m.winner_id?{...t,wins:newWins,points:newPts}:t));
+      }
+      if(loser){
+        const newLosses=Math.max(0,loser.losses-1);
+        await sb.from("teams").update({losses:newLosses}).eq("id",m.loser_id);
+        setTeams(p=>p.map(t=>t.id===m.loser_id?{...t,losses:newLosses}:t));
+      }
     }
-    // Delete and wait for confirmation
+
+    // 4. Delete from DB
     const{error}=await sb.from("matches").delete().eq("id",mid);
-    if(error){alert("Error deleting match: "+error.message);return;}
-    // Immediately remove from local state
-    setMatches(p=>p.filter(x=>x.id!==mid));
-    // Hard refetch both matches and teams after 300ms to guarantee sync
-    setTimeout(async()=>{
-      const[{data:fm},{data:ft}]=await Promise.all([
-        sb.from("matches").select("*").order("created_at",{ascending:false}),
-        sb.from("teams").select("*").order("points",{ascending:false}),
-      ]);
-      if(fm)setMatches(fm);
-      if(ft)setTeams(ft);
-    },300);
+    if(error){
+      alert("Delete failed: "+error.message);
+      // Undo local removal on error
+      if(m)setMatches(p=>[m,...p].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)));
+      if(window.__deletedMatchIds)window.__deletedMatchIds.delete(mid);
+      return;
+    }
+
+    // 5. Refetch teams only (not matches — blacklist handles that)
+    const{data:ft}=await sb.from("teams").select("*").order("points",{ascending:false});
+    if(ft)setTeams(ft);
+
     await logAction("Deleted match","match",mid,`${tName(m?.t1_id)} vs ${tName(m?.t2_id)}`);
   };
 
@@ -3047,8 +3064,8 @@ function BottomNav({ tab, setTab, isAdmin, unreadCount, openRequestCount }) {
         <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"3px",color:tab===id?C.blue:C.faint,fontSize:"10px",fontWeight:tab===id?"700":"500",borderTop:`2px solid ${tab===id?C.blue:"transparent"}`,position:"relative",minHeight:"64px"}}>
           <Icon n={iconMap[id]} size={20}/>
           {label}
-          {id==="chat"&&unreadCount>0&&<span style={{position:"absolute",top:"8px",right:"calc(50% - 18px)",background:C.red,color:"#fff",borderRadius:"50%",width:"16px",height:"16px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadCount}</span>}
-          {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"8px",right:"calc(50% - 18px)",background:C.blue,color:"#fff",borderRadius:"50%",width:"16px",height:"16px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center"}}>{openRequestCount>9?"9+":openRequestCount}</span>}
+          {id==="chat"&&unreadCount>0&&<span style={{position:"absolute",top:"6px",right:"calc(50% - 20px)",background:C.red,color:"#fff",borderRadius:"10px",minWidth:"18px",height:"18px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px"}}>{unreadCount>99?"99+":unreadCount}</span>}
+          {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"6px",right:"calc(50% - 20px)",background:C.blue,color:"#fff",borderRadius:"10px",minWidth:"18px",height:"18px",fontSize:"10px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px"}}>{openRequestCount>99?"99+":openRequestCount}</span>}
         </button>
       ))}
     </div>
@@ -3152,25 +3169,38 @@ export default function App() {
         }
       })
       .subscribe();
+    // Use a ref to track deleted match IDs — prevents any realtime event from re-adding them
+    const deletedMatchIds = new Set();
+    const safeSetMatches = (updater) => {
+      setMatches(prev => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        return next.filter(x => !deletedMatchIds.has(x.id));
+      });
+    };
+
     const matchesCh=sb.channel("rt-matches")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches"},p=>{
+        if(deletedMatchIds.has(p.new.id))return;
         setMatches(prev=>{
           if(prev.find(x=>x.id===p.new.id))return prev;
           return [p.new,...prev];
         });
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"matches"},p=>{
+        if(deletedMatchIds.has(p.new.id))return; // never re-add deleted matches
         setMatches(prev=>prev.map(x=>x.id===p.new.id?p.new:x));
       })
       .on("postgres_changes",{event:"DELETE",schema:"public",table:"matches"},p=>{
-        // p.old.id available when replica identity = FULL; fallback: refetch
-        if(p.old?.id){
-          setMatches(prev=>prev.filter(x=>x.id!==p.old.id));
-        } else {
-          sb.from("matches").select("*").order("created_at",{ascending:false}).then(({data})=>{if(data)setMatches(data);});
+        const id = p.old?.id;
+        if(id){
+          deletedMatchIds.add(id);
+          setMatches(prev=>prev.filter(x=>x.id!==id));
         }
       })
       .subscribe();
+
+    // Expose deletedMatchIds to deleteMatch via window (same session only)
+    window.__deletedMatchIds = deletedMatchIds;
     const requestsCh=sb.channel("rt-requests")
       .on("postgres_changes",{event:"*",schema:"public",table:"match_requests"},()=>{
         sb.from("match_requests").select("*,responses:request_responses(*)").order("created_at",{ascending:false}).then(({data})=>{if(data)setRequests(data);});
@@ -3192,14 +3222,8 @@ export default function App() {
   const handleCancelMatch=async(match,reason)=>{
     await sb.from("matches").update({cancelled:true,cancel_reason:reason,updated_at:new Date().toISOString()}).eq("id",match.id);
     await sb.from("match_cancellations").insert({match_id:match.id,cancelled_by:myTeam.id,reason});
-    // Immediately remove from local state
     setMatches(p=>p.map(m=>m.id===match.id?{...m,cancelled:true,cancel_reason:reason}:m));
     setCancelMatch(null);
-    // Force full refetch to guarantee sync across all views
-    setTimeout(async()=>{
-      const{data:freshMatches}=await sb.from("matches").select("*").order("created_at",{ascending:false});
-      if(freshMatches)setMatches(freshMatches);
-    },400);
     alert("Match cancelled. Both teams and admin have been notified.");
   };
 
@@ -3237,8 +3261,8 @@ export default function App() {
           {navTabs.map(([id,lbl])=>(
             <button key={id} onClick={()=>setTab(id)} style={{background:tab===id?"#111":"transparent",border:"none",color:tab===id?"#fff":C.muted,padding:"6px 10px",borderRadius:"6px",cursor:"pointer",fontSize:"13px",fontWeight:tab===id?"600":"500",transition:"all .12s",whiteSpace:"nowrap",position:"relative"}}>
               {lbl}
-              {id==="chat"&&msgUnread>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.red,color:"#fff",borderRadius:"50%",width:"15px",height:"15px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{msgUnread>9?"9+":msgUnread}</span>}
-              {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.blue,color:"#fff",borderRadius:"50%",width:"15px",height:"15px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{openRequestCount>9?"9+":openRequestCount}</span>}
+              {id==="chat"&&msgUnread>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.red,color:"#fff",borderRadius:"10px",minWidth:"16px",height:"16px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{msgUnread>99?"99+":msgUnread}</span>}
+              {id==="board"&&openRequestCount>0&&<span style={{position:"absolute",top:"2px",right:"2px",background:C.blue,color:"#fff",borderRadius:"10px",minWidth:"16px",height:"16px",fontSize:"9px",fontWeight:"800",display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{openRequestCount>99?"99+":openRequestCount}</span>}
             </button>
           ))}
         </>}
