@@ -10,8 +10,22 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const APP_VERSION   = "v2.3.0";
+const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/ascend-logo-blue.png";
+const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
+const CONTACT_EMAIL = "league@ascendpb.com";
+const APP_VERSION   = "v2.5.0";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// Helper — send email via Resend edge function (dormant until API key added)
+const sendEmail = async(type, payload) => {
+  try {
+    await fetch(`${FUNCTIONS_URL}/send-email`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON},
+      body: JSON.stringify({ type, ...payload })
+    });
+  } catch(e) { /* silent — email is non-blocking */ }
+};
 
 // ── Constants ─────────────────────────────────────────────────
 const SEASON   = "Spring 2026";
@@ -602,13 +616,13 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
 
   const division = isAdmin ? adminDiv : myDiv;
 
-  // Active confirmed matches for this team
+  // Active confirmed matches for this team — kept in state but match chats hidden for now
   const myMatches = matches.filter(m=>
     (m.t1_id===myTeam?.id||m.t2_id===myTeam?.id) && !m.cancelled
   ).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
-  const activeMatches    = myMatches.filter(m=>m.status!=="completed");
-  const completedMatches = myMatches.filter(m=>m.status==="completed");
+  const activeMatches    = []; // MATCH CHATS HIDDEN — coordination moved to group text
+  const completedMatches = []; // MATCH CHATS HIDDEN — coordination moved to group text
 
   const tName = id => teams.find(t=>t.id===id)?.name??"Unknown";
 
@@ -663,7 +677,8 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
   const Sidebar = () => (
     <div style={{width:mobile?"100%":"300px",flexShrink:0,borderRight:mobile?"none":`1px solid ${C.border}`,display:"flex",flexDirection:"column",background:C.white,height:"100%",overflowY:"auto"}}>
       <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
-        <div style={{fontSize:"18px",fontWeight:"800",letterSpacing:"-.3px"}}>Chats</div>
+        <div style={{fontSize:"18px",fontWeight:"800",letterSpacing:"-.3px"}}>Division Chat</div>
+        <div style={{fontSize:"11px",color:C.faint,marginTop:"2px"}}>Talk to everyone in your division</div>
       </div>
 
       {/* Division chat — always first, visually distinct */}
@@ -720,8 +735,9 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
       })}
 
       {activeMatches.length===0&&completedMatches.length===0&&(
-        <div style={{padding:"20px 16px",textAlign:"center",color:C.faint,fontSize:"13px"}}>
-          No match chats yet. Accept a match request to start one.
+        <div style={{padding:"16px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:"8px",margin:"12px 12px 0",fontSize:"12px",color:"#78350f",lineHeight:"1.6"}}>
+          <strong style={{display:"block",marginBottom:"3px"}}>📱 Match coordination moved to group text</strong>
+          When a match is confirmed, all 4 players get added to an automatic group text from the Ascend PB number. Coordinate your match details there.
         </div>
       )}
     </div>
@@ -740,7 +756,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
 
   return(
     <div>
-      <div style={{fontSize:"22px",fontWeight:"700",letterSpacing:"-.3px",marginBottom:"12px"}}>Chat</div>
+      <div style={{fontSize:"22px",fontWeight:"700",letterSpacing:"-.3px",marginBottom:"12px"}}>Division Chat</div>
       <div style={{display:"flex",height,border:`1px solid ${C.border}`,borderRadius:"14px",overflow:"hidden",background:C.white}}>
         {showList&&<Sidebar/>}
         {!mobile&&(
@@ -931,7 +947,18 @@ const friendlyError = (msg) => {
 
 function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=null, onRegistrationDone=null }) {
   const [mode, setMode] = useState("login"); // login | register | forgot | join
-  const [step, setStep] = useState(1);       // 1=account 2=team 3=partner 4=waiver 5=review
+  const [step, setStep] = useState(1);       // 1=account 1.5=phone 2=team 3=partner 4=waiver 5=review
+
+  // Phone verification state
+  const [phoneStep,    setPhoneStep]    = useState("enter");   // enter | sent | verified
+  const [phoneNum,     setPhoneNum]     = useState("");
+  const [phoneE164,    setPhoneE164]    = useState("");
+  const [phoneCode,    setPhoneCode]    = useState("");
+  const [phoneBusy,    setPhoneBusy]    = useState(false);
+  const [phoneErr,     setPhoneErr]     = useState("");
+  const [phoneChannel, setPhoneChannel] = useState("sms");     // sms | call
+  const [resendTimer,  setResendTimer]  = useState(0);
+  const timerRef = useRef(null);
 
   // Pre-fill form with Google/OAuth data if available
   const [form, setForm] = useState({
@@ -960,7 +987,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
   useEffect(()=>{
     if(oauthUser){
       setMode("register");
-      setStep(isOAuth ? 2 : 1);
+      setStep(1.5); // OAuth skips step 1 (account creation) but still needs phone verify
       setForm(f=>({...f, email:oauthUser.email||"", p1Name:oauthUser.name||""}));
     } else {
       setMode("login");
@@ -996,7 +1023,65 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     else setMsg("Password reset link sent — check your inbox.");
   };
 
+  // ── PHONE VERIFICATION ───────────────────────────────────────
+  const startResendTimer = () => {
+    setResendTimer(60);
+    if(timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(()=>{
+      setResendTimer(t => {
+        if(t <= 1){ clearInterval(timerRef.current); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+  };
+
+  const sendPhoneCode = async(channel="sms") => {
+    const digits = phoneNum.replace(/\D/g,"");
+    if(digits.length < 10){ setPhoneErr("Please enter a valid 10-digit US phone number."); return; }
+    setPhoneErr(""); setPhoneBusy(true); setPhoneChannel(channel);
+    try{
+      const res = await fetch(`${FUNCTIONS_URL}/send-verification`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json", "apikey": SUPABASE_ANON},
+        body: JSON.stringify({ phone: phoneNum, channel })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.success){ setPhoneErr(data.error || "Could not send the code. Please try again."); setPhoneBusy(false); return; }
+      setPhoneE164(data.phone);
+      setPhoneStep("sent");
+      setPhoneCode("");
+      startResendTimer();
+    }catch(e){ setPhoneErr("Could not send the code. Please try again."); }
+    setPhoneBusy(false);
+  };
+
+  const checkPhoneCode = async() => {
+    if(phoneCode.length !== 6){ setPhoneErr("Please enter the full 6-digit code."); return; }
+    setPhoneErr(""); setPhoneBusy(true);
+    try{
+      const{data:{user}} = await sb.auth.getUser();
+      const uid = user?.id || oauthUser?.uid || null;
+      const res = await fetch(`${FUNCTIONS_URL}/check-verification`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json", "apikey": SUPABASE_ANON},
+        body: JSON.stringify({ phone: phoneE164, code: phoneCode, userId: uid })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.success){
+        setPhoneErr(data.error || "That code is incorrect. Please try again.");
+        if(data.locked) setPhoneStep("locked");
+        setPhoneBusy(false);
+        return;
+      }
+      setPhoneStep("verified");
+      // Advance to next registration step after a short moment
+      setTimeout(()=>{ setStep(s=>s+1); }, 800);
+    }catch(e){ setPhoneErr("Something went wrong. Please try again."); }
+    setPhoneBusy(false);
+  };
+
   // ── REGISTRATION STEPS ───────────────────────────────────────
+  const PHONE_STEP = 1.5;
   const nextStep = ()=>{
     setErr("");
     if(step===1){
@@ -1005,6 +1090,13 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
       if(!form.password){setErr("Please create a password.");return;}
       if(form.password.length<6){setErr("Your password must be at least 6 characters.");return;}
       if(form.password!==form.confirm){setErr("The passwords you entered don't match.");return;}
+      // Go to phone verification before team info
+      setStep(PHONE_STEP);
+      return;
+    }
+    if(step===PHONE_STEP){
+      // Phone step is handled by sendPhoneCode/checkPhoneCode — not nextStep
+      return;
     }
     if(step===2){
       if(!form.p1Name.trim()){setErr("Please enter your full name.");return;}
@@ -1071,6 +1163,16 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
       }
       try{await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`});}catch(e){}
 
+      // Send welcome email to P1 and invite to P2 (dormant until Resend key added)
+      sendEmail("p1_welcome",{
+        to: userEmail, name: form.p1Name, teamName: form.teamName,
+        code, p2Name: form.p2Name, p2Email: form.p2Email
+      });
+      sendEmail("p2_invite",{
+        to: form.p2Email, p2Name: form.p2Name, p1Name: form.p1Name,
+        teamName: form.teamName, code, p2Phone: form.p2Phone||""
+      });
+
       // ✅ Success — pass code up to root so modal survives AuthScreen unmount
       setBusy(false);
       if(!isOAuth){ try{ window.open(SHOPIFY_URL,"_blank"); }catch(e){} }
@@ -1115,9 +1217,117 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
   };
 
   const Err = ({e})=>e?<Alert type="error">{e}</Alert>:null;
-  const stepLabels = ["","Create Account","Your Info","Your Partner","Rules & Waiver","Review & Pay"];
-  const totalSteps = isOAuth ? 4 : 5; // OAuth skips step 1
-  const displayStep = isOAuth ? step-1 : step;
+  const stepLabels = ["","Create Account","Verify Phone","Your Info","Your Partner","Rules & Waiver","Review & Pay"];
+  const totalSteps = isOAuth ? 5 : 6; // includes phone step for all paths
+  const displayStep = isOAuth ? step : step; // phone step is always shown
+
+  // Phone step UI helper
+  const PhoneVerifyUI = ()=>(
+    <div>
+      {phoneStep==="locked"
+        ? <Alert type="error">Too many wrong attempts. Please wait 10 minutes then try again. Need help? Email <b>league@ascendpb.com</b></Alert>
+        : <>
+          {phoneStep==="enter"&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Verify your phone</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"20px"}}>We need your mobile number so we can send you match notifications and group texts with your opponents.</p>
+            <Alert type="info" style={{marginBottom:"16px"}}>US numbers only. Standard message rates apply.</Alert>
+            <Lbl>Mobile number</Lbl>
+            <input
+              style={{...inp({fontSize:"18px",letterSpacing:"1px",textAlign:"center"}),marginBottom:"16px"}}
+              type="tel" placeholder="(704) 555-0000"
+              value={phoneNum}
+              onChange={e=>setPhoneNum(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&sendPhoneCode("sms")}
+              maxLength={14}
+            />
+            {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
+            <button style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"10px"})}
+              onClick={()=>sendPhoneCode("sms")} disabled={phoneBusy}>
+              {phoneBusy?"Sending code...":"Send me a code →"}
+            </button>
+            <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"8px"}}>
+              Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
+            </div>
+          </>}
+
+          {phoneStep==="sent"&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>
+              {phoneChannel==="call" ? "Answer your phone" : "Check your texts"}
+            </div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"6px"}}>
+              {phoneChannel==="call"
+                ? `We're calling ${phoneNum} now and will read your 6-digit code out loud.`
+                : `We sent a 6-digit code to ${phoneNum}.`}
+            </p>
+            {phoneStep==="verified"
+              ? <Alert type="success">✓ Phone verified!</Alert>
+              : <>
+                  {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
+                  {/* 6 individual digit boxes */}
+                  <div style={{display:"flex",gap:"8px",justifyContent:"center",margin:"20px 0"}}>
+                    {[0,1,2,3,4,5].map(i=>(
+                      <input
+                        key={i}
+                        id={`pcode-${i}`}
+                        type="text" inputMode="numeric" maxLength={1}
+                        value={phoneCode[i]||""}
+                        style={{width:"44px",height:"54px",textAlign:"center",fontSize:"22px",fontWeight:"800",
+                          border:`2px solid ${phoneCode[i]?C.blue:C.border}`,borderRadius:"10px",
+                          background:phoneCode[i]?C.blue+"15":C.white,outline:"none"}}
+                        onChange={e=>{
+                          const v = e.target.value.replace(/\D/g,"");
+                          if(!v) return;
+                          const arr = phoneCode.split("");
+                          arr[i] = v;
+                          const next = arr.join("").slice(0,6);
+                          setPhoneCode(next);
+                          // Auto-focus next box
+                          if(v && i<5) document.getElementById(`pcode-${i+1}`)?.focus();
+                        }}
+                        onKeyDown={e=>{
+                          if(e.key==="Backspace"&&!phoneCode[i]&&i>0){
+                            document.getElementById(`pcode-${i-1}`)?.focus();
+                            const arr=phoneCode.split(""); arr[i-1]=""; setPhoneCode(arr.join(""));
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"12px"})}
+                    onClick={checkPhoneCode} disabled={phoneBusy||phoneCode.length<6}>
+                    {phoneBusy?"Checking...":"Verify code →"}
+                  </button>
+                  <div style={{textAlign:"center"}}>
+                    {resendTimer>0
+                      ? <span style={{fontSize:"12px",color:C.faint}}>Resend code in {resendTimer}s</span>
+                      : <div style={{display:"flex",flexDirection:"column",gap:"8px",alignItems:"center"}}>
+                          <button style={btn(C.gray,"#555",{fontSize:"13px",padding:"8px 20px"})} onClick={()=>sendPhoneCode("sms")} disabled={phoneBusy}>Resend code by text</button>
+                          <button style={btn(C.gray,"#555",{fontSize:"13px",padding:"8px 20px"})} onClick={()=>sendPhoneCode("call")} disabled={phoneBusy}>📞 Call me with the code instead</button>
+                        </div>
+                    }
+                  </div>
+                  <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"12px"}}>
+                    Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
+                  </div>
+                  <div style={{textAlign:"center",marginTop:"10px"}}>
+                    <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setPhoneStep("enter");setPhoneCode("");setPhoneErr("");}}>← Use a different number</span>
+                  </div>
+                </>
+            }
+          </>}
+
+          {phoneStep==="verified"&&<>
+            <div style={{textAlign:"center",padding:"32px 0"}}>
+              <div style={{fontSize:"40px",marginBottom:"12px"}}>✓</div>
+              <div style={{fontSize:"18px",fontWeight:"800",color:C.blue,marginBottom:"6px"}}>Phone verified!</div>
+              <div style={{fontSize:"13px",color:C.muted}}>Taking you to the next step...</div>
+            </div>
+          </>}
+        </>
+      }
+    </div>
+  );
 
   return(
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",background:C.bg}}>
@@ -1240,6 +1450,9 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
             <input style={inp()} type="password" placeholder="Repeat your password" value={form.confirm} onChange={e=>up("confirm",e.target.value)} autoComplete="new-password"/>
           </>}
 
+          {/* Step 1.5 — Phone verification (all paths) */}
+          {step===1.5&&<PhoneVerifyUI/>}
+
           {/* Step 2 — Team info */}
           {step===2&&<>
             <Lbl>Your full name</Lbl>
@@ -1263,13 +1476,15 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
           {/* Step 3 — Partner info */}
           {step===3&&<>
             <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px",lineHeight:"1.6"}}>
-              After you register, your partner will receive a <strong>join code</strong> to create their own account. In the future we'll email it to them automatically — for now you'll share it manually.
+              After you register, you'll share a <strong>join code</strong> with your partner. We'll also auto-text them an invite once you're set up.
             </p>
             <Lbl>Partner's full name <span style={{color:C.red,fontWeight:"700"}}>*</span></Lbl>
             <input style={{...inp(),marginBottom:"12px"}} placeholder="Their first and last name" value={form.p2Name} onChange={e=>up("p2Name",e.target.value)}/>
             <Lbl>Partner's email <span style={{color:C.red,fontWeight:"700"}}>*</span></Lbl>
-            <input style={{...inp(),marginBottom:"6px"}} type="email" placeholder="their@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
-            <p style={{fontSize:"11px",color:C.muted,marginBottom:"0px",lineHeight:"1.5"}}>Their email is required so you and admin can identify your partner.</p>
+            <input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="their@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
+            <Lbl>Partner's mobile number <span style={{color:C.red,fontWeight:"700"}}>*</span></Lbl>
+            <input style={{...inp(),marginBottom:"6px"}} type="tel" placeholder="(704) 555-0000" value={form.p2Phone||""} onChange={e=>up("p2Phone",e.target.value)}/>
+            <p style={{fontSize:"11px",color:C.muted,marginBottom:"0px",lineHeight:"1.5"}}>US numbers only. We'll text them their join code and invite link automatically.</p>
           </>}
 
           {/* Step 4 — Waiver */}
@@ -1304,14 +1519,18 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
             <button style={btn(C.text,"#fff",{width:"100%",padding:"14px",fontSize:"15px",fontWeight:"700"})} onClick={submitReg} disabled={busy}>{busy?"Registering...":"Pay My $25 & Get Team Code"}</button>
           </>}
 
-          {/* Nav buttons */}
-          <div style={{display:"flex",justifyContent:"space-between",marginTop:"16px"}}>
+          {/* Nav buttons — hidden on phone step (has its own buttons) and review step */}
+          {step!==1.5&&<div style={{display:"flex",justifyContent:"space-between",marginTop:"16px"}}>
             {step>(isOAuth?2:1)
-              ? <button style={btn(C.gray,"#fff",{padding:"10px 16px"})} onClick={()=>{setErr("");setStep(s=>s-1);}}>← Back</button>
+              ? <button style={btn(C.gray,"#fff",{padding:"10px 16px"})} onClick={()=>{setErr("");setStep(s=>{
+                  // Skip back over phone step (1.5) since it auto-advances
+                  const prev = s - 1;
+                  return prev === 1.5 ? 1 : prev;
+                });}}>← Back</button>
               : <span/>
             }
-            {step<5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue →</button>}
-          </div>
+            {step<5&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue →</button>}
+          </div>}
           {step===(isOAuth?2:1)&&<div style={{textAlign:"center",marginTop:"14px",fontSize:"13px",color:C.muted}}>
             Already registered? <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("login");setErr("");}}>Sign in</span>
           </div>}
@@ -1335,6 +1554,26 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
   const clinched  = myRank>=0&&myRank<PLAYOFFS&&(standings[PLAYOFFS]?.points||0)<(myTeam?.points||0);
   const totalMatchesPlayed = id => matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed"&&!m.cancelled).length;
 
+  // Season countdown timer
+  const [cdTime, setCdTime] = useState({d:0,h:0,m:0,s:0});
+  const seasonStart = new Date("2026-04-15T00:00:00");
+  const seasonStarted = new Date() >= seasonStart;
+  useEffect(()=>{
+    const tick=()=>{
+      const diff=seasonStart-new Date();
+      if(diff<=0){setCdTime({d:0,h:0,m:0,s:0});return;}
+      setCdTime({
+        d:Math.floor(diff/86400000),
+        h:Math.floor((diff%86400000)/3600000),
+        m:Math.floor((diff%3600000)/60000),
+        s:Math.floor((diff%60000)/1000)
+      });
+    };
+    tick();
+    const t=setInterval(tick,1000);
+    return()=>clearInterval(t);
+  },[]);
+
   // Win streak
   const getStreak = id => {
     const tm=[...matches.filter(m=>(m.t1_id===id||m.t2_id===id)&&m.status==="completed"&&!m.cancelled)].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -1356,6 +1595,21 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         <Icon n="pin" size={16}/>
         <span style={{flex:1,fontSize:"14px",lineHeight:"1.5"}}>{adminBanner}</span>
       </div>}
+
+      {/* Season countdown — only show if season hasn't started */}
+      {!seasonStarted&&(
+        <div style={{background:"#0f0f0f",borderRadius:"14px",padding:"16px",marginBottom:"16px",textAlign:"center"}}>
+          <div style={{fontSize:"10px",fontWeight:"700",color:"#444",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Season starts April 15, 2026</div>
+          <div style={{display:"flex",justifyContent:"center",gap:"0"}}>
+            {[{v:cdTime.d,l:"Days"},{v:cdTime.h,l:"Hrs"},{v:cdTime.m,l:"Min"},{v:cdTime.s,l:"Sec"}].map(({v,l},i)=>(
+              <div key={l} style={{flex:1,borderRight:i<3?"1px solid #1e1e1e":"none",padding:"0 8px"}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:"28px",fontWeight:"800",color:"#00BFFF",lineHeight:1}}>{String(v).padStart(2,"0")}</div>
+                <div style={{fontSize:"9px",color:"#333",textTransform:"uppercase",letterSpacing:"1px",marginTop:"3px"}}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Admin — new team registrations alert */}
       {isAdmin&&(()=>{
@@ -1597,6 +1851,15 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     await sb.from("match_requests").update({status:"accepted",updated_at:new Date().toISOString()}).eq("id",req.id);
     await sb.from("matches").insert({request_id:req.id,t1_id:req.team_id,t2_id:myTeam.id,division,match_date:date,match_time:time,court,status:"confirmed"});
     setRequests(p=>p.map(r=>r.id===req.id?{...r,status:"accepted"}:r));
+    // Email both teams match confirmed
+    const reqTeam=teams.find(t=>t.id===req.team_id);
+    if(reqTeam&&myTeam){
+      sendEmail("match_confirmed",{
+        t1Name:reqTeam.name, t1Email:reqTeam.p1_email,
+        t2Name:myTeam.name,  t2Email:myTeam.p1_email,
+        matchDate:date, matchTime:time, court
+      });
+    }
     setConfirmReq(null);
     setBusy(false);
   };
@@ -2052,6 +2315,12 @@ function ScoreConfirmModal({ mid, myTeam, teams, matches, entry, setEntry, setMa
     await sb.from("matches").update({status:"score_pending",games,score_t1:w1,score_t2:w2,winner_id,loser_id,submitted_by:myTeam.id,updated_at:new Date().toISOString()}).eq("id",mid);
     setMatches(p=>p.map(x=>x.id===mid?{...x,status:"score_pending",games,winner_id,loser_id,submitted_by:myTeam.id}:x));
     setEntry(e=>{const n={...e};delete n[mid];delete n[`__confirm_${mid}`];return n;});
+    // Email opposing team to confirm
+    sendEmail("score_submitted",{
+      submitterName: myTeam.name, oppName: opp?.name, oppEmail: opp?.p1_email,
+      matchDate: m.match_date, court: m.court,
+      games: games.map((g,i)=>`Game ${i+1}: ${g.s1}–${g.s2}`).join(", ")
+    });
     onClose();
     setSub(false);
   };
@@ -2106,6 +2375,16 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
     setMatches(p=>p.map(x=>x.id===mid?{...x,status:"completed"}:x));
     const{data:freshTeams}=await sb.from("teams").select("*").order("points",{ascending:false});
     if(freshTeams)setTeams(freshTeams);
+    // Email both teams score confirmed
+    const winner=freshTeams?.find(t=>t.id===m.winner_id);
+    const loser=freshTeams?.find(t=>t.id===m.loser_id);
+    if(winner&&loser){
+      sendEmail("score_confirmed",{
+        winnerName:winner.name, winnerEmail:winner.p1_email,
+        loserName:loser.name, loserEmail:loser.p1_email,
+        matchDate:m.match_date, court:m.court
+      });
+    }
   };
 
   return(
@@ -2445,6 +2724,12 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
   const [sent,setSent]=useState(false);
   const [prefs,setPrefs]=useState(null);
   const [prefsSaved,setPrefsSaved]=useState(false);
+  const [codeCopied,setCodeCopied]=useState(false);
+  const [phoneData,setPhoneData]=useState({number:"",verified:false});
+  const [editPhone,setEditPhone]=useState(false);
+  const [newPhone,setNewPhone]=useState("");
+  const [phoneSaving,setPhoneSaving]=useState(false);
+  const [phoneSaved,setPhoneSaved]=useState(false);
 
   const myMatchHistory=matches.filter(m=>(m.t1_id===myTeam?.id||m.t2_id===myTeam?.id)&&m.status==="completed"&&!m.cancelled).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const tName=id=>teams.find(t=>t.id===id)?.name??"Unknown";
@@ -2455,10 +2740,33 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
     sb.from("notification_prefs").select("*").eq("user_id",userId).single().then(({data})=>{
       setPrefs(data||{user_id:userId,match_confirmed:true,match_cancelled:true,score_submitted:true,score_confirmed:true,score_disputed:true,match_message:true,division_message:true,admin_announcement:true,match_reminder_24h:true,match_reminder_2h:true,email_enabled:true});
     });
+    sb.from("profiles").select("phone_number,phone_verified").eq("id",userId).single().then(({data})=>{
+      if(data) setPhoneData({number:data.phone_number||"",verified:data.phone_verified||false});
+    });
   },[userId]);
 
   const savePrefs=async()=>{await sb.from("notification_prefs").upsert(prefs);setPrefsSaved(true);setTimeout(()=>setPrefsSaved(false),1500);};
   const togglePref=k=>setPrefs(p=>({...p,[k]:!p[k]}));
+
+  const copyCode=()=>{
+    navigator.clipboard.writeText(myTeam?.join_code||"").then(()=>{
+      setCodeCopied(true);
+      setTimeout(()=>setCodeCopied(false),2000);
+    });
+  };
+
+  const savePhone=async()=>{
+    if(!newPhone.trim()){return;}
+    setPhoneSaving(true);
+    try{
+      await sb.from("profiles").update({phone_number:newPhone,phone_verified:false}).eq("id",userId);
+      setPhoneData({number:newPhone,verified:false});
+      setEditPhone(false);
+      setPhoneSaved(true);
+      setTimeout(()=>setPhoneSaved(false),2000);
+    }catch(e){}
+    setPhoneSaving(false);
+  };
 
   const markAllRead=async()=>{
     await sb.from("notifications").update({read:true}).eq("read",false);
@@ -2520,17 +2828,49 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
               );
             })}
           </div>
+          {/* Phone number */}
+          <div style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+            <div style={{fontSize:"11px",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",fontWeight:"600",marginBottom:"8px"}}>Mobile number</div>
+            {phoneSaved&&<Alert type="success">Phone number updated.</Alert>}
+            {!editPhone
+              ? <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap"}}>
+                  <span style={{fontSize:"13px",flex:1}}>{phoneData.number||"Not set"}</span>
+                  {phoneData.verified
+                    ? <Tag c="green">✓ Verified</Tag>
+                    : phoneData.number
+                      ? <Tag c="amber">⏳ Not verified</Tag>
+                      : null
+                  }
+                  <button style={btn(C.gray,"#555",{fontSize:"11px",padding:"5px 12px",minHeight:"30px"})} onClick={()=>{setNewPhone(phoneData.number);setEditPhone(true);}}>
+                    {phoneData.number?"Update":"Add number"}
+                  </button>
+                </div>
+              : <div>
+                  <input style={{...inp(),marginBottom:"8px"}} type="tel" placeholder="(704) 555-0000" value={newPhone} onChange={e=>setNewPhone(e.target.value)}/>
+                  <div style={{display:"flex",gap:"8px"}}>
+                    <button style={btn(C.text,"#fff",{minHeight:"40px",flex:1,fontSize:"13px"})} onClick={savePhone} disabled={phoneSaving}>{phoneSaving?"Saving...":"Save"}</button>
+                    <button style={btn(C.gray,"#fff",{minHeight:"40px",fontSize:"13px"})} onClick={()=>setEditPhone(false)}>Cancel</button>
+                  </div>
+                  <div style={{fontSize:"11px",color:C.faint,marginTop:"6px"}}>Updating your number will require re-verification. Contact <strong>league@ascendpb.com</strong> if you need help.</div>
+                </div>
+            }
+          </div>
           {/* Join code — always visible so Player 1 can reshare */}
           {myTeam.join_code&&(
             <div style={{marginTop:"14px",background:"#1d1d1f",borderRadius:"12px",padding:"14px",textAlign:"center"}}>
               <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}}>Partner join code</div>
-              <div style={{fontSize:"32px",fontWeight:"900",color:"#00BFFF",letterSpacing:"6px",fontFamily:"monospace"}}>{myTeam.join_code}</div>
-              <div style={{fontSize:"11px",color:"rgba(255,255,255,.4)",marginTop:"6px"}}>Share with {myTeam.p2_name} → app.ascendpb.com → "Join with team code"</div>
-              <button style={{...btn("#00BFFF","#fff",{marginTop:"10px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"}),width:"100%"}} onClick={()=>{
-                const text=`Hey ${myTeam.p2_name}! Join our pickleball team on the Ascend PB League app.\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${myTeam.join_code}\n4. Create your account & pay $25 🏓`;
-                if(navigator.share)navigator.share({text});
-                else{navigator.clipboard.writeText(text);alert("Copied!");}
-              }}>📤 Reshare with {myTeam.p2_name}</button>
+              <div style={{fontSize:"32px",fontWeight:"900",color:"#00BFFF",letterSpacing:"6px",fontFamily:"monospace",marginBottom:"8px"}}>{myTeam.join_code}</div>
+              <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
+                <button style={{...btn("#333","#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"36px"}),flex:1}} onClick={copyCode}>
+                  {codeCopied?"✓ Copied!":"📋 Copy code"}
+                </button>
+                <button style={{...btn("#00BFFF","#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"36px"}),flex:1}} onClick={()=>{
+                  const text=`Hey ${myTeam.p2_name}! Join our pickleball team.\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${myTeam.join_code}\n4. Create your account & pay $25 🏓`;
+                  if(navigator.share)navigator.share({text});
+                  else{navigator.clipboard.writeText(text);}
+                }}>📤 Share with {myTeam.p2_name}</button>
+              </div>
+              <div style={{fontSize:"11px",color:"rgba(255,255,255,.3)"}}>Share with {myTeam.p2_name} → app.ascendpb.com → "Join with team code"</div>
             </div>
           )}
           <div style={{marginTop:"14px"}}>
@@ -2699,6 +3039,27 @@ function AdminInbox({ userId, teams, matches }) {
   );
 }
 
+// Small helper — fetches and shows phone number for a player by email (admin use)
+function PhoneDisplay({ email }) {
+  const [phone, setPhone] = useState(null);
+  useEffect(()=>{
+    if(!email)return;
+    sb.from("profiles").select("phone_number,phone_verified").eq("email",email).maybeSingle().then(({data})=>{
+      if(data?.phone_number) setPhone({number:data.phone_number, verified:data.phone_verified});
+    });
+  },[email]);
+  if(!phone) return null;
+  return(
+    <div style={{fontSize:"11px",color:"#555",marginTop:"2px",display:"flex",alignItems:"center",gap:"4px"}}>
+      📱 {phone.number}
+      {phone.verified
+        ? <span style={{color:"#16a34a",fontWeight:"700"}}>✓</span>
+        : <span style={{color:"#d97706"}}>unverified</span>
+      }
+    </div>
+  );
+}
+
 function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner, setAdminBanner, weekDeadline, setWeekDeadline }) {
   const mobile=useMobile();
   const [tab,setTab]=useState("summary");
@@ -2726,7 +3087,15 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
 
   useEffect(()=>{ if(tab==="log")sb.from("admin_activity_log").select("*").order("created_at",{ascending:false}).limit(50).then(({data})=>{if(data)setLog(data);}); },[tab]);
 
-  const approve    = async id=>{await sb.from("teams").update({approved:true}).eq("id",id);setTeams(p=>p.map(t=>t.id===id?{...t,approved:true}:t));await logAction("Approved team","team",id,tName(id));};
+  const approve = async id=>{
+    await sb.from("teams").update({approved:true}).eq("id",id);
+    setTeams(p=>p.map(t=>t.id===id?{...t,approved:true}:t));
+    await logAction("Approved team","team",id,tName(id));
+    const team = teams.find(t=>t.id===id);
+    if(team){
+      sendEmail("team_activated",{p1Name:team.p1_name,p1Email:team.p1_email,p2Name:team.p2_name,p2Email:team.p2_email,teamName:team.name,division:dL(team.division)});
+    }
+  };
   const markP1Paid = async id=>{
     const t=teams.find(x=>x.id===id);
     const updates={p1_paid:true,paid:true};
@@ -2958,6 +3327,8 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:"13px",fontWeight:"600"}}>{label}: {name||"—"}</div>
                     <div style={{fontSize:"11px",color:C.faint}}>{email||"—"}</div>
+                    {/* Phone number from profiles */}
+                    <PhoneDisplay email={email}/>
                   </div>
                   <Tag c={paid?"green":"red"}>{paid?"✓ Paid $25":"Unpaid"}</Tag>
                   {!paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"34px"})} onClick={onMark}>Mark paid</button>}
@@ -3566,14 +3937,27 @@ export default function App() {
   };
 
   if(loading)return(
-    <div style={{background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",gap:"24px"}}>
-      <AscendLogo height={72}/>
-      <div style={{position:"relative",width:"48px",height:"48px"}}>
-        <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid #e4e4e0"}}/>
-        <div style={{position:"absolute",inset:0,borderRadius:"50%",border:"4px solid transparent",borderTopColor:"#00BFFF",animation:"spin 0.8s linear infinite"}}/>
-      </div>
-      <div style={{fontSize:"13px",color:C.faint,letterSpacing:".5px"}}>Loading your league...</div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    <div style={{background:"#0a0a0a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",fontFamily:"'DM Sans',sans-serif",gap:"0px"}}>
+      <style>{`
+        @keyframes ascend-pulse {
+          0%,100% { opacity:1; transform:scale(1); }
+          50%      { opacity:0.15; transform:scale(0.78); }
+        }
+        .ascend-loader { animation: ascend-pulse 2s ease-in-out infinite; }
+      `}</style>
+      <img
+        className="ascend-loader"
+        src={LOGO_BLUE_URL}
+        alt="Ascend Pickleball"
+        style={{width:"96px",height:"96px",objectFit:"contain",mixBlendMode:"screen"}}
+        onError={e=>{
+          // Fallback to black logo with multiply blend if blue version not yet uploaded
+          e.target.src=LOGO_URL;
+          e.target.style.mixBlendMode="screen";
+          e.target.style.filter="invert(1) sepia(1) saturate(5) hue-rotate(175deg)";
+        }}
+      />
+      <div style={{fontSize:"12px",color:"#333",letterSpacing:"1.5px",textTransform:"uppercase",marginTop:"32px"}}>Loading...</div>
     </div>
   );
 
