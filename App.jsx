@@ -330,7 +330,7 @@ function NotifPanel({ notifications, setNotifications, onClose }) {
     await sb.from("notifications").update({read:true}).eq("read",false);
     setNotifications(p=>p.map(n=>({...n,read:true})));
   };
-  const icons = { match_accepted:"-", score_submitted:"-", score_confirmed:"-", disputed:"-", message:"-", match_message:"-", admin_announcement:"-", match_cancelled:"-", match_reminder:"-", match_today:"-" };
+  const icons = { match_accepted:"✓", score_submitted:"📊", score_confirmed:"✅", disputed:"⚠️", message:"💬", match_message:"🏓", admin_announcement:"📢", match_cancelled:"❌", match_reminder:"⏰", match_today:"🏓" };
   return (
     <div style={{ position:"absolute", top:"52px", right:"8px", width:"320px", maxWidth:"calc(100vw - 16px)", background:C.white, border:`1px solid ${C.border}`, borderRadius:"12px", boxShadow:"0 8px 30px rgba(0,0,0,.12)", zIndex:200, animation:"fadeIn .15s ease" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 16px", borderBottom:`1px solid ${C.border}` }}>
@@ -516,7 +516,7 @@ function MatchChatPane({ match, myTeam, teams, onBack, mobile }) {
       {isClosed&&<div style={{background:C.amberBg,padding:"7px 16px",fontSize:"12px",color:C.amber,textAlign:"center",flexShrink:0}}>This chat is archived.</div>}
       {/* Phone number tip */}
       <div style={{background:"#f0fdf4",borderBottom:`1px solid #bbf7d0`,padding:"8px 16px",fontSize:"12px",color:"#166534",textAlign:"center",flexShrink:0}}>
-        - Pro tip - share your phone number so you can coordinate easily on match day!
+        💬 Pro tip - share your phone number so you can coordinate easily on match day!
       </div>
       <ChatBubbles msgs={normMsgs} myTeam={myTeam} endRef={endRef} emptyMsg="Chat opened! Coordinate your match here."/>
       {!isClosed&&<div style={{padding:"10px 14px",borderTop:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
@@ -725,7 +725,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:"14px",fontWeight:unread?"800":"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
               <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)} - {fmtTime(m.match_time)}</div>
-              <div style={{fontSize:"11px",color:"#555",marginTop:"1px"}}>- {m.court}</div>
+              <div style={{fontSize:"11px",color:"#555",marginTop:"1px"}}>📍 {m.court}</div>
             </div>
             {unread&&<div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>-</div>}
           </div>
@@ -749,7 +749,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
 
       {activeMatches.length===0&&completedMatches.length===0&&(
         <div style={{padding:"16px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:"8px",margin:"12px 12px 0",fontSize:"12px",color:"#78350f",lineHeight:"1.6"}}>
-          <strong style={{display:"block",marginBottom:"3px"}}>- Match coordination moved to group text</strong>
+          <strong style={{display:"block",marginBottom:"3px"}}>📱 Match coordination moved to group text</strong>
           When a match is confirmed, all 4 players get added to an automatic group text from the Ascend PB number. Coordinate your match details there.
         </div>
       )}
@@ -760,7 +760,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
   // Empty state
   const EmptyPane = () => (
     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"12px",color:C.faint}}>
-      <div style={{fontSize:"48px"}}>-</div>
+      <div style={{fontSize:"48px"}}>💬</div>
       <div style={{fontSize:"16px",fontWeight:"600",color:C.muted}}>Select a chat</div>
       <div style={{fontSize:"13px"}}>Choose a division or match chat from the left</div>
     </div>
@@ -999,7 +999,7 @@ function PhoneVerifyUI({ phoneStep, setPhoneStep, phoneNum, setPhoneNum, phoneCo
             <div style={{textAlign:"center",marginTop:"14px",paddingTop:"12px",borderTop:`1px solid ${C.border}`}}>
               <span
                 style={{fontSize:"11px",color:C.faint,cursor:"pointer",textDecoration:"underline"}}
-                onClick={()=>{setPhoneStep("verified");setTimeout(()=>setStep(s=>s+1),800);}}>
+                onClick={()=>{setPhoneStep("verified");setTimeout(()=>setStep(2),800);}}>
                 Skip for now
               </span>
             </div>
@@ -1210,7 +1210,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
       }
       setPhoneStep("verified");
       // Advance to next registration step after a short moment
-      setTimeout(()=>{ setStep(s=>s+1); }, 800);
+      setTimeout(()=>{ setStep(2); }, 800);
     }catch(e){ setPhoneErr("Something went wrong. Please try again."); }
     setPhoneBusy(false);
   };
@@ -1396,11 +1396,11 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
           <div style={{height:"1px",background:C.border,marginBottom:"18px",position:"relative"}}>
             <span style={{position:"absolute",top:"-9px",left:"50%",transform:"translateX(-50%)",background:C.white,padding:"0 10px",fontSize:"11px",color:C.faint}}>OR</span>
           </div>
-          <button style={btn("#00BFFF","#fff",{width:"100%",marginBottom:"14px",minHeight:"50px",fontSize:"15px",fontWeight:"800"})} onClick={()=>{setMode("register");setStep(1);setErr("");}}>- Register a New Team</button>
+          <button style={btn("#00BFFF","#fff",{width:"100%",marginBottom:"14px",minHeight:"50px",fontSize:"15px",fontWeight:"800"})} onClick={()=>{setMode("register");setStep(1);setErr("");}}>🏓 Register a New Team</button>
           <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"10px",padding:"14px",textAlign:"center",marginBottom:"16px"}}>
-            <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"6px"}}>- Got a team invite?</div>
+            <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"6px"}}>📧 Got a team invite?</div>
             <div style={{fontSize:"12px",color:"#92400e",marginBottom:"10px"}}>Your partner registered the team and shared a 6-character code with you.</div>
-            <button style={btn("#78350f","#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{setMode("join");setJoinStep(1);setJoinErr("");}}>Join with team code -</button>
+            <button style={btn("#78350f","#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{setMode("join");setJoinStep(1);setJoinErr("");}}>Join with team code →</button>
           </div>
           <div style={{textAlign:"center",fontSize:"11px",color:C.faint}}>{APP_VERSION}</div>
         </>}
@@ -1414,7 +1414,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
           <Lbl>Email</Lbl>
           <input style={{...inp(),marginBottom:"16px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)}/>
           <button style={btn(C.text,"#fff",{width:"100%",marginBottom:"12px",minHeight:"46px"})} onClick={doForgot} disabled={busy}>{busy?"Sending...":"Send reset link"}</button>
-          <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setErr("");setMsg("");}}>- Back to sign in</span>
+          <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setErr("");setMsg("");}}>← Back to sign in</span>
         </>}
 
         {/* -- JOIN WITH CODE -- */}
@@ -1428,8 +1428,8 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
               placeholder="ABC123" maxLength={6} value={joinCode}
               onChange={e=>setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={e=>e.key==="Enter"&&lookupCode()}/>
-            <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"16px",marginBottom:"12px"})} onClick={lookupCode} disabled={busy}>{busy?"Looking up...":"Find my team -"}</button>
-            <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setJoinErr("");}}>- Back to sign in</span>
+            <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"16px",marginBottom:"12px"})} onClick={lookupCode} disabled={busy}>{busy?"Looking up...":"Find my team →"}</button>
+            <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setJoinErr("");}}>← Back to sign in</span>
           </>}
           {joinStep===2&&joinTeam&&<>
             <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Is this your team?</div>
@@ -1441,7 +1441,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
               <Tag c={joinTeam.division==="low"?"gray":"blue"}>{dL(joinTeam.division)}</Tag>
             </div>
             <div style={{display:"flex",gap:"8px"}}>
-              <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>setJoinStep(3)}>- Yes, that's my team</button>
+              <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>setJoinStep(3)}>✓ Yes, that's my team</button>
               <button style={btn(C.gray,"#fff",{flex:1,minHeight:"48px"})} onClick={()=>{setJoinStep(1);setJoinTeam(null);}}>Wrong team</button>
             </div>
           </>}
@@ -1456,7 +1456,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
             <Lbl>Confirm password</Lbl>
             <input style={{...inp(),marginBottom:"18px"}} type="password" placeholder="Repeat your password" value={joinPassC} onChange={e=>setJoinPassC(e.target.value)}/>
             <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"15px",marginBottom:"10px"})} onClick={joinTeamSubmit} disabled={busy}>{busy?"Creating account...":"Create account & Pay $25"}</button>
-            <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>setJoinStep(2)}>- Back</button>
+            <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>setJoinStep(2)}>← Back</button>
           </>}
           {joinStep===4&&<div style={{textAlign:"center",padding:"10px 0"}}>
             <div style={{fontSize:"40px",marginBottom:"12px"}}>-</div>
@@ -1527,7 +1527,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
             <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:"10px",padding:"12px 14px",marginTop:"8px"}}>
               <div style={{fontSize:"12px",color:"#78350f",marginBottom:"8px",fontWeight:"600"}}>Don't see your city? Get notified when we launch near you.</div>
               {cityInterestSent
-                ? <div style={{fontSize:"12px",color:"#166534",fontWeight:"600"}}>- You're on the list!</div>
+                ? <div style={{fontSize:"12px",color:"#166534",fontWeight:"600"}}>✓ You're on the list!</div>
                 : <div style={{display:"flex",gap:"8px"}}>
                     <input style={{...inp({fontSize:"12px",padding:"8px 10px"}),flex:1}} type="email" placeholder="your@email.com" value={cityInterestEmail} onChange={e=>setCityInterestEmail(e.target.value)}/>
                     <button style={btn("#78350f","#fff",{fontSize:"12px",padding:"8px 14px",minHeight:"36px"})} onClick={async()=>{
@@ -1609,7 +1609,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
                 {form.agreed&&<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
               </div>
               <div style={{flex:1}}>
-                <div style={{fontSize:"14px",fontWeight:"600",color:form.agreed?C.green:C.text}}>{form.agreed?"Agreed -":"Tap to agree"}</div>
+                <div style={{fontSize:"14px",fontWeight:"600",color:form.agreed?C.green:C.text}}>{form.agreed?"Agreed ✓":"Tap to agree"}</div>
                 <div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>I agree to the rules and waiver on behalf of both team members.</div>
               </div>
             </div>
@@ -1643,10 +1643,10 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
               ? <button style={btn(C.gray,"#fff",{padding:"10px 16px"})} onClick={()=>{setErr("");setStep(s=>{
                   const prev = s - 1;
                   return prev === 1.5 ? 1 : prev;
-                });}}>- Back</button>
+                });}}>← Back</button>
               : <span/>
             }
-            {step<6&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue -</button>}
+            {step<6&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue →</button>}
           </div>}
           {step===(isOAuth?2:1)&&<div style={{textAlign:"center",marginTop:"14px",fontSize:"13px",color:C.muted}}>
             Already registered? <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("login");setErr("");}}>Sign in</span>
@@ -1747,10 +1747,10 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
 
       {/* Match today banner */}
       {todayMatches.length>0&&<Alert type="success">
-        - <strong>Match day!</strong> You have {todayMatches.length} match{todayMatches.length>1?"es":""} today. Good luck out there!
+        🏓 <strong>Match day!</strong> You have {todayMatches.length} match{todayMatches.length>1?"es":""} today. Good luck out there!
       </Alert>}
 
-      {clinched&&<Alert type="success">- <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
+      {clinched&&<Alert type="success">🏆 <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
 
       {/* Yellow notification - scores needing action */}
       {myTeam?.approved&&(()=>{
@@ -1764,7 +1764,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
         if(needsConfirm.length===0)return null;
         return(
           <div style={{background:"#fef08a",border:"1.5px solid #ca8a04",borderRadius:"12px",padding:"14px 16px",marginBottom:"16px",display:"flex",gap:"12px",alignItems:"flex-start"}}>
-            <span style={{fontSize:"22px",flexShrink:0}}>--</span>
+            <span style={{fontSize:"22px",flexShrink:0}}>⚠️</span>
             <div style={{flex:1}}>
               <div style={{fontSize:"15px",fontWeight:"700",color:"#78350f",marginBottom:"4px"}}>Score{needsConfirm.length>1?"s":""} waiting for your response!</div>
               {needsConfirm.map(m=>{
@@ -1902,7 +1902,7 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
                   <tr key={t.id} style={{background:t.id===myTeam?.id?"#eff6ff":""}}>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",color:playoff?C.blue:"#ddd",fontSize:"18px",width:"40px"}}>{i+1}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"700"}}>
-                      {t.name}{streak>=3?` -`:""}{" "}
+                      {t.name}{streak>=3?` 🔥`:""}{" "}
                       {t.id===myTeam?.id&&<Tag sm c="blue">You</Tag>}{" "}
                       {i===0&&<Tag sm c="gray">Leader</Tag>}{" "}
                       {playoff&&<Tag sm c="blue">Playoffs</Tag>}
@@ -1980,7 +1980,7 @@ function RequestCard({ req, myTeam, teams, atLimit, setConfirmReq }) {
             <span>- {req.proposed_court}</span>
           </div>
           {req.notes&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{req.notes}</div>}
-          {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>- Fee: {req.location_fee}</div>}
+          {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>💰 Fee: {req.location_fee}</div>}
           <div style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>{timeAgo(req.created_at)} - {responses.length} response{responses.length!==1?"s":""}</div>
         </div>
         <Tag c={isCancelled?"gray":isAcc?"green":"blue"}>{isCancelled?"Cancelled":isAcc?"Matched":"Open"}</Tag>
@@ -2462,7 +2462,7 @@ function ScoreConfirmModal({ mid, myTeam, teams, matches, entry, setEntry, setMa
           ))}
           <div style={{marginTop:"12px",paddingTop:"12px",borderTop:`2px solid ${C.border}`,textAlign:"center"}}>
             <span style={{fontSize:"13px",color:C.muted}}>Winner: </span>
-            <span style={{fontSize:"16px",fontWeight:"800",color:C.green}}>{winner} -</span>
+            <span style={{fontSize:"16px",fontWeight:"800",color:C.green}}>{winner} 🏆</span>
           </div>
         </div>
         <div style={{display:"flex",gap:"8px"}}>
@@ -2529,9 +2529,9 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
               <div>
                 <div style={{fontSize:"20px",fontWeight:"800",marginBottom:"6px",letterSpacing:"-.3px"}}>vs {opp?.name}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:"6px",marginBottom:"2px"}}>
-                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>- {fmtDate(m.match_date)}</span>
-                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>- {fmtTime(m.match_time)}</span>
-                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>- {m.court}</span>
+                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>📅 {fmtDate(m.match_date)}</span>
+                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>🕐 {fmtTime(m.match_time)}</span>
+                  <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>📍 {m.court}</span>
                 </div>
               </div>
               <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}}>
@@ -2560,9 +2560,9 @@ function Scores({ myTeam, teams, setTeams, matches, setMatches, openChat, openCa
                   <div>
                     <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"4px"}}>vs {opp?.name}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:"4px",marginBottom:"3px"}}>
-                      <span style={{fontSize:"11px",color:C.muted}}>- {fmtDate(m.match_date)}</span>
+                      <span style={{fontSize:"11px",color:C.muted}}>📅 {fmtDate(m.match_date)}</span>
                       <span style={{fontSize:"11px",color:C.faint}}>-</span>
-                      <span style={{fontSize:"11px",color:C.muted}}>- {m.court}</span>
+                      <span style={{fontSize:"11px",color:C.muted}}>📍 {m.court}</span>
                     </div>
                     {m.games&&<div style={{fontSize:"12px",color:C.muted}}>{m.games.map(g=>`${g.s1}-${g.s2}`).join("  ")}</div>}
                   </div>
@@ -2645,7 +2645,7 @@ function TeamProfileModal({ team, teams, matches, myTeam, onClose }) {
         <div style={{padding:"20px 20px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div>
-              <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>{team.name}{streak>=3?` -`:""}</div>
+              <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>{team.name}{streak>=3?` 🔥`:""}</div>
               <div style={{fontSize:"13px",color:C.muted,marginBottom:"8px"}}>{team.p1_name} &amp; {team.p2_name}</div>
               <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
                 <Tag c={team.division==="low"?"gray":"blue"}>{dL(team.division)}</Tag>
@@ -2762,7 +2762,7 @@ function Standings({ myTeam, teams, matches, division, setDivision, isAdmin }) {
                   <tr key={t.id} style={{background:isMe?"#eff6ff":"",cursor:"pointer"}} onClick={()=>setProfileTeam(t)}>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",color:playoff?C.blue:"#ddd",fontSize:"20px",width:"40px"}}>{i+1}</td>
                     <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"700"}}>
-                      <div style={{color:C.blue,textDecoration:"underline",textDecorationStyle:"dotted",textUnderlineOffset:"3px"}}>{t.name}{streak>=3?` -`:""}</div>
+                      <div style={{color:C.blue,textDecoration:"underline",textDecorationStyle:"dotted",textUnderlineOffset:"3px"}}>{t.name}{streak>=3?` 🔥`:""}</div>
                       <div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"3px"}}>
                         {isMe&&<Tag sm c="blue">You</Tag>}
                         {i===0&&<Tag sm c="gray">Leader</Tag>}
@@ -2826,8 +2826,8 @@ function SeasonSchedule({ matches, teams, division, setDivision, myTeam, isAdmin
                 {w.week>CURRENT_WEEK&&<Tag c="gray">Upcoming</Tag>}
               </div>
             </div>
-            <div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginBottom:"8px"}}>- Deadline: {w.deadline}</div>
-            {w.week===6&&<div style={{background:C.purpleBg,border:`1px solid ${C.purple}30`,borderRadius:"8px",padding:"10px",fontSize:"13px",color:C.purple,fontWeight:"500"}}>- Playoffs - Top {PLAYOFFS} teams per division. Single elimination.</div>}
+            <div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginBottom:"8px"}}>⏰ Deadline: {w.deadline}</div>
+            {w.week===6&&<div style={{background:C.purpleBg,border:`1px solid ${C.purple}30`,borderRadius:"8px",padding:"10px",fontSize:"13px",color:C.purple,fontWeight:"500"}}>🏆 Playoffs - Top {PLAYOFFS} teams per division. Single elimination.</div>}
           </div>
         );
       })}
@@ -2905,7 +2905,7 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
     ["Email",[["email_enabled","Receive email notifications"]]],
   ];
 
-  const notifIcons={match_confirmed:"-",score_submitted:"-",score_confirmed:"-",disputed:"-",message:"-",match_message:"-",admin_announcement:"-",match_cancelled:"-",match_reminder:"-",match_today:"-"};
+  const notifIcons={match_confirmed:"✓",score_submitted:"📊",score_confirmed:"✅",disputed:"⚠️",message:"💬",match_message:"🏓",admin_announcement:"📢",match_cancelled:"❌",match_reminder:"⏰",match_today:"🏓"};
 
   return(
     <div>
@@ -2921,7 +2921,7 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
             ["Player 1",myTeam.p1_name],
             ["Player 2",myTeam.p2_name],
             ["Division",dL(myTeam.division)],
-            ["Status",myTeam.approved?"- Active":"- Pending activation"],
+            ["Status",myTeam.approved?"✅ Active":"- Pending activation"],
             ["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`],
           ].map(([l,v])=>(
             <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
@@ -2939,7 +2939,7 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
               const isMe = email?.toLowerCase()===userEmail?.toLowerCase();
               return(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
-                  <span style={{fontSize:"13px"}}>{paid?"-":"-"}</span>
+                  <span style={{fontSize:"13px"}}>{paid?"✅":"⏳"}</span>
                   <span style={{fontSize:"13px",flex:1}}>{name}{isMe&&<span style={{fontSize:"11px",color:C.faint}}> (you)</span>}</span>
                   <Tag c={paid?"green":"red"}>{paid?"$25 paid":"Unpaid"}</Tag>
                   {!paid&&isMe&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"30px"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>Pay now</button>}
@@ -2955,9 +2955,9 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
               ? <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap"}}>
                   <span style={{fontSize:"13px",flex:1}}>{phoneData.number||"Not set"}</span>
                   {phoneData.verified
-                    ? <Tag c="green">- Verified</Tag>
+                    ? <Tag c="green">✓ Verified</Tag>
                     : phoneData.number
-                      ? <Tag c="amber">- Not verified</Tag>
+                      ? <Tag c="amber">⏳ Not verified</Tag>
                       : null
                   }
                   <button style={btn(C.gray,"#555",{fontSize:"11px",padding:"5px 12px",minHeight:"30px"})} onClick={()=>{setNewPhone(phoneData.number);setEditPhone(true);}}>
@@ -2981,7 +2981,7 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
               <div style={{fontSize:"32px",fontWeight:"900",color:"#00BFFF",letterSpacing:"6px",fontFamily:"monospace",marginBottom:"8px"}}>{myTeam.join_code}</div>
               <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
                 <button style={{...btn("#333","#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"36px"}),flex:1}} onClick={copyCode}>
-                  {codeCopied?"- Copied!":"- Copy code"}
+                  {codeCopied?"✓ Copied!":"📋 Copy code"}
                 </button>
                 <button style={{...btn("#00BFFF","#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"36px"}),flex:1}} onClick={()=>{
                   const text=`Hey ${myTeam.p2_name}! Join our pickleball team.\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${myTeam.join_code}\n4. Create your account & pay $25 -`;
@@ -3047,7 +3047,7 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
               ))}
             </div>
           ))}
-          <button style={btn(prefsSaved?C.green:C.text,"#fff",{width:"100%",marginTop:"4px"})} onClick={savePrefs}>{prefsSaved?"Saved -":"Save notification preferences"}</button>
+          <button style={btn(prefsSaved?C.green:C.text,"#fff",{width:"100%",marginTop:"4px"})} onClick={savePrefs}>{prefsSaved?"Saved ✓":"Save notification preferences"}</button>
         </>}
       </div>
 
@@ -3082,11 +3082,11 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
         <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Account</div>
         <button onClick={openReport} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",borderBottom:`1px solid ${C.border}`,textAlign:"left",minHeight:"44px"}}>
           <div><div style={{fontSize:"14px",fontWeight:"600",color:C.amber}}>Report a problem</div><div style={{fontSize:"12px",color:C.muted}}>Flag an issue to admin</div></div>
-          <span style={{color:C.muted,fontSize:"20px"}}>-</span>
+          <span style={{color:C.muted,fontSize:"20px"}}>›</span>
         </button>
         <button onClick={signOut} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",textAlign:"left",minHeight:"44px"}}>
           <div><div style={{fontSize:"14px",fontWeight:"600",color:C.red}}>Sign out</div><div style={{fontSize:"12px",color:C.muted}}>Log out of your account</div></div>
-          <span style={{color:C.muted,fontSize:"20px"}}>-</span>
+          <span style={{color:C.muted,fontSize:"20px"}}>›</span>
         </button>
         <div style={{paddingTop:"12px",textAlign:"center"}}>
           <span style={{fontSize:"11px",color:C.faint}}>Ascend PB Flex League - {APP_VERSION} - {SEASON}</span>
@@ -3121,10 +3121,10 @@ function AdminInbox({ userId, teams, matches }) {
   },[]);
 
   const iconMap = {
-    "Player report":"-",
-    "Score dispute escalated":"-",
-    "Team edit request":"-",
-    "Match cancelled":"-",
+    "Player report":"🚩",
+    "Score dispute escalated":"⚠️",
+    "Team edit request":"✏️",
+    "Match cancelled":"❌",
   };
 
   const colorMap = {
@@ -3384,14 +3384,14 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
   const saveBanner=()=>{ setAdminBanner(bannerDraft||null); alert(bannerDraft?"Banner set - visible to all players on dashboard.":"Banner cleared."); };
   const saveDeadline=()=>{ setWeekDeadline(deadlineDraft||null); alert(deadlineDraft?"Deadline set.":"Deadline cleared."); };
 
-  const tabs=[["summary","- Summary"],["pending",`- Pending (${pending.length})`],["disputes",`- Disputes (${disputes.length})`],["inbox","- Inbox"],["teams","- Teams"],["matches","- Matches"],["payments","- Payments"],["dm","- Message"],["announce","- Announce"],["controls","- Controls"],["log","- Log"]];
+  const tabs=[["summary","📊 Summary"],["pending",`⏳ Pending (${pending.length})`],["disputes",`- Disputes (${disputes.length})`],["inbox","📥 Inbox"],["teams","👥 Teams"],["matches","🏓 Matches"],["payments","💰 Payments"],["dm","✉️ Message"],["announce","📢 Announce"],["controls","⚙️ Controls"],["log","📋 Log"]];
   const tdS=(s={})=>({padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"13px",...s});
 
   return(
     <div>
       <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px",flexWrap:"wrap"}}>
         <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px"}}>Admin Panel</div>
-        <Tag c="amber">Jimmie - Ascend PB</Tag>
+        <Tag c="amber">Jimmie · Ascend PB</Tag>
       </div>
       <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginBottom:"20px"}}>{SEASON} - Full access</div>
       <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"20px"}}>
@@ -3433,7 +3433,7 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
                   <div style={{fontSize:"12px",color:C.muted}}>{dL(t.division)}</div>
                 </div>
                 <div style={{display:"flex",gap:"6px"}}>
-                  <button style={btn(C.green,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>approve(t.id)}>- Approve</button>
+                  <button style={btn(C.green,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>approve(t.id)}>✓ Approve</button>
                   <button style={btn(C.red,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>removeTeam(t.id)}>Remove</button>
                 </div>
               </div>
@@ -3449,7 +3449,7 @@ function AdminPanel({ teams, setTeams, matches, setMatches, userId, adminBanner,
                     {/* Phone number from profiles */}
                     <PhoneDisplay email={email}/>
                   </div>
-                  <Tag c={paid?"green":"red"}>{paid?"- Paid $25":"Unpaid"}</Tag>
+                  <Tag c={paid?"green":"red"}>{paid?"✓ Paid $25":"Unpaid"}</Tag>
                   {!paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"34px"})} onClick={onMark}>Mark paid</button>}
                 </div>
               ))}
@@ -4157,7 +4157,7 @@ export default function App() {
       {CodeModal}
 
       {/* Week deadline banner */}
-      {weekDeadline&&<div style={{background:C.amber,color:"#fff",textAlign:"center",padding:"8px 16px",fontSize:"13px",fontWeight:"600"}}>- {weekDeadline}</div>}
+      {weekDeadline&&<div style={{background:C.amber,color:"#fff",textAlign:"center",padding:"8px 16px",fontSize:"13px",fontWeight:"600"}}>⏰ {weekDeadline}</div>}
 
       {/* Top nav */}
       <nav style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:"0 16px",display:"flex",alignItems:"center",gap:"2px",position:"sticky",top:0,zIndex:100,height:"52px"}}>
@@ -4201,7 +4201,7 @@ export default function App() {
                   {name:myTeam.p2_name,paid:p2Paid,label:"Player 2"},
                 ].map(({name,paid,label})=>(
                   <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",background:"rgba(0,0,0,.04)",borderRadius:"8px",padding:"8px 10px"}}>
-                    <span style={{fontSize:"14px"}}>{paid?"-":"-"}</span>
+                    <span style={{fontSize:"14px"}}>{paid?"✅":"⏳"}</span>
                     <span style={{fontSize:"13px",flex:1,color:"#78350f"}}><strong>{label}:</strong> {name} - {paid?"$25 paid":"payment pending"}</span>
                   </div>
                 ))}
@@ -4214,7 +4214,7 @@ export default function App() {
                       ?"Your payment is confirmed - waiting on your partner's payment."
                       :"Your team won't be active until both players have paid $25 and admin has approved."}
                   </p>
-                  {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>- Pay my $25 now -</button>}
+                  {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
                 </>
               }
             </div>
