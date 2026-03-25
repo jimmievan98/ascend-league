@@ -674,7 +674,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
   );
 
   // Sidebar list
-  const Sidebar = () => (
+  const Sidebar = () => { return (
     <div style={{width:mobile?"100%":"300px",flexShrink:0,borderRight:mobile?"none":`1px solid ${C.border}`,display:"flex",flexDirection:"column",background:C.white,height:"100%",overflowY:"auto"}}>
       <div style={{padding:"14px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
         <div style={{fontSize:"18px",fontWeight:"800",letterSpacing:"-.3px"}}>Division Chat</div>
@@ -758,10 +758,10 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
     <div>
       <div style={{fontSize:"22px",fontWeight:"700",letterSpacing:"-.3px",marginBottom:"12px"}}>Division Chat</div>
       <div style={{display:"flex",height,border:`1px solid ${C.border}`,borderRadius:"14px",overflow:"hidden",background:C.white}}>
-        {showList&&<Sidebar/>}
+        {showList&&Sidebar()}
         {!mobile&&(
           <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
-            {!selected&&<EmptyPane/>}
+            {!selected&&EmptyPane()}
             {selected?.type==="division"&&<DivisionChatPane myTeam={myTeam} isAdmin={isAdmin} division={division} setAdminDiv={setAdminDiv} adminPauseChat={adminPauseChat} setAdminPauseChat={setAdminPauseChat} mobile={false}/>}
             {selected?.type==="match"&&<MatchChatPane match={selected.match} myTeam={myTeam} teams={teams} mobile={false}/>}
           </div>
@@ -944,6 +944,107 @@ const friendlyError = (msg) => {
   if(msg.includes("JWT")||msg.includes("token")) return "Your session expired. Please sign in again.";
   return msg;
 };
+
+// ── PHONE VERIFY UI — defined outside AuthScreen to prevent remount on keystroke ──
+function PhoneVerifyUI({ phoneStep, setPhoneStep, phoneNum, setPhoneNum, phoneCode, setPhoneCode,
+  phoneErr, setPhoneErr, phoneChannel, phoneBusy, resendTimer, sendPhoneCode, checkPhoneCode }) {
+  return(
+    <div>
+      {phoneStep==="locked"
+        ? <Alert type="error">Too many wrong attempts. Please wait 10 minutes then try again. Need help? Email <b>league@ascendpb.com</b></Alert>
+        : <>
+          {phoneStep==="enter"&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Verify your phone</div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"20px"}}>We need your mobile number so we can send you match notifications and group texts with your opponents.</p>
+            <Alert type="info">US numbers only. Standard message rates apply.</Alert>
+            <Lbl>Mobile number</Lbl>
+            <input
+              style={{...inp({fontSize:"18px",letterSpacing:"1px",textAlign:"center"}),marginBottom:"16px"}}
+              type="tel" placeholder="(704) 555-0000"
+              value={phoneNum}
+              onChange={e=>setPhoneNum(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&sendPhoneCode("sms")}
+              maxLength={14}
+            />
+            {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
+            <button style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"10px"})}
+              onClick={()=>sendPhoneCode("sms")} disabled={phoneBusy}>
+              {phoneBusy?"Sending code...":"Send me a code →"}
+            </button>
+            <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"8px"}}>
+              Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
+            </div>
+          </>}
+          {phoneStep==="sent"&&<>
+            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>
+              {phoneChannel==="call"?"Answer your phone":"Check your texts"}
+            </div>
+            <p style={{fontSize:"13px",color:C.muted,marginBottom:"6px"}}>
+              {phoneChannel==="call"
+                ?`We're calling ${phoneNum} now and will read your 6-digit code out loud.`
+                :`We sent a 6-digit code to ${phoneNum}.`}
+            </p>
+            {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
+            <div style={{margin:"20px 0"}}>
+              <input
+                id="otp-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="000000"
+                value={phoneCode}
+                autoFocus
+                style={{
+                  width:"100%",height:"64px",textAlign:"center",
+                  fontSize:"32px",fontWeight:"900",letterSpacing:"12px",
+                  border:`2px solid ${phoneCode.length===6?C.blue:C.border}`,
+                  borderRadius:"12px",fontFamily:"monospace",
+                  background:phoneCode.length===6?"#f0f9ff":C.white,
+                  outline:"none",boxSizing:"border-box"
+                }}
+                onChange={e=>{
+                  const v=e.target.value.replace(/\D/g,"").slice(0,6);
+                  setPhoneCode(v);
+                  if(v.length===6) setTimeout(()=>checkPhoneCode(),120);
+                }}
+              />
+              <div style={{fontSize:"11px",color:C.faint,textAlign:"center",marginTop:"8px"}}>
+                Enter the 6-digit code — auto-submits when complete
+              </div>
+            </div>
+            <button style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"12px"})}
+              onClick={checkPhoneCode} disabled={phoneBusy||phoneCode.length<6}>
+              {phoneBusy?"Checking...":"Verify code →"}
+            </button>
+            <div style={{textAlign:"center"}}>
+              {resendTimer>0
+                ?<span style={{fontSize:"12px",color:C.faint}}>Resend code in {resendTimer}s</span>
+                :<div style={{display:"flex",flexDirection:"column",gap:"8px",alignItems:"center"}}>
+                    <button style={btn(C.gray,"#555",{fontSize:"13px",padding:"8px 20px"})} onClick={()=>sendPhoneCode("sms")} disabled={phoneBusy}>Resend code by text</button>
+                    <button style={btn(C.gray,"#555",{fontSize:"13px",padding:"8px 20px"})} onClick={()=>sendPhoneCode("call")} disabled={phoneBusy}>📞 Call me with the code instead</button>
+                  </div>
+              }
+            </div>
+            <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"12px"}}>
+              Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
+            </div>
+            <div style={{textAlign:"center",marginTop:"10px"}}>
+              <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setPhoneStep("enter");setPhoneCode("");setPhoneErr("");}}>← Use a different number</span>
+            </div>
+          </>}
+          {phoneStep==="verified"&&<>
+            <div style={{textAlign:"center",padding:"32px 0"}}>
+              <div style={{fontSize:"40px",marginBottom:"12px"}}>✓</div>
+              <div style={{fontSize:"18px",fontWeight:"800",color:C.blue,marginBottom:"6px"}}>Phone verified!</div>
+              <div style={{fontSize:"13px",color:C.muted}}>Taking you to the next step...</div>
+            </div>
+          </>}
+        </>
+      }
+    </div>
+  );
+}
 
 function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=null, onRegistrationDone=null }) {
   const [mode, setMode] = useState("login"); // login | register | forgot | join
@@ -1221,112 +1322,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
   const totalSteps = isOAuth ? 5 : 6; // includes phone step for all paths
   const displayStep = isOAuth ? step : step; // phone step is always shown
 
-  // Phone step UI helper
-  const PhoneVerifyUI = ()=>(
-    <div>
-      {phoneStep==="locked"
-        ? <Alert type="error">Too many wrong attempts. Please wait 10 minutes then try again. Need help? Email <b>league@ascendpb.com</b></Alert>
-        : <>
-          {phoneStep==="enter"&&<>
-            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Verify your phone</div>
-            <p style={{fontSize:"13px",color:C.muted,marginBottom:"20px"}}>We need your mobile number so we can send you match notifications and group texts with your opponents.</p>
-            <Alert type="info" style={{marginBottom:"16px"}}>US numbers only. Standard message rates apply.</Alert>
-            <Lbl>Mobile number</Lbl>
-            <input
-              style={{...inp({fontSize:"18px",letterSpacing:"1px",textAlign:"center"}),marginBottom:"16px"}}
-              type="tel" placeholder="(704) 555-0000"
-              value={phoneNum}
-              onChange={e=>setPhoneNum(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&sendPhoneCode("sms")}
-              maxLength={14}
-            />
-            {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
-            <button style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"10px"})}
-              onClick={()=>sendPhoneCode("sms")} disabled={phoneBusy}>
-              {phoneBusy?"Sending code...":"Send me a code →"}
-            </button>
-            <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"8px"}}>
-              Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
-            </div>
-          </>}
 
-          {phoneStep==="sent"&&<>
-            <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>
-              {phoneChannel==="call" ? "Answer your phone" : "Check your texts"}
-            </div>
-            <p style={{fontSize:"13px",color:C.muted,marginBottom:"6px"}}>
-              {phoneChannel==="call"
-                ? `We're calling ${phoneNum} now and will read your 6-digit code out loud.`
-                : `We sent a 6-digit code to ${phoneNum}.`}
-            </p>
-            {phoneStep==="verified"
-              ? <Alert type="success">✓ Phone verified!</Alert>
-              : <>
-                  {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
-                  {/* Single OTP input — stays focused, works perfectly on mobile */}
-                  <div style={{margin:"20px 0"}}>
-                    <input
-                      id="otp-input"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      placeholder="000000"
-                      value={phoneCode}
-                      autoFocus
-                      style={{
-                        width:"100%",height:"64px",textAlign:"center",
-                        fontSize:"32px",fontWeight:"900",letterSpacing:"12px",
-                        border:`2px solid ${phoneCode.length===6?C.blue:C.border}`,
-                        borderRadius:"12px",fontFamily:"monospace",
-                        background:phoneCode.length===6?"#f0f9ff":C.white,
-                        outline:"none",boxSizing:"border-box"
-                      }}
-                      onChange={e=>{
-                        const v=e.target.value.replace(/\D/g,"").slice(0,6);
-                        setPhoneCode(v);
-                        if(v.length===6) setTimeout(()=>checkPhoneCode(),120);
-                      }}
-                    />
-                    <div style={{fontSize:"11px",color:C.faint,textAlign:"center",marginTop:"8px"}}>
-                      Enter the 6-digit code — auto-submits when complete
-                    </div>
-                  </div>
-                  <button
-                    style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"12px"})}
-                    onClick={checkPhoneCode} disabled={phoneBusy||phoneCode.length<6}>
-                    {phoneBusy?"Checking...":"Verify code →"}
-                  </button>
-                  <div style={{textAlign:"center"}}>
-                    {resendTimer>0
-                      ? <span style={{fontSize:"12px",color:C.faint}}>Resend code in {resendTimer}s</span>
-                      : <div style={{display:"flex",flexDirection:"column",gap:"8px",alignItems:"center"}}>
-                          <button style={btn(C.gray,"#555",{fontSize:"13px",padding:"8px 20px"})} onClick={()=>sendPhoneCode("sms")} disabled={phoneBusy}>Resend code by text</button>
-                          <button style={btn(C.gray,"#555",{fontSize:"13px",padding:"8px 20px"})} onClick={()=>sendPhoneCode("call")} disabled={phoneBusy}>📞 Call me with the code instead</button>
-                        </div>
-                    }
-                  </div>
-                  <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"12px"}}>
-                    Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
-                  </div>
-                  <div style={{textAlign:"center",marginTop:"10px"}}>
-                    <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setPhoneStep("enter");setPhoneCode("");setPhoneErr("");}}>← Use a different number</span>
-                  </div>
-                </>
-            }
-          </>}
-
-          {phoneStep==="verified"&&<>
-            <div style={{textAlign:"center",padding:"32px 0"}}>
-              <div style={{fontSize:"40px",marginBottom:"12px"}}>✓</div>
-              <div style={{fontSize:"18px",fontWeight:"800",color:C.blue,marginBottom:"6px"}}>Phone verified!</div>
-              <div style={{fontSize:"13px",color:C.muted}}>Taking you to the next step...</div>
-            </div>
-          </>}
-        </>
-      }
-    </div>
-  );
 
   return(
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",background:C.bg}}>
@@ -1450,7 +1446,16 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
           </>}
 
           {/* Step 1.5 — Phone verification (all paths) */}
-          {step===1.5&&<PhoneVerifyUI/>}
+          {step===1.5&&<PhoneVerifyUI
+  phoneStep={phoneStep} setPhoneStep={setPhoneStep}
+  phoneNum={phoneNum} setPhoneNum={setPhoneNum}
+  phoneCode={phoneCode} setPhoneCode={setPhoneCode}
+  phoneErr={phoneErr} setPhoneErr={setPhoneErr}
+  phoneChannel={phoneChannel} phoneBusy={phoneBusy}
+  resendTimer={resendTimer}
+  sendPhoneCode={sendPhoneCode}
+  checkPhoneCode={checkPhoneCode}
+/>}
 
           {/* Step 2 — Team info */}
           {step===2&&<>
