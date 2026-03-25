@@ -13,7 +13,7 @@ const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/objec
 const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/logo/Black%20Modern%20Initials%20AP%20Logo%20(10).png";
 const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
 const CONTACT_EMAIL = "league@ascendpb.com";
-const APP_VERSION   = "v2.6.2";
+const APP_VERSION   = "v2.6.3";
 
 // Cities config - matches Supabase cities table seed data
 const CITIES = [
@@ -995,6 +995,13 @@ function PhoneVerifyUI({ phoneStep, setPhoneStep, phoneNum, setPhoneNum, phoneCo
             </button>
             <div style={{textAlign:"center",fontSize:"12px",color:C.faint,marginTop:"8px"}}>
               Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
+            </div>
+            <div style={{textAlign:"center",marginTop:"14px",paddingTop:"12px",borderTop:`1px solid ${C.border}`}}>
+              <span
+                style={{fontSize:"11px",color:C.faint,cursor:"pointer",textDecoration:"underline"}}
+                onClick={()=>{setPhoneStep("verified");setTimeout(()=>setStep(s=>s+1),800);}}>
+                Skip for now
+              </span>
             </div>
           </>}
           {phoneStep==="sent"&&<>
