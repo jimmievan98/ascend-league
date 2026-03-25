@@ -13,7 +13,7 @@ const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/objec
 const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/logo/Black%20Modern%20Initials%20AP%20Logo%20(10).png";
 const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
 const CONTACT_EMAIL = "league@ascendpb.com";
-const APP_VERSION   = "v2.5.1";
+const APP_VERSION   = "v2.5.2";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // Helper — send email via Resend edge function (dormant until API key added)
@@ -742,6 +742,7 @@ function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdmi
       )}
     </div>
   );
+  };
 
   // Empty state
   const EmptyPane = () => (
