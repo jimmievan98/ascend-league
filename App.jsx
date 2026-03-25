@@ -13,7 +13,7 @@ const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/objec
 const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/logo/Black%20Modern%20Initials%20AP%20Logo%20(10).png";
 const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
 const CONTACT_EMAIL = "league@ascendpb.com";
-const APP_VERSION   = "v2.5.5";
+const APP_VERSION   = "v2.5.8";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // Helper — send email via Resend edge function (dormant until API key added)
@@ -960,8 +960,8 @@ function PhoneVerifyUI({ phoneStep, setPhoneStep, phoneNum, setPhoneNum, phoneCo
           {phoneStep==="enter"&&<>
             <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"12px"}}>Verify your number</div>
             <div style={{background:"#f0f9ff",border:"1px solid #b3eeff",borderRadius:"10px",padding:"16px",marginBottom:"16px",fontSize:"13px",color:"#0369a1",lineHeight:"1.8"}}>
-              <strong style={{display:"block",fontSize:"14px",marginBottom:"8px",color:"#005f8a"}}>This league runs on text messaging.</strong>
-              We use your number to keep everything moving — from your verification code right now, to automatic group texts when a match is confirmed so all 4 players can coordinate together, plus match confirmations, score updates, and important league notifications throughout the season. No app required to stay in the loop.
+              <strong style={{display:"block",fontSize:"14px",marginBottom:"8px",color:"#005f8a"}}>We keep things simple. You play, we handle the updates.</strong>
+              When a match is confirmed, we automatically create a group text with all 4 players so everyone can coordinate. We also send verification codes, match updates, and league notifications to keep you in the loop all season.
               <div style={{marginTop:"12px",paddingTop:"10px",borderTop:"1px solid #b3eeff",fontSize:"10px",color:"#7cb9d4"}}>
                 By entering your number you agree to receive SMS messages from Ascend PB. Msg &amp; data rates may apply. Reply STOP to opt out.
               </div>
