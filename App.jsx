@@ -10,7 +10,7 @@ const SUPABASE_URL  = "https://egacieyresiwkwwomesi.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYWNpZXlyZXNpd2t3d29tZXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDc1NjgsImV4cCI6MjA4OTUyMzU2OH0.j7CWOFK34ANLQiZdT80j-v0x9xhGZ9dJ-QHjLiucNrw";
 const SHOPIFY_URL   = "https://ascendpb.com/products/ascend-pb-flex-league-player-registration";
 const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/Black%20Modern%20Initials%20AP%20Logo%20(7).png";
-const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/assets/ascend-logo-blue.png";
+const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/logo/Black%20Modern%20Initials%20AP%20Logo%20(10).png";
 const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
 const CONTACT_EMAIL = "league@ascendpb.com";
 const APP_VERSION   = "v2.5.0";
@@ -76,8 +76,8 @@ MATCH LIMITS
 • No weekly cap — play as much as your schedule allows.
 
 DIVISIONS
-• 3.0–3.5 Division: DUPR ratings 3.0 to 3.4.
-• 3.5–4.0 Division: DUPR ratings 3.5 to 4.0.
+• 3.0–3.5 Division: beginner to intermediate skill level.
+• 3.5–4.0 Division: intermediate to advanced skill level.
 • Players rated exactly 3.5 may choose their division at registration.
 • Ascend Pickleball reserves the right to reassign players.
 
@@ -1263,35 +1263,34 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
               ? <Alert type="success">✓ Phone verified!</Alert>
               : <>
                   {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
-                  {/* 6 individual digit boxes */}
-                  <div style={{display:"flex",gap:"8px",justifyContent:"center",margin:"20px 0"}}>
-                    {[0,1,2,3,4,5].map(i=>(
-                      <input
-                        key={i}
-                        id={`pcode-${i}`}
-                        type="text" inputMode="numeric" maxLength={1}
-                        value={phoneCode[i]||""}
-                        style={{width:"44px",height:"54px",textAlign:"center",fontSize:"22px",fontWeight:"800",
-                          border:`2px solid ${phoneCode[i]?C.blue:C.border}`,borderRadius:"10px",
-                          background:phoneCode[i]?C.blue+"15":C.white,outline:"none"}}
-                        onChange={e=>{
-                          const v = e.target.value.replace(/\D/g,"");
-                          if(!v) return;
-                          const arr = phoneCode.split("");
-                          arr[i] = v;
-                          const next = arr.join("").slice(0,6);
-                          setPhoneCode(next);
-                          // Auto-focus next box
-                          if(v && i<5) document.getElementById(`pcode-${i+1}`)?.focus();
-                        }}
-                        onKeyDown={e=>{
-                          if(e.key==="Backspace"&&!phoneCode[i]&&i>0){
-                            document.getElementById(`pcode-${i-1}`)?.focus();
-                            const arr=phoneCode.split(""); arr[i-1]=""; setPhoneCode(arr.join(""));
-                          }
-                        }}
-                      />
-                    ))}
+                  {/* Single OTP input — stays focused, works perfectly on mobile */}
+                  <div style={{margin:"20px 0"}}>
+                    <input
+                      id="otp-input"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={phoneCode}
+                      autoFocus
+                      style={{
+                        width:"100%",height:"64px",textAlign:"center",
+                        fontSize:"32px",fontWeight:"900",letterSpacing:"12px",
+                        border:`2px solid ${phoneCode.length===6?C.blue:C.border}`,
+                        borderRadius:"12px",fontFamily:"monospace",
+                        background:phoneCode.length===6?"#f0f9ff":C.white,
+                        outline:"none",boxSizing:"border-box"
+                      }}
+                      onChange={e=>{
+                        const v=e.target.value.replace(/\D/g,"").slice(0,6);
+                        setPhoneCode(v);
+                        if(v.length===6) setTimeout(()=>checkPhoneCode(),120);
+                      }}
+                    />
+                    <div style={{fontSize:"11px",color:C.faint,textAlign:"center",marginTop:"8px"}}>
+                      Enter the 6-digit code — auto-submits when complete
+                    </div>
                   </div>
                   <button
                     style={btn("#00BFFF","#fff",{width:"100%",minHeight:"50px",fontSize:"15px",fontWeight:"800",marginBottom:"12px"})}
@@ -2875,12 +2874,12 @@ function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openRepo
           )}
           <div style={{marginTop:"14px"}}>
             <div style={{background:"#fef9c3",border:"1px solid #fde68a",borderRadius:"8px",padding:"10px 12px",marginBottom:"10px",fontSize:"12px",color:"#78350f"}}>
-              <strong>Need to update your skill rating (DUPR)?</strong> Once the season starts, ratings cannot be self-edited. Submit a request and admin will review it.
+              <strong>Need to update your team info?</strong> Once the season starts, details cannot be self-edited. Submit a request and admin will review it.
             </div>
             {sent?<Alert type="success">Edit request sent to admin.</Alert>:
             editReq?<>
               <Lbl>What would you like changed?</Lbl>
-              <textarea style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px"}} placeholder="e.g. Update P1 DUPR to 3.4, correct team name spelling..." value={editMsg} onChange={e=>setEditMsg(e.target.value)}/>
+              <textarea style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px"}} placeholder="e.g. Update team name, correct player name spelling, change division..." value={editMsg} onChange={e=>setEditMsg(e.target.value)}/>
               <div style={{display:"flex",gap:"8px"}}>
                 <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={sendEditRequest} disabled={!editMsg.trim()}>Send Request</button>
                 <button style={btn(C.gray,"#fff",{minHeight:"44px"})} onClick={()=>setEditReq(false)}>Cancel</button>
