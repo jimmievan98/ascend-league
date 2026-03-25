@@ -1,5 +1,5 @@
 // ================================================================
-// ASCEND PB FLEX LEAGUE — COMPLETE APP v4
+// ASCEND PB FLEX LEAGUE - COMPLETE APP v4
 // All confirmed features. Mobile-first. Production ready.
 // ================================================================
 
@@ -15,7 +15,7 @@ const FUNCTIONS_URL = “https://egacieyresiwkwwomesi.supabase.co/functions/v1�
 const CONTACT_EMAIL = “league@ascendpb.com”;
 const APP_VERSION   = “v2.6.2”;
 
-// Cities config — matches Supabase cities table seed data
+// Cities config - matches Supabase cities table seed data
 const CITIES = [
 { name:“Charlotte”,  state:“NC”, status:“active” },
 { name:“Raleigh”,    state:“NC”, status:“coming_soon” },
@@ -29,7 +29,7 @@ const CITIES = [
 ];
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// Helper — send email via Resend edge function (dormant until API key added)
+// Helper - send email via Resend edge function (dormant until API key added)
 const sendEmail = async(type, payload) => {
 try {
 await fetch(`${FUNCTIONS_URL}/send-email`, {
@@ -37,34 +37,34 @@ method:“POST”,
 headers:{“Content-Type”:“application/json”,“apikey”:SUPABASE_ANON},
 body: JSON.stringify({ type, …payload })
 });
-} catch(e) { /* silent — email is non-blocking */ }
+} catch(e) { /* silent - email is non-blocking */ }
 };
 
-// ── Constants ─────────────────────────────────────────────────
+// – Constants ———————————————––
 const SEASON   = “Spring 2026”;
 const WEEKS    = 6;
 const PLAYOFFS = 4;
 const MAX_VS   = 2;
 const SKILLS   = [“3.0”,“3.1”,“3.2”,“3.3”,“3.4”,“3.5”,“3.6”,“3.7”,“3.8”,“3.9”,“4.0”];
 const CLT_COURTS = [
-“Freedom Park — 1900 East Blvd (6 courts)”,
-“Clarks Creek Community Park — 5435 Hucks Rd (8 courts)”,
-“Martin Luther King Jr. Park — 2600 Ravencroft Dr (6 courts)”,
-“Clanton Park — 1520 Clanton Rd (6 courts)”,
-“Eastway Park — 3150 Eastway Pk Dr (4 courts)”,
-“Pearl Street Park — 1200 Baxter Dr (2 courts)”,
+“Freedom Park - 1900 East Blvd (6 courts)”,
+“Clarks Creek Community Park - 5435 Hucks Rd (8 courts)”,
+“Martin Luther King Jr. Park - 2600 Ravencroft Dr (6 courts)”,
+“Clanton Park - 1520 Clanton Rd (6 courts)”,
+“Eastway Park - 3150 Eastway Pk Dr (4 courts)”,
+“Pearl Street Park - 1200 Baxter Dr (2 courts)”,
 ];
 const WEEK_DATES = [
-{ week:1, label:“Week 1”, dates:“Mar 3–9”,   deadline:“Sun Mar 9 · 11:59 PM” },
-{ week:2, label:“Week 2”, dates:“Mar 10–16”,  deadline:“Sun Mar 16 · 11:59 PM” },
-{ week:3, label:“Week 3”, dates:“Mar 17–23”,  deadline:“Sun Mar 23 · 11:59 PM” },
-{ week:4, label:“Week 4”, dates:“Mar 24–30”,  deadline:“Sun Mar 30 · 11:59 PM” },
-{ week:5, label:“Week 5”, dates:“Mar 31–Apr 6”,deadline:“Sun Apr 6 · 11:59 PM” },
-{ week:6, label:“Week 6 — Playoffs”, dates:“Apr 7–13”, deadline:“Sun Apr 13 · 11:59 PM” },
+{ week:1, label:“Week 1”, dates:“Mar 3-9”,   deadline:“Sun Mar 9 - 11:59 PM” },
+{ week:2, label:“Week 2”, dates:“Mar 10-16”,  deadline:“Sun Mar 16 - 11:59 PM” },
+{ week:3, label:“Week 3”, dates:“Mar 17-23”,  deadline:“Sun Mar 23 - 11:59 PM” },
+{ week:4, label:“Week 4”, dates:“Mar 24-30”,  deadline:“Sun Mar 30 - 11:59 PM” },
+{ week:5, label:“Week 5”, dates:“Mar 31-Apr 6”,deadline:“Sun Apr 6 - 11:59 PM” },
+{ week:6, label:“Week 6 - Playoffs”, dates:“Apr 7-13”, deadline:“Sun Apr 13 - 11:59 PM” },
 ];
 const CURRENT_WEEK = 3;
 
-// ── Colors ────────────────────────────────────────────────────
+// – Colors ––––––––––––––––––––––––––
 const C = {
 bg:”#f5f5f3”, white:”#fff”, border:”#e4e4e0”,
 text:”#111”, muted:”#888”, faint:”#aaa”,
@@ -76,51 +76,59 @@ gray:”#444”, purple:”#6d28d9”, purpleBg:”#ede9fe”,
 orange:”#ea580c”, orangeBg:”#fff7ed”,
 };
 
-const WAIVER = `ASCEND PB FLEX LEAGUE — OFFICIAL RULES & WAIVER · ${SEASON}
+const WAIVER = `ASCEND PB FLEX LEAGUE - OFFICIAL RULES & WAIVER - ${SEASON}
 
 SEASON FORMAT
-• ${WEEKS}-week flex season. Teams post open match requests — no targeted opponents.
-• All matches: Best of 3 games, each to 11 points, win by 2.
-• Teams find their own court anywhere in Charlotte, NC.
-• Scores submitted within 24 hours of playing.
+
+- ${WEEKS}-week flex season. Teams post open match requests - no targeted opponents.
+- All matches: Best of 3 games, each to 11 points, win by 2.
+- Teams find their own court anywhere in Charlotte, NC.
+- Scores submitted within 24 hours of playing.
 
 MATCH LIMITS
-• Maximum ${MAX_VS} matches vs the same opponent per season.
-• No weekly cap — play as much as your schedule allows.
+
+- Maximum ${MAX_VS} matches vs the same opponent per season.
+- No weekly cap - play as much as your schedule allows.
 
 DIVISIONS
-• 3.0–3.5 Division: beginner to intermediate skill level.
-• 3.5–4.0 Division: intermediate to advanced skill level.
-• Players rated exactly 3.5 may choose their division at registration.
-• Ascend Pickleball reserves the right to reassign players.
+
+- 3.0-3.5 Division: beginner to intermediate skill level.
+- 3.5-4.0 Division: intermediate to advanced skill level.
+- Players rated exactly 3.5 may choose their division at registration.
+- Ascend Pickleball reserves the right to reassign players.
 
 SCHEDULING & CANCELLATIONS
-• Post a match request — any team in your division may accept, comment, or counter.
-• Once confirmed, either team may cancel with a reason. Repeat cancellations may result in admin action.
+
+- Post a match request - any team in your division may accept, comment, or counter.
+- Once confirmed, either team may cancel with a reason. Repeat cancellations may result in admin action.
 
 SUBSTITUTES
-• Allowed — at least 1 original player must be on the court.
-• Must be disclosed when submitting scores.
+
+- Allowed - at least 1 original player must be on the court.
+- Must be disclosed when submitting scores.
 
 SCORING
-• 2 points per match win. 0 for a loss.
-• Either team submits scores. Opponent confirms within 24 hours or score auto-confirms.
-• Disputed scores resolved by admin within 48 hours.
+
+- 2 points per match win. 0 for a loss.
+- Either team submits scores. Opponent confirms within 24 hours or score auto-confirms.
+- Disputed scores resolved by admin within 48 hours.
 
 PLAYOFFS
-• Top ${PLAYOFFS} teams per division advance to playoffs in Week ${WEEKS}.
-• Minimum 3 regular season matches required to qualify.
-• Single elimination. 12-hour score confirmation window.
+
+- Top ${PLAYOFFS} teams per division advance to playoffs in Week ${WEEKS}.
+- Minimum 3 regular season matches required to qualify.
+- Single elimination. 12-hour score confirmation window.
 
 FEES & REFUNDS
-• $25 per player. Both players pay separately via the Ascend PB store.
-• Non-refundable after Week 1 begins.
+
+- $25 per player. Both players pay separately via the Ascend PB store.
+- Non-refundable after Week 1 begins.
 
 LIABILITY WAIVER
 By registering, I acknowledge that pickleball involves physical activity and inherent risk. I agree to hold Ascend Pickleball LLC harmless from any claims, injuries, or damages. Participation is voluntary.`;
 
-// ── Date/time formatters ──────────────────────────────────────
-// Converts “2026-03-20” → “March 20, 2026”
+// – Date/time formatters –––––––––––––––––––
+// Converts “2026-03-20” - “March 20, 2026”
 const fmtDate = (d) => {
 if (!d) return “”;
 try {
@@ -128,7 +136,7 @@ const dt = new Date(d + “T12:00:00”); // noon avoids timezone shift
 return dt.toLocaleDateString(“en-US”, { month:“long”, day:“numeric”, year:“numeric” });
 } catch { return d; }
 };
-// Converts “19:44” (24h) or “10:00 AM” → “7:44 PM” (12h)
+// Converts “19:44” (24h) or “10:00 AM” - “7:44 PM” (12h)
 const fmtTime = (t) => {
 if (!t) return “”;
 try {
@@ -185,7 +193,7 @@ return () => { el.removeEventListener(“touchstart”, ts); el.removeEventListe
 return ref;
 }
 
-// ── Design helpers ────────────────────────────────────────────
+// – Design helpers ––––––––––––––––––––––
 const inp  = (x={}) => ({ background:C.bg, border:`1px solid ${C.border}`, borderRadius:“8px”, padding:“11px 13px”, color:C.text, fontSize:“15px”, width:“100%”, outline:“none”, …x });
 const btn  = (bg=C.text, c=”#fff”, x={}) => ({ background:bg, color:c, border:“none”, borderRadius:“8px”, padding:“11px 20px”, fontSize:“14px”, fontWeight:“600”, cursor:“pointer”, whiteSpace:“nowrap”, minHeight:“44px”, …x });
 const card = (x={}) => ({ background:C.white, border:`1px solid ${C.border}`, borderRadius:“12px”, padding:“16px”, …x });
@@ -201,15 +209,15 @@ const map = { info:[C.blue,”#e0f2fe”], success:[C.green,C.greenBg], warn:[C.
 const [col, bg] = map[type];
 return <div style={{ background:bg, border:`1px solid ${col}30`, borderRadius:“10px”, padding:“12px 16px”, marginBottom:“14px”, display:“flex”, gap:“10px”, alignItems:“flex-start” }}>
 <div style={{ flex:1, fontSize:“14px”, color:col, lineHeight:“1.5” }}>{children}</div>
-{onDismiss && <button onClick={onDismiss} style={{ background:“none”, border:“none”, cursor:“pointer”, color:col, fontSize:“20px”, lineHeight:1, padding:0 }}>×</button>}
+{onDismiss && <button onClick={onDismiss} style={{ background:“none”, border:“none”, cursor:“pointer”, color:col, fontSize:“20px”, lineHeight:1, padding:0 }}>-</button>}
 
   </div>;
 };
 const Pill = ({ d, active, onClick }) => {
   const col = d==="low"?"#334155":C.blue;
-  return <button onClick={onClick} style={{ borderRadius:"999px", padding:"7px 18px", cursor:"pointer", fontSize:"13px", fontWeight:"600", border:`1.5px solid ${col}`, background:active?col:C.white, color:active?"#fff":col, transition:"all .12s", minHeight:"44px" }}>{d==="low"?"3.0–3.5":"3.5–4.0"}</button>;
+  return <button onClick={onClick} style={{ borderRadius:"999px", padding:"7px 18px", cursor:"pointer", fontSize:"13px", fontWeight:"600", border:`1.5px solid ${col}`, background:active?col:C.white, color:active?"#fff":col, transition:"all .12s", minHeight:"44px" }}>{d==="low"?"3.0-3.5":"3.5-4.0"}</button>;
 };
-const dL = d => d==="low"?"3.0–3.5":"3.5–4.0";
+const dL = d => d==="low"?"3.0-3.5":"3.5-4.0";
 const dC = d => d==="low"?"#334155":C.blue;
 const timeAgo = ts => {
   const s = Math.floor((Date.now()-new Date(ts))/1000);
@@ -250,11 +258,11 @@ const n = new Date();
 return d.getDate()===n.getDate() && d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear();
 };
 
-// ── Logo ──────────────────────────────────────────────────────
+// – Logo ——————————————————
 const AscendLogo = ({ height=60 }) => <img src={LOGO_URL} alt=“Ascend Pickleball” style={{ height, width:“auto”, display:“block”, mixBlendMode:“multiply” }}/>;
 const AscendMark = ({ height=30 }) => <img src={LOGO_URL} alt=“Ascend Pickleball” style={{ height, width:“auto”, display:“block”, mixBlendMode:“multiply” }}/>;
 
-// ── Icons ─────────────────────────────────────────────────────
+// – Icons —————————————————–
 const Icon = ({ n, size=20 }) => {
 const icons = {
 home:     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
@@ -279,7 +287,7 @@ trophy:   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke
 return icons[n] || null;
 };
 
-// ── Notification Bell ─────────────────────────────────────────
+// – Notification Bell —————————————–
 function NotifBell({ notifications, onOpen }) {
 const unread = notifications.filter(n=>!n.read).length;
 return (
@@ -295,21 +303,21 @@ const markAll = async () => {
 await sb.from(“notifications”).update({read:true}).eq(“read”,false);
 setNotifications(p=>p.map(n=>({…n,read:true})));
 };
-const icons = { match_accepted:“✓”, score_submitted:“📊”, score_confirmed:“✅”, disputed:“⚠”, message:“💬”, match_message:“🏓”, admin_announcement:“📢”, match_cancelled:“❌”, match_reminder:“⏰”, match_today:“🏓” };
+const icons = { match_accepted:”-”, score_submitted:”-”, score_confirmed:”-”, disputed:”-”, message:”-”, match_message:”-”, admin_announcement:”-”, match_cancelled:”-”, match_reminder:”-”, match_today:”-” };
 return (
 <div style={{ position:“absolute”, top:“52px”, right:“8px”, width:“320px”, maxWidth:“calc(100vw - 16px)”, background:C.white, border:`1px solid ${C.border}`, borderRadius:“12px”, boxShadow:“0 8px 30px rgba(0,0,0,.12)”, zIndex:200, animation:“fadeIn .15s ease” }}>
 <div style={{ display:“flex”, justifyContent:“space-between”, alignItems:“center”, padding:“14px 16px”, borderBottom:`1px solid ${C.border}` }}>
 <span style={{ fontWeight:“700”, fontSize:“15px” }}>Notifications</span>
 <div style={{ display:“flex”, gap:“8px”, alignItems:“center” }}>
 <button onClick={markAll} style={{ background:“none”, border:“none”, cursor:“pointer”, fontSize:“12px”, color:C.blue }}>Mark all read</button>
-<button onClick={onClose} style={{ background:“none”, border:“none”, cursor:“pointer”, fontSize:“22px”, color:C.muted, lineHeight:1 }}>×</button>
+<button onClick={onClose} style={{ background:“none”, border:“none”, cursor:“pointer”, fontSize:“22px”, color:C.muted, lineHeight:1 }}>-</button>
 </div>
 </div>
 <div style={{ maxHeight:“380px”, overflowY:“auto” }}>
 {notifications.length===0 && <div style={{ padding:“24px”, textAlign:“center”, color:C.faint, fontSize:“13px” }}>No notifications yet.</div>}
 {notifications.map(n=>(
 <div key={n.id} style={{ padding:“12px 16px”, borderBottom:`1px solid ${C.border}`, background:n.read?“transparent”:”#f0f9ff”, display:“flex”, gap:“10px”, alignItems:“flex-start” }}>
-<span style={{ fontSize:“16px”, flexShrink:0, marginTop:“1px” }}>{icons[n.type]||”•”}</span>
+<span style={{ fontSize:“16px”, flexShrink:0, marginTop:“1px” }}>{icons[n.type]||”-”}</span>
 <div style={{ flex:1, minWidth:0 }}>
 <div style={{ fontWeight:n.read?“500”:“700”, fontSize:“13px”, marginBottom:“2px” }}>{n.title}</div>
 <div style={{ fontSize:“12px”, color:C.muted, lineHeight:“1.4” }}>{n.body}</div>
@@ -323,7 +331,7 @@ return (
 );
 }
 
-// ── Match Confirm Modal ───────────────────────────────────────
+// – Match Confirm Modal —————————————
 function MatchConfirmModal({ req, respondingAs, teams, onConfirm, onClose, isCounter, counterData }) {
 const poster = teams.find(t=>t.id===req.team_id);
 const date   = isCounter ? counterData?.counter_date||req.proposed_date : req.proposed_date;
@@ -333,7 +341,7 @@ return (
 <div style={{ position:“fixed”, inset:0, background:“rgba(0,0,0,.5)”, zIndex:300, display:“flex”, alignItems:“center”, justifyContent:“center”, padding:“20px” }} onClick={e=>e.target===e.currentTarget&&onClose()}>
 <div style={{ …card(), width:“100%”, maxWidth:“380px”, animation:“fadeIn .15s ease” }}>
 <div style={{ textAlign:“center”, marginBottom:“16px” }}>
-<div style={{ fontSize:“36px”, marginBottom:“8px” }}>🏓</div>
+<div style={{ fontSize:“36px”, marginBottom:“8px” }}>-</div>
 <div style={{ fontSize:“20px”, fontWeight:“700”, marginBottom:“4px” }}>Confirm Match</div>
 <div style={{ fontSize:“13px”, color:C.muted }}>This will lock in your match with {poster?.name}</div>
 </div>
@@ -355,7 +363,7 @@ return (
 );
 }
 
-// ── Cancel Match Modal ────────────────────────────────────────
+// – Cancel Match Modal ––––––––––––––––––––
 function CancelMatchModal({ match, myTeam, teams, onConfirm, onClose }) {
 const [reason, setReason] = useState(””);
 const opp = teams.find(t=>t.id===(match.t1_id===myTeam.id?match.t2_id:match.t1_id));
@@ -365,7 +373,7 @@ return (
 <div style={{ fontSize:“18px”, fontWeight:“700”, marginBottom:“8px” }}>Cancel Match</div>
 <p style={{ fontSize:“14px”, color:C.muted, marginBottom:“16px”, lineHeight:“1.6” }}>You are cancelling your match vs <strong style={{color:C.text}}>{opp?.name}</strong>. They will be notified immediately. Please provide a reason.</p>
 <Lbl>Reason for cancellation</Lbl>
-<textarea style={{ …inp({minHeight:“90px”,resize:“vertical”}), marginBottom:“16px” }} placeholder=“e.g. Scheduling conflict — can we reschedule next week?” value={reason} onChange={e=>setReason(e.target.value)}/>
+<textarea style={{ …inp({minHeight:“90px”,resize:“vertical”}), marginBottom:“16px” }} placeholder=“e.g. Scheduling conflict - can we reschedule next week?” value={reason} onChange={e=>setReason(e.target.value)}/>
 <div style={{ display:“flex”, gap:“8px” }}>
 <button style={btn(C.red,”#fff”,{flex:1})} onClick={()=>reason.trim()&&onConfirm(match,reason)} disabled={!reason.trim()}>Cancel Match</button>
 <button style={btn(C.gray,”#fff”,{flex:1})} onClick={onClose}>Go Back</button>
@@ -375,7 +383,7 @@ return (
 );
 }
 
-// ── Report Problem Modal ──────────────────────────────────────
+// – Report Problem Modal –––––––––––––––––––
 function ReportModal({ myTeam, onClose }) {
 const [msg, setMsg] = useState(””);
 const [sent, setSent] = useState(false);
@@ -389,7 +397,7 @@ return (
 <div style={{ …card(), width:“100%”, maxWidth:“380px”, animation:“fadeIn .15s ease” }}>
 {sent ? (
 <div style={{ textAlign:“center”, padding:“20px 0” }}>
-<div style={{ fontSize:“36px”, marginBottom:“10px” }}>✅</div>
+<div style={{ fontSize:“36px”, marginBottom:“10px” }}>-</div>
 <div style={{ fontSize:“18px”, fontWeight:“700”, marginBottom:“8px” }}>Report Sent</div>
 <p style={{ fontSize:“13px”, color:C.muted, marginBottom:“16px” }}>Admin will review your report shortly.</p>
 <button style={btn(C.gray,”#fff”)} onClick={onClose}>Close</button>
@@ -409,8 +417,8 @@ return (
 );
 }
 
-// ── Match Chat Modal ──────────────────────────────────────────
-// ── MESSENGER CHAT SYSTEM ─────────────────────────────────────
+// – Match Chat Modal ——————————————
+// – MESSENGER CHAT SYSTEM ———————————––
 // Shared bubble renderer used by both division and match chats
 function ChatBubbles({ msgs, myTeam, endRef, emptyMsg }) {
 return (
@@ -464,24 +472,24 @@ await sb.from(“match_chats”).insert({match_id:match.id,team_id:myTeam.id,tea
 setInput(””);
 };
 
-// Normalise msgs for ChatBubbles — team_id is the key
+// Normalise msgs for ChatBubbles - team_id is the key
 const normMsgs = msgs.map(m=>({…m, sent_by:m.team_id}));
 
 return(
 <div style={{display:“flex”,flexDirection:“column”,height:“100%”}}>
 {/* Header */}
 <div style={{display:“flex”,alignItems:“center”,gap:“10px”,padding:“12px 16px”,borderBottom:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
-{(mobile||onBack)&&<button onClick={onBack} style={{background:“none”,border:“none”,cursor:“pointer”,color:C.text,fontSize:“22px”,lineHeight:1,minWidth:“40px”,minHeight:“40px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>←</button>}
+{(mobile||onBack)&&<button onClick={onBack} style={{background:“none”,border:“none”,cursor:“pointer”,color:C.text,fontSize:“22px”,lineHeight:1,minWidth:“40px”,minHeight:“40px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>-</button>}
 <div style={{flex:1,minWidth:0}}>
 <div style={{fontSize:“15px”,fontWeight:“700”,marginBottom:“2px”,overflow:“hidden”,textOverflow:“ellipsis”,whiteSpace:“nowrap”}}>vs {opp?.name}</div>
 <div style={{fontSize:“11px”,color:C.muted}}>{fmtDateTime(match.match_date,match.match_time)}</div>
-<div style={{fontSize:“11px”,color:”#555”,marginTop:“1px”}}>📍 {match.court}</div>
+<div style={{fontSize:“11px”,color:”#555”,marginTop:“1px”}}>- {match.court}</div>
 </div>
 </div>
 {isClosed&&<div style={{background:C.amberBg,padding:“7px 16px”,fontSize:“12px”,color:C.amber,textAlign:“center”,flexShrink:0}}>This chat is archived.</div>}
 {/* Phone number tip */}
 <div style={{background:”#f0fdf4”,borderBottom:`1px solid #bbf7d0`,padding:“8px 16px”,fontSize:“12px”,color:”#166534”,textAlign:“center”,flexShrink:0}}>
-💬 Pro tip — share your phone number so you can coordinate easily on match day!
+- Pro tip - share your phone number so you can coordinate easily on match day!
 </div>
 <ChatBubbles msgs={normMsgs} myTeam={myTeam} endRef={endRef} emptyMsg="Chat opened! Coordinate your match here."/>
 {!isClosed&&<div style={{padding:“10px 14px”,borderTop:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
@@ -529,7 +537,7 @@ return(
 <div style={{display:“flex”,flexDirection:“column”,height:“100%”}}>
 {/* Header */}
 <div style={{display:“flex”,alignItems:“center”,gap:“10px”,padding:“12px 16px”,borderBottom:`1px solid ${C.border}`,background:”#1d1d1f”,flexShrink:0}}>
-{(mobile||onBack)&&<button onClick={onBack} style={{background:“none”,border:“none”,cursor:“pointer”,color:”#fff”,fontSize:“22px”,lineHeight:1,minWidth:“40px”,minHeight:“40px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>←</button>}
+{(mobile||onBack)&&<button onClick={onBack} style={{background:“none”,border:“none”,cursor:“pointer”,color:”#fff”,fontSize:“22px”,lineHeight:1,minWidth:“40px”,minHeight:“40px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>-</button>}
 <div style={{width:“38px”,height:“38px”,borderRadius:“50%”,background:”#00BFFF”,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0,fontSize:“14px”,fontWeight:“800”,color:”#fff”}}>AP</div>
 <div style={{flex:1}}>
 <div style={{fontSize:“14px”,fontWeight:“700”,color:”#fff”}}>{dL(division)} Division Chat</div>
@@ -543,8 +551,8 @@ return(
 </>}
 </div>
 {pinned&&<div style={{background:”#fef9c3”,borderBottom:`1px solid #fde68a`,padding:“8px 16px”,display:“flex”,gap:“8px”,alignItems:“center”,flexShrink:0}}>
-<span>📌</span><div style={{flex:1,fontSize:“12px”,color:”#78350f”}}><strong>{pinned.team_name}:</strong> {pinned.content}</div>
-{isAdmin&&<button onClick={()=>setPinned(null)} style={{background:“none”,border:“none”,cursor:“pointer”,color:C.muted,fontSize:“16px”}}>×</button>}
+<span>-</span><div style={{flex:1,fontSize:“12px”,color:”#78350f”}}><strong>{pinned.team_name}:</strong> {pinned.content}</div>
+{isAdmin&&<button onClick={()=>setPinned(null)} style={{background:“none”,border:“none”,cursor:“pointer”,color:C.muted,fontSize:“16px”}}>-</button>}
 </div>}
 {adminPauseChat&&<div style={{background:C.amberBg,padding:“7px 16px”,fontSize:“12px”,color:C.amber,textAlign:“center”,flexShrink:0}}>Chat paused by admin.</div>}
 {/* Messages with admin delete/pin controls */}
@@ -563,8 +571,8 @@ return(
 </div>
 <div style={{fontSize:“10px”,color:C.faint,marginTop:“3px”,textAlign:mine?“right”:“left”}}>{timeAgo(m.created_at)}</div>
 {isAdmin&&<div style={{position:“absolute”,top:0,right:mine?undefined:“calc(100% + 4px)”,left:mine?“calc(100% + 4px)”:undefined,display:“flex”,gap:“2px”}}>
-<button onClick={()=>setPinned(p=>p?.id===m.id?null:m)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:“4px”,cursor:“pointer”,padding:“2px 5px”,fontSize:“11px”}}>📌</button>
-<button onClick={()=>deleteMsg(m.id)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:“4px”,cursor:“pointer”,padding:“2px 5px”,fontSize:“11px”,color:C.red}}>🗑</button>
+<button onClick={()=>setPinned(p=>p?.id===m.id?null:m)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:“4px”,cursor:“pointer”,padding:“2px 5px”,fontSize:“11px”}}>-</button>
+<button onClick={()=>deleteMsg(m.id)} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:“4px”,cursor:“pointer”,padding:“2px 5px”,fontSize:“11px”,color:C.red}}>-</button>
 </div>}
 </div>
 </div>
@@ -582,7 +590,7 @@ return(
 );
 }
 
-// Main chat hub — Messenger layout
+// Main chat hub - Messenger layout
 function DivisionChat({ myTeam, isAdmin, teams, matches, adminPauseChat, setAdminPauseChat }) {
 const mobile   = useMobile();
 const myDiv    = myTeam?.division || “low”;
@@ -594,13 +602,13 @@ const [matchMsgCounts,setMatchMsgCounts]=useState({}); // {matchId: count}
 
 const division = isAdmin ? adminDiv : myDiv;
 
-// Active confirmed matches for this team — kept in state but match chats hidden for now
+// Active confirmed matches for this team - kept in state but match chats hidden for now
 const myMatches = matches.filter(m=>
 (m.t1_id===myTeam?.id||m.t2_id===myTeam?.id) && !m.cancelled
 ).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
-const activeMatches    = []; // MATCH CHATS HIDDEN — coordination moved to group text
-const completedMatches = []; // MATCH CHATS HIDDEN — coordination moved to group text
+const activeMatches    = []; // MATCH CHATS HIDDEN - coordination moved to group text
+const completedMatches = []; // MATCH CHATS HIDDEN - coordination moved to group text
 
 const tName = id => teams.find(t=>t.id===id)?.name??“Unknown”;
 
@@ -645,7 +653,7 @@ const showPane = mobile ? !!selected : !!selected;
 
 if(!myTeam?.approved && !isAdmin) return(
 <div style={{…card(),textAlign:“center”,padding:“48px 20px”}}>
-<div style={{fontSize:“36px”,marginBottom:“12px”}}>🔒</div>
+<div style={{fontSize:“36px”,marginBottom:“12px”}}>-</div>
 <div style={{fontSize:“18px”,fontWeight:“700”,marginBottom:“8px”}}>Chat</div>
 <p style={{fontSize:“13px”,color:C.muted,lineHeight:“1.6”}}>Chat is available to approved teams only.</p>
 </div>
@@ -660,14 +668,14 @@ const Sidebar = () => { return (
 </div>
 
 ```
-  {/* Division chat — always first, visually distinct */}
+  {/* Division chat - always first, visually distinct */}
   <div onClick={selectDiv} style={{display:"flex",gap:"12px",alignItems:"center",padding:"13px 16px",cursor:"pointer",background:selected?.type==="division"?"#e7f3ff":"#f0fdf4",borderBottom:`2px solid ${C.border}`,transition:"background .1s"}}>
     <div style={{flex:1,minWidth:0}}>
       <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"1px",color:"#1d1d1f"}}>{dL(division)} Division Chat</div>
       <div style={{fontSize:"12px",color:C.muted}}>All teams in your division</div>
     </div>
     {hasUnread(`div-${division}`,divMsgCounts[division])&&(
-      <div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>●</div>
+      <div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>-</div>
     )}
   </div>
 
@@ -690,10 +698,10 @@ const Sidebar = () => { return (
       <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"13px 16px",cursor:"pointer",background:isSelected?"#e7f3ff":"transparent",borderBottom:`1px solid #f0f0f0`,transition:"background .1s"}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:"14px",fontWeight:unread?"800":"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
-          <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)} · {fmtTime(m.match_time)}</div>
-          <div style={{fontSize:"11px",color:"#555",marginTop:"1px"}}>📍 {m.court}</div>
+          <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)} - {fmtTime(m.match_time)}</div>
+          <div style={{fontSize:"11px",color:"#555",marginTop:"1px"}}>- {m.court}</div>
         </div>
-        {unread&&<div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>●</div>}
+        {unread&&<div style={{background:C.blue,color:"#fff",borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",fontWeight:"800",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>-</div>}
       </div>
     );
   })}
@@ -707,7 +715,7 @@ const Sidebar = () => { return (
       <div key={m.id} onClick={()=>selectMatch(m)} style={{display:"flex",gap:"12px",alignItems:"center",padding:"13px 16px",cursor:"pointer",background:isSelected?"#e7f3ff":"transparent",borderBottom:`1px solid #f0f0f0`,opacity:0.5,transition:"background .1s"}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:"13px",fontWeight:"600",marginBottom:"2px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>vs {opp?.name}</div>
-          <div style={{fontSize:"11px",color:C.faint}}>{fmtDate(m.match_date)} · Completed</div>
+          <div style={{fontSize:"11px",color:C.faint}}>{fmtDate(m.match_date)} - Completed</div>
         </div>
       </div>
     );
@@ -715,7 +723,7 @@ const Sidebar = () => { return (
 
   {activeMatches.length===0&&completedMatches.length===0&&(
     <div style={{padding:"16px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:"8px",margin:"12px 12px 0",fontSize:"12px",color:"#78350f",lineHeight:"1.6"}}>
-      <strong style={{display:"block",marginBottom:"3px"}}>📱 Match coordination moved to group text</strong>
+      <strong style={{display:"block",marginBottom:"3px"}}>- Match coordination moved to group text</strong>
       When a match is confirmed, all 4 players get added to an automatic group text from the Ascend PB number. Coordinate your match details there.
     </div>
   )}
@@ -728,7 +736,7 @@ const Sidebar = () => { return (
 // Empty state
 const EmptyPane = () => (
 <div style={{flex:1,display:“flex”,alignItems:“center”,justifyContent:“center”,flexDirection:“column”,gap:“12px”,color:C.faint}}>
-<div style={{fontSize:“48px”}}>💬</div>
+<div style={{fontSize:“48px”}}>-</div>
 <div style={{fontSize:“16px”,fontWeight:“600”,color:C.muted}}>Select a chat</div>
 <div style={{fontSize:“13px”}}>Choose a division or match chat from the left</div>
 </div>
@@ -794,7 +802,7 @@ setInput(””);
 const Bubbles=()=>(
 <>
 <div style={{background:”#f0fdf4”,borderRadius:“8px”,padding:“8px 12px”,marginBottom:“10px”,textAlign:“center”,fontSize:“11px”,color:”#166534”}}>
-💬 Share your phone number for day-of coordination!
+- Share your phone number for day-of coordination!
 </div>
 {msgs.length===0&&<div style={{textAlign:“center”,color:C.faint,fontSize:“13px”,padding:“16px 0”}}>Chat opened!</div>}
 {msgs.map(m=>{
@@ -818,8 +826,8 @@ return(
 <div style={{position:“fixed”,inset:0,background:“rgba(0,0,0,.5)”,zIndex:300,display:“flex”,alignItems:“flex-end”,justifyContent:“center”}} onClick={e=>e.target===e.currentTarget&&onClose()}>
 <div style={{background:C.white,borderRadius:“16px 16px 0 0”,width:“100%”,maxHeight:“88vh”,display:“flex”,flexDirection:“column”,animation:“slideUp .25s ease”}}>
 <div style={{display:“flex”,justifyContent:“space-between”,alignItems:“center”,padding:“14px 16px”,borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
-<div><div style={{fontWeight:“700”,fontSize:“15px”}}>vs {opp?.name}</div><div style={{fontSize:“11px”,color:C.muted}}>{fmtDate(match.match_date)} · {fmtTime(match.match_time)}</div></div>
-<button onClick={onClose} style={{background:“none”,border:“none”,cursor:“pointer”,color:C.muted,fontSize:“24px”,lineHeight:1,minWidth:“44px”,minHeight:“44px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>×</button>
+<div><div style={{fontWeight:“700”,fontSize:“15px”}}>vs {opp?.name}</div><div style={{fontSize:“11px”,color:C.muted}}>{fmtDate(match.match_date)} - {fmtTime(match.match_time)}</div></div>
+<button onClick={onClose} style={{background:“none”,border:“none”,cursor:“pointer”,color:C.muted,fontSize:“24px”,lineHeight:1,minWidth:“44px”,minHeight:“44px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>-</button>
 </div>
 <div style={{flex:1,overflowY:“auto”,padding:“12px 14px”}}><Bubbles/></div>
 {!isClosed&&<div style={{padding:“10px 14px”,borderTop:`1px solid ${C.border}`,flexShrink:0}}>
@@ -839,12 +847,12 @@ return(
 <div onClick={minimized?open:undefined} style={{background:”#111”,color:”#fff”,padding:“10px 14px”,display:“flex”,justifyContent:“space-between”,alignItems:“center”,cursor:minimized?“pointer”:“default”,userSelect:“none”}}>
 <div style={{flex:1,minWidth:0}}>
 <div style={{fontWeight:“700”,fontSize:“13px”,whiteSpace:“nowrap”,overflow:“hidden”,textOverflow:“ellipsis”}}>vs {opp?.name}</div>
-<div style={{fontSize:“11px”,color:“rgba(255,255,255,.5)”}}>{fmtDate(match.match_date)} · {fmtTime(match.match_time)}</div>
+<div style={{fontSize:“11px”,color:“rgba(255,255,255,.5)”}}>{fmtDate(match.match_date)} - {fmtTime(match.match_time)}</div>
 </div>
 <div style={{display:“flex”,gap:“5px”,alignItems:“center”,flexShrink:0}}>
 {unread>0&&<span style={{background:C.red,color:”#fff”,borderRadius:“50%”,width:“18px”,height:“18px”,fontSize:“10px”,fontWeight:“800”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>{unread}</span>}
-<button onClick={e=>{e.stopPropagation();minimized?open():setMinimized(true);}} style={{background:“rgba(255,255,255,.15)”,border:“none”,cursor:“pointer”,borderRadius:“6px”,width:“26px”,height:“26px”,color:”#fff”,fontSize:“14px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>{minimized?“▲”:“▼”}</button>
-<button onClick={onClose} style={{background:“rgba(255,255,255,.15)”,border:“none”,cursor:“pointer”,borderRadius:“6px”,width:“26px”,height:“26px”,color:”#fff”,fontSize:“16px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>×</button>
+<button onClick={e=>{e.stopPropagation();minimized?open():setMinimized(true);}} style={{background:“rgba(255,255,255,.15)”,border:“none”,cursor:“pointer”,borderRadius:“6px”,width:“26px”,height:“26px”,color:”#fff”,fontSize:“14px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>{minimized?”-”:”-”}</button>
+<button onClick={onClose} style={{background:“rgba(255,255,255,.15)”,border:“none”,cursor:“pointer”,borderRadius:“6px”,width:“26px”,height:“26px”,color:”#fff”,fontSize:“16px”,display:“flex”,alignItems:“center”,justifyContent:“center”}}>-</button>
 </div>
 </div>
 {!minimized&&<>
@@ -860,7 +868,7 @@ return(
 );
 }
 
-// ── Notification Prefs Modal ──────────────────────────────────
+// – Notification Prefs Modal –––––––––––––––––
 function NotifPrefsModal({ userId, onClose }) {
 const [prefs, setPrefs] = useState(null);
 const [saved, setSaved] = useState(false);
@@ -883,7 +891,7 @@ return(
 <div style={{background:C.white,borderRadius:“16px 16px 0 0”,width:“100%”,maxWidth:“480px”,maxHeight:“85vh”,display:“flex”,flexDirection:“column”,animation:“slideUp .25s ease”}}>
 <div style={{display:“flex”,justifyContent:“space-between”,alignItems:“center”,padding:“16px 18px”,borderBottom:`1px solid ${C.border}`}}>
 <span style={{fontWeight:“700”,fontSize:“17px”}}>Notification Settings</span>
-<button onClick={onClose} style={{background:“none”,border:“none”,cursor:“pointer”,fontSize:“24px”,color:C.muted,lineHeight:1}}>×</button>
+<button onClick={onClose} style={{background:“none”,border:“none”,cursor:“pointer”,fontSize:“24px”,color:C.muted,lineHeight:1}}>-</button>
 </div>
 <div style={{flex:1,overflowY:“auto”,padding:“16px 18px”}}>
 {groups.map(([group,items])=>(
@@ -908,10 +916,10 @@ return(
 );
 }
 
-// ── AUTH SCREEN ───────────────────────────────────────────────
+// – AUTH SCREEN ———————————————–
 const genCode = () => Math.random().toString(36).substring(2,8).toUpperCase();
 
-// ── FRIENDLY ERROR MESSAGES ──────────────────────────────────
+// – FRIENDLY ERROR MESSAGES –––––––––––––––––
 const friendlyError = (msg) => {
 if(!msg) return “Something went wrong. Please try again.”;
 if(msg.includes(“already registered”)||msg.includes(“already been registered”)) return “An account with this email already exists. Try signing in instead.”;
@@ -927,10 +935,10 @@ if(msg.includes(“JWT”)||msg.includes(“token”)) return “Your session ex
 return msg;
 };
 
-// Standalone Err — must be outside any component to prevent focus loss on re-render
+// Standalone Err - must be outside any component to prevent focus loss on re-render
 const Err = ({e})=>e?<Alert type="error">{e}</Alert>:null;
 
-// ── PHONE VERIFY UI — defined outside AuthScreen to prevent remount on keystroke ──
+// – PHONE VERIFY UI - defined outside AuthScreen to prevent remount on keystroke –
 function PhoneVerifyUI({ phoneStep, setPhoneStep, phoneNum, setPhoneNum, phoneCode, setPhoneCode,
 phoneErr, setPhoneErr, phoneChannel, phoneBusy, resendTimer, sendPhoneCode, checkPhoneCode }) {
 return(
@@ -959,7 +967,7 @@ maxLength={14}
 {phoneErr&&<Alert type="error">{phoneErr}</Alert>}
 <button style={btn(”#00BFFF”,”#fff”,{width:“100%”,minHeight:“50px”,fontSize:“15px”,fontWeight:“800”,marginBottom:“10px”})}
 onClick={()=>sendPhoneCode(“sms”)} disabled={phoneBusy}>
-{phoneBusy?“Sending code…”:“Send me a code →”}
+{phoneBusy?“Sending code…”:“Send me a code -”}
 </button>
 <div style={{textAlign:“center”,fontSize:“12px”,color:C.faint,marginTop:“8px”}}>
 Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
@@ -1000,19 +1008,19 @@ if(v.length===6) setTimeout(()=>checkPhoneCode(),120);
 }}
 />
 <div style={{fontSize:“11px”,color:C.faint,textAlign:“center”,marginTop:“8px”}}>
-Enter the 6-digit code — auto-submits when complete
+Enter the 6-digit code - auto-submits when complete
 </div>
 </div>
 <button style={btn(”#00BFFF”,”#fff”,{width:“100%”,minHeight:“50px”,fontSize:“15px”,fontWeight:“800”,marginBottom:“12px”})}
 onClick={checkPhoneCode} disabled={phoneBusy||phoneCode.length<6}>
-{phoneBusy?“Checking…”:“Verify code →”}
+{phoneBusy?“Checking…”:“Verify code -”}
 </button>
 <div style={{textAlign:“center”}}>
 {resendTimer>0
 ?<span style={{fontSize:“12px”,color:C.faint}}>Resend code in {resendTimer}s</span>
 :<div style={{display:“flex”,flexDirection:“column”,gap:“8px”,alignItems:“center”}}>
 <button style={btn(C.gray,”#555”,{fontSize:“13px”,padding:“8px 20px”})} onClick={()=>sendPhoneCode(“sms”)} disabled={phoneBusy}>Resend code by text</button>
-<button style={btn(C.gray,”#555”,{fontSize:“13px”,padding:“8px 20px”})} onClick={()=>sendPhoneCode(“call”)} disabled={phoneBusy}>📞 Call me with the code instead</button>
+<button style={btn(C.gray,”#555”,{fontSize:“13px”,padding:“8px 20px”})} onClick={()=>sendPhoneCode(“call”)} disabled={phoneBusy}>- Call me with the code instead</button>
 </div>
 }
 </div>
@@ -1020,12 +1028,12 @@ onClick={checkPhoneCode} disabled={phoneBusy||phoneCode.length<6}>
 Not receiving it? Email <b style={{color:C.blue}}>league@ascendpb.com</b>
 </div>
 <div style={{textAlign:“center”,marginTop:“10px”}}>
-<span style={{color:C.blue,cursor:“pointer”,fontSize:“13px”}} onClick={()=>{setPhoneStep(“enter”);setPhoneCode(””);setPhoneErr(””);}}>← Use a different number</span>
+<span style={{color:C.blue,cursor:“pointer”,fontSize:“13px”}} onClick={()=>{setPhoneStep(“enter”);setPhoneCode(””);setPhoneErr(””);}}>- Use a different number</span>
 </div>
 </>}
 {phoneStep===“verified”&&<>
 <div style={{textAlign:“center”,padding:“32px 0”}}>
-<div style={{fontSize:“40px”,marginBottom:“12px”}}>✓</div>
+<div style={{fontSize:“40px”,marginBottom:“12px”}}>-</div>
 <div style={{fontSize:“18px”,fontWeight:“800”,color:C.blue,marginBottom:“6px”}}>Phone verified!</div>
 <div style={{fontSize:“13px”,color:C.muted}}>Taking you to the next step…</div>
 </div>
@@ -1091,7 +1099,7 @@ setStep(1);
 }
 },[oauthUser]);
 
-// ── AUTH ACTIONS ─────────────────────────────────────────────
+// – AUTH ACTIONS ———————————————
 const doLogin = async()=>{
 if(!form.email||!form.password){setErr(“Please enter your email and password.”);return;}
 setErr(””); setBusy(true);
@@ -1116,10 +1124,10 @@ setErr(””); setBusy(true);
 const{error}=await sb.auth.resetPasswordForEmail(form.email,{redirectTo:window.location.origin});
 setBusy(false);
 if(error)setErr(friendlyError(error.message));
-else setMsg(“Password reset link sent — check your inbox.”);
+else setMsg(“Password reset link sent - check your inbox.”);
 };
 
-// ── PHONE VERIFICATION ───────────────────────────────────────
+// – PHONE VERIFICATION —————————————
 const startResendTimer = () => {
 setResendTimer(60);
 if(timerRef.current) clearInterval(timerRef.current);
@@ -1176,7 +1184,7 @@ setTimeout(()=>{ setStep(s=>s+1); }, 800);
 setPhoneBusy(false);
 };
 
-// ── REGISTRATION STEPS ───────────────────────────────────────
+// – REGISTRATION STEPS —————————————
 // Steps: 1=account, 1.5=phone, 2=city, 3=league type, 4=skill/team, 5=partner, 6=waiver, 7=review
 const PHONE_STEP = 1.5;
 const nextStep = ()=>{
@@ -1223,7 +1231,7 @@ if(onRegistrationStart) onRegistrationStart();
 const fail = (msg) => {
   setBusy(false);
   setErr(msg || "Something went wrong. Please try again.");
-  // Don't clear registering on fail — user is still on the form
+  // Don't clear registering on fail - user is still on the form
 };
 
 try {
@@ -1271,7 +1279,7 @@ try {
     try{await sb.from("profiles").upsert({id:uid,email:userEmail,team_id:team.id});}catch(e){}
     try{await sb.from("notification_prefs").insert({user_id:uid});}catch(e){}
   }
-  try{await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} · Code: ${code}`});}catch(e){}
+  try{await sb.from("admin_activity_log").insert({action:"New team registered",details:`${form.teamName} - Code: ${code}`});}catch(e){}
 
   // Send welcome email to P1 and invite to P2 (dormant until Resend key added)
   sendEmail("p1_welcome",{
@@ -1283,7 +1291,7 @@ try {
     teamName: form.teamName, code, p2Phone: form.p2Phone||""
   });
 
-  // ✅ Success — pass code up to root so modal survives AuthScreen unmount
+  // - Success - pass code up to root so modal survives AuthScreen unmount
   setBusy(false);
   if(!isOAuth){ try{ window.open(SHOPIFY_URL,"_blank"); }catch(e){} }
   if(onRegistrationDone) onRegistrationDone({
@@ -1297,7 +1305,7 @@ try {
 
 };
 
-// ── JOIN WITH CODE ───────────────────────────────────────────
+// – JOIN WITH CODE —————————————––
 const lookupCode = async()=>{
 if(!joinCode.trim()){setJoinErr(“Please enter your 6-character team code.”);return;}
 setBusy(true);
@@ -1338,11 +1346,11 @@ return(
 ```
   <div style={{marginBottom:"24px",display:"flex",flexDirection:"column",alignItems:"center"}}>
     <AscendLogo height={76}/>
-    <div style={{fontSize:"12px",color:C.faint,letterSpacing:".5px",marginTop:"10px"}}>Flex League · Charlotte, NC · {SEASON}</div>
+    <div style={{fontSize:"12px",color:C.faint,letterSpacing:".5px",marginTop:"10px"}}>Flex League - Charlotte, NC - {SEASON}</div>
   </div>
   <div style={{...card(),width:"100%",maxWidth:"420px"}}>
 
-    {/* ── LOGIN ── */}
+    {/* -- LOGIN -- */}
     {mode==="login"&&<>
       <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Welcome back</div>
       <div style={{fontSize:"13px",color:C.muted,marginBottom:"20px"}}>Sign in to your team portal</div>
@@ -1359,16 +1367,16 @@ return(
       <div style={{height:"1px",background:C.border,marginBottom:"18px",position:"relative"}}>
         <span style={{position:"absolute",top:"-9px",left:"50%",transform:"translateX(-50%)",background:C.white,padding:"0 10px",fontSize:"11px",color:C.faint}}>OR</span>
       </div>
-      <button style={btn("#00BFFF","#fff",{width:"100%",marginBottom:"14px",minHeight:"50px",fontSize:"15px",fontWeight:"800"})} onClick={()=>{setMode("register");setStep(1);setErr("");}}>🏓 Register a New Team</button>
+      <button style={btn("#00BFFF","#fff",{width:"100%",marginBottom:"14px",minHeight:"50px",fontSize:"15px",fontWeight:"800"})} onClick={()=>{setMode("register");setStep(1);setErr("");}}>- Register a New Team</button>
       <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"10px",padding:"14px",textAlign:"center",marginBottom:"16px"}}>
-        <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"6px"}}>📧 Got a team invite?</div>
+        <div style={{fontSize:"13px",fontWeight:"700",color:"#78350f",marginBottom:"6px"}}>- Got a team invite?</div>
         <div style={{fontSize:"12px",color:"#92400e",marginBottom:"10px"}}>Your partner registered the team and shared a 6-character code with you.</div>
-        <button style={btn("#78350f","#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{setMode("join");setJoinStep(1);setJoinErr("");}}>Join with team code →</button>
+        <button style={btn("#78350f","#fff",{width:"100%",minHeight:"44px"})} onClick={()=>{setMode("join");setJoinStep(1);setJoinErr("");}}>Join with team code -</button>
       </div>
       <div style={{textAlign:"center",fontSize:"11px",color:C.faint}}>{APP_VERSION}</div>
     </>}
 
-    {/* ── FORGOT PASSWORD ── */}
+    {/* -- FORGOT PASSWORD -- */}
     {mode==="forgot"&&<>
       <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Reset your password</div>
       <p style={{fontSize:"13px",color:C.muted,marginBottom:"18px"}}>Enter your email and we'll send you a link to reset your password.</p>
@@ -1377,10 +1385,10 @@ return(
       <Lbl>Email</Lbl>
       <input style={{...inp(),marginBottom:"16px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)}/>
       <button style={btn(C.text,"#fff",{width:"100%",marginBottom:"12px",minHeight:"46px"})} onClick={doForgot} disabled={busy}>{busy?"Sending...":"Send reset link"}</button>
-      <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setErr("");setMsg("");}}>← Back to sign in</span>
+      <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setErr("");setMsg("");}}>- Back to sign in</span>
     </>}
 
-    {/* ── JOIN WITH CODE ── */}
+    {/* -- JOIN WITH CODE -- */}
     {mode==="join"&&<>
       {joinStep===1&&<>
         <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Join your team</div>
@@ -1391,8 +1399,8 @@ return(
           placeholder="ABC123" maxLength={6} value={joinCode}
           onChange={e=>setJoinCode(e.target.value.toUpperCase())}
           onKeyDown={e=>e.key==="Enter"&&lookupCode()}/>
-        <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"16px",marginBottom:"12px"})} onClick={lookupCode} disabled={busy}>{busy?"Looking up...":"Find my team →"}</button>
-        <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setJoinErr("");}}>← Back to sign in</span>
+        <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"16px",marginBottom:"12px"})} onClick={lookupCode} disabled={busy}>{busy?"Looking up...":"Find my team -"}</button>
+        <span style={{color:C.blue,cursor:"pointer",fontSize:"13px"}} onClick={()=>{setMode("login");setJoinErr("");}}>- Back to sign in</span>
       </>}
       {joinStep===2&&joinTeam&&<>
         <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"4px"}}>Is this your team?</div>
@@ -1404,7 +1412,7 @@ return(
           <Tag c={joinTeam.division==="low"?"gray":"blue"}>{dL(joinTeam.division)}</Tag>
         </div>
         <div style={{display:"flex",gap:"8px"}}>
-          <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>setJoinStep(3)}>✓ Yes, that's my team</button>
+          <button style={btn(C.green,"#fff",{flex:1,minHeight:"48px",fontSize:"15px"})} onClick={()=>setJoinStep(3)}>- Yes, that's my team</button>
           <button style={btn(C.gray,"#fff",{flex:1,minHeight:"48px"})} onClick={()=>{setJoinStep(1);setJoinTeam(null);}}>Wrong team</button>
         </div>
       </>}
@@ -1419,10 +1427,10 @@ return(
         <Lbl>Confirm password</Lbl>
         <input style={{...inp(),marginBottom:"18px"}} type="password" placeholder="Repeat your password" value={joinPassC} onChange={e=>setJoinPassC(e.target.value)}/>
         <button style={btn(C.text,"#fff",{width:"100%",minHeight:"48px",fontSize:"15px",marginBottom:"10px"})} onClick={joinTeamSubmit} disabled={busy}>{busy?"Creating account...":"Create account & Pay $25"}</button>
-        <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>setJoinStep(2)}>← Back</button>
+        <button style={btn(C.gray,"#fff",{width:"100%"})} onClick={()=>setJoinStep(2)}>- Back</button>
       </>}
       {joinStep===4&&<div style={{textAlign:"center",padding:"10px 0"}}>
-        <div style={{fontSize:"40px",marginBottom:"12px"}}>🏓</div>
+        <div style={{fontSize:"40px",marginBottom:"12px"}}>-</div>
         <div style={{fontSize:"22px",fontWeight:"700",marginBottom:"8px"}}>You're on the team!</div>
         <p style={{fontSize:"13px",color:C.muted,lineHeight:"1.7",marginBottom:"18px"}}>
           You've joined <strong>{joinTeam?.name}</strong>. Complete your $25 payment in the tab that just opened. Admin will activate the team within 24 hours of both payments.
@@ -1431,7 +1439,7 @@ return(
       </div>}
     </>}
 
-    {/* ── REGISTER ── */}
+    {/* -- REGISTER -- */}
     {mode==="register"&&<>
       {/* Progress bar */}
       <div style={{display:"flex",gap:"4px",marginBottom:"16px"}}>
@@ -1440,11 +1448,11 @@ return(
         ))}
       </div>
       <div style={{fontSize:"20px",fontWeight:"700",marginBottom:"2px"}}>{stepLabels[step]}</div>
-      <div style={{fontSize:"11px",color:C.faint,marginBottom:"16px",textTransform:"uppercase"}}>Step {displayStep} of {totalSteps} · You are Player 1</div>
-      {isOAuth&&<div style={{background:C.greenBg,border:`1px solid ${C.green}50`,borderRadius:"8px",padding:"8px 12px",marginBottom:"12px",fontSize:"12px",color:"#166534",display:"flex",alignItems:"center",gap:"6px"}}>✓ Signed in with Google · {oauthUser.email}</div>}
+      <div style={{fontSize:"11px",color:C.faint,marginBottom:"16px",textTransform:"uppercase"}}>Step {displayStep} of {totalSteps} - You are Player 1</div>
+      {isOAuth&&<div style={{background:C.greenBg,border:`1px solid ${C.green}50`,borderRadius:"8px",padding:"8px 12px",marginBottom:"12px",fontSize:"12px",color:"#166534",display:"flex",alignItems:"center",gap:"6px"}}>- Signed in with Google - {oauthUser.email}</div>}
       <Err e={err}/>
 
-      {/* Step 1 — Account (email users only) */}
+      {/* Step 1 - Account (email users only) */}
       {step===1&&!isOAuth&&<>
         <Lbl>Your email</Lbl>
         <input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="your@email.com" value={form.email} onChange={e=>up("email",e.target.value)} autoComplete="email"/>
@@ -1454,7 +1462,7 @@ return(
         <input style={inp()} type="password" placeholder="Repeat your password" value={form.confirm} onChange={e=>up("confirm",e.target.value)} autoComplete="new-password"/>
       </>}
 
-      {/* Step 1.5 — Phone verification (all paths) */}
+      {/* Step 1.5 - Phone verification (all paths) */}
       {step===1.5&&<PhoneVerifyUI
 ```
 
@@ -1469,7 +1477,7 @@ checkPhoneCode={checkPhoneCode}
 />}
 
 ```
-      {/* Step 2 — City selection */}
+      {/* Step 2 - City selection */}
       {step===2&&<>
         <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px",lineHeight:"1.6"}}>Select the city where you want to play. Each city runs its own independent league.</p>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"8px"}}>
@@ -1493,7 +1501,7 @@ checkPhoneCode={checkPhoneCode}
         <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:"10px",padding:"12px 14px",marginTop:"8px"}}>
           <div style={{fontSize:"12px",color:"#78350f",marginBottom:"8px",fontWeight:"600"}}>Don't see your city? Get notified when we launch near you.</div>
           {cityInterestSent
-            ? <div style={{fontSize:"12px",color:"#166534",fontWeight:"600"}}>✓ You're on the list!</div>
+            ? <div style={{fontSize:"12px",color:"#166534",fontWeight:"600"}}>- You're on the list!</div>
             : <div style={{display:"flex",gap:"8px"}}>
                 <input style={{...inp({fontSize:"12px",padding:"8px 10px"}),flex:1}} type="email" placeholder="your@email.com" value={cityInterestEmail} onChange={e=>setCityInterestEmail(e.target.value)}/>
                 <button style={btn("#78350f","#fff",{fontSize:"12px",padding:"8px 14px",minHeight:"36px"})} onClick={async()=>{
@@ -1506,7 +1514,7 @@ checkPhoneCode={checkPhoneCode}
         </div>
       </>}
 
-      {/* Step 3 — League type */}
+      {/* Step 3 - League type */}
       {step===3&&<>
         <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px",lineHeight:"1.6"}}>Choose the format that fits how you want to play.</p>
         <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
@@ -1519,7 +1527,7 @@ checkPhoneCode={checkPhoneCode}
             </div>
             <div style={{fontSize:"12px",color:C.muted,lineHeight:"1.6"}}>Play for fun with players at a similar level. No DUPR rating required. Perfect for recreational players who want organized competition without the pressure.</div>
           </div>
-          {/* DUPR League — Coming Soon */}
+          {/* DUPR League - Coming Soon */}
           <div style={{border:`2px solid #e0e0e0`,borderRadius:"14px",padding:"16px",cursor:"not-allowed",background:"#fafafa",opacity:0.7,position:"relative"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
               <div style={{fontSize:"16px",fontWeight:"800",color:"#aaa"}}>DUPR League</div>
@@ -1530,18 +1538,18 @@ checkPhoneCode={checkPhoneCode}
         </div>
       </>}
 
-      {/* Step 4 — Team info */}
+      {/* Step 4 - Team info */}
       {step===4&&<>
         <Lbl>Your full name</Lbl>
         <input style={{...inp(),marginBottom:"12px"}} placeholder="First and last name" value={form.p1Name} onChange={e=>up("p1Name",e.target.value)}/>
         <Lbl>Team name</Lbl>
         <input style={{...inp(),marginBottom:"16px"}} placeholder="e.g. The Drop Shot Duo" value={form.teamName} onChange={e=>up("teamName",e.target.value)}/>
         <Lbl>Skill level</Lbl>
-        <p style={{fontSize:"12px",color:C.muted,marginBottom:"10px"}}>Pick the range that fits both players. When in doubt go lower — you can always move up.</p>
+        <p style={{fontSize:"12px",color:C.muted,marginBottom:"10px"}}>Pick the range that fits both players. When in doubt go lower - you can always move up.</p>
         <div style={{display:"flex",gap:"10px"}}>
           {["low","high"].map(d=>{
             const sel=form.division===d;
-            const label = d==="low" ? "3.0 – 3.5" : "3.5 – 4.0";
+            const label = d==="low" ? "3.0 - 3.5" : "3.5 - 4.0";
             const desc  = d==="low" ? "Beginner & Intermediate" : "Intermediate & Advanced";
             return(
               <button key={d} onClick={()=>up("division",d)} style={{flex:1,padding:"16px 10px",borderRadius:"12px",border:`2px solid ${sel?dC(d):C.border}`,background:sel?dC(d):C.white,color:sel?"#fff":C.text,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all .15s",textAlign:"center"}}>
@@ -1553,7 +1561,7 @@ checkPhoneCode={checkPhoneCode}
         </div>
       </>}
 
-      {/* Step 5 — Partner info */}
+      {/* Step 5 - Partner info */}
       {step===5&&<>
         <p style={{fontSize:"13px",color:C.muted,marginBottom:"16px",lineHeight:"1.6"}}>
           After you register, you'll share a <strong>join code</strong> with your partner. We'll also auto-text them an invite once you're set up.
@@ -1567,7 +1575,7 @@ checkPhoneCode={checkPhoneCode}
         <p style={{fontSize:"11px",color:C.muted,marginBottom:"0px",lineHeight:"1.5"}}>US numbers only. We'll text them their join code and invite link automatically.</p>
       </>}
 
-      {/* Step 6 — Waiver */}
+      {/* Step 6 - Waiver */}
       {step===6&&<>
         <div ref={wRef} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"12px 14px",height:"200px",overflowY:"auto",fontSize:"12px",lineHeight:"1.8",color:"#555",whiteSpace:"pre-wrap",marginBottom:"14px"}}>{WAIVER}</div>
         <div onClick={()=>up("agreed",!form.agreed)} style={{display:"flex",gap:"14px",alignItems:"center",background:form.agreed?"#dcfce7":C.bg,border:`2px solid ${form.agreed?C.green:C.border}`,borderRadius:"12px",padding:"16px",cursor:"pointer",transition:"all .2s",minHeight:"60px",WebkitTapHighlightColor:"transparent"}}>
@@ -1575,20 +1583,20 @@ checkPhoneCode={checkPhoneCode}
             {form.agreed&&<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:"14px",fontWeight:"600",color:form.agreed?C.green:C.text}}>{form.agreed?"Agreed ✓":"Tap to agree"}</div>
+            <div style={{fontSize:"14px",fontWeight:"600",color:form.agreed?C.green:C.text}}>{form.agreed?"Agreed -":"Tap to agree"}</div>
             <div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>I agree to the rules and waiver on behalf of both team members.</div>
           </div>
         </div>
       </>}
 
-      {/* Step 7 — Review */}
+      {/* Step 7 - Review */}
       {step===7&&<>
         <div style={{background:C.bg,borderRadius:"10px",padding:"14px",marginBottom:"14px"}}>
           <div style={{fontSize:"18px",fontWeight:"700",marginBottom:"4px"}}>{form.teamName}</div>
           <div style={{fontSize:"13px",color:C.muted,marginBottom:"8px"}}>{form.p1Name} &amp; {form.p2Name}</div>
           <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
             <Tag c={form.division==="low"?"gray":"blue"}>{dL(form.division||"low")} Division</Tag>
-            <Tag c="blue">{form.city||"—"}</Tag>
+            <Tag c="blue">{form.city||"-"}</Tag>
             <Tag c="gray">{form.league_type==="social"?"Social":"DUPR League"}</Tag>
           </div>
         </div>
@@ -1603,16 +1611,16 @@ checkPhoneCode={checkPhoneCode}
         <button style={btn(C.text,"#fff",{width:"100%",padding:"14px",fontSize:"15px",fontWeight:"700"})} onClick={submitReg} disabled={busy}>{busy?"Registering...":"Pay My $25 & Get Team Code"}</button>
       </>}
 
-      {/* Nav buttons — hidden on phone step and review step */}
+      {/* Nav buttons - hidden on phone step and review step */}
       {step!==1.5&&step!==7&&<div style={{display:"flex",justifyContent:"space-between",marginTop:"16px"}}>
         {step>(isOAuth?2:1)
           ? <button style={btn(C.gray,"#fff",{padding:"10px 16px"})} onClick={()=>{setErr("");setStep(s=>{
               const prev = s - 1;
               return prev === 1.5 ? 1 : prev;
-            });}}>← Back</button>
+            });}}>- Back</button>
           : <span/>
         }
-        {step<6&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue →</button>}
+        {step<6&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue -</button>}
       </div>}
       {step===(isOAuth?2:1)&&<div style={{textAlign:"center",marginTop:"14px",fontSize:"13px",color:C.muted}}>
         Already registered? <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("login");setErr("");}}>Sign in</span>
@@ -1625,7 +1633,7 @@ checkPhoneCode={checkPhoneCode}
 
 );
 }
-// ── DASHBOARD ─────────────────────────────────────────────────
+// – DASHBOARD ———————————————––
 function Dashboard({ myTeam, teams, matches, requests, division, setDivision, setTab, openChat, openCancel, notifications, adminBanner, isAdmin, userEmail }) {
 const mobile = useMobile();
 const myReqs    = requests.filter(r=>r.team_id===myTeam?.id&&r.status===“open”);
@@ -1682,7 +1690,7 @@ return(
 </div>}
 
 ```
-  {/* Season countdown — only show if season hasn't started */}
+  {/* Season countdown - only show if season hasn't started */}
   {!seasonStarted&&(
     <div style={{background:"#0d2137",borderRadius:"14px",padding:"16px",marginBottom:"16px",textAlign:"center"}}>
       <div style={{fontSize:"10px",fontWeight:"700",color:"#4a90b8",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:"10px"}}>Season starts April 15, 2026</div>
@@ -1697,31 +1705,31 @@ return(
     </div>
   )}
 
-  {/* Admin — new team registrations alert */}
+  {/* Admin - new team registrations alert */}
   {isAdmin&&(()=>{
     const pending=teams.filter(t=>!t.approved);
     const unpaids=teams.filter(t=>!t.p1_paid||!t.p2_paid);
     if(!pending.length&&!unpaids.length)return null;
     return(
       <div style={{background:"#1e3a5f",color:"#fff",borderRadius:"10px",padding:"12px 16px",marginBottom:"16px",display:"flex",gap:"10px",alignItems:"center",flexWrap:"wrap"}}>
-        <span style={{fontSize:"18px"}}>🔔</span>
+        <span style={{fontSize:"18px"}}>-</span>
         <div style={{flex:1,fontSize:"13px",lineHeight:"1.6"}}>
-          {pending.length>0&&<div><strong>{pending.length} team{pending.length>1?"s":""} pending approval</strong>{unpaids.length>0&&` · ${unpaids.length} with unpaid players`}</div>}
+          {pending.length>0&&<div><strong>{pending.length} team{pending.length>1?"s":""} pending approval</strong>{unpaids.length>0&&` - ${unpaids.length} with unpaid players`}</div>}
           {pending.length===0&&unpaids.length>0&&<div><strong>{unpaids.length} team{unpaids.length>1?"s":""} have unpaid players</strong></div>}
         </div>
-        <button style={btn("#00BFFF","#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"36px"})} onClick={()=>setTab("admin")}>View →</button>
+        <button style={btn("#00BFFF","#fff",{fontSize:"12px",padding:"6px 12px",minHeight:"36px"})} onClick={()=>setTab("admin")}>View -</button>
       </div>
     );
   })()}
 
   {/* Match today banner */}
   {todayMatches.length>0&&<Alert type="success">
-    🏓 <strong>Match day!</strong> You have {todayMatches.length} match{todayMatches.length>1?"es":""} today. Good luck out there!
+    - <strong>Match day!</strong> You have {todayMatches.length} match{todayMatches.length>1?"es":""} today. Good luck out there!
   </Alert>}
 
-  {clinched&&<Alert type="success">🎉 <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
+  {clinched&&<Alert type="success">- <strong>Playoffs clinched!</strong> {myTeam?.name} has secured a playoff spot.</Alert>}
 
-  {/* Yellow notification — scores needing action */}
+  {/* Yellow notification - scores needing action */}
   {myTeam?.approved&&(()=>{
     const needsConfirm=matches.filter(m=>
       (m.t1_id===myTeam.id||m.t2_id===myTeam.id)&&
@@ -1733,14 +1741,14 @@ return(
     if(needsConfirm.length===0)return null;
     return(
       <div style={{background:"#fef08a",border:"1.5px solid #ca8a04",borderRadius:"12px",padding:"14px 16px",marginBottom:"16px",display:"flex",gap:"12px",alignItems:"flex-start"}}>
-        <span style={{fontSize:"22px",flexShrink:0}}>⚠️</span>
+        <span style={{fontSize:"22px",flexShrink:0}}>--</span>
         <div style={{flex:1}}>
           <div style={{fontSize:"15px",fontWeight:"700",color:"#78350f",marginBottom:"4px"}}>Score{needsConfirm.length>1?"s":""} waiting for your response!</div>
           {needsConfirm.map(m=>{
             const opp=tName(m.t1_id===myTeam.id?m.t2_id:m.t1_id);
-            return<div key={m.id} style={{fontSize:"13px",color:"#92400e",marginBottom:"2px"}}>{opp} submitted a score — confirm or dispute</div>;
+            return<div key={m.id} style={{fontSize:"13px",color:"#92400e",marginBottom:"2px"}}>{opp} submitted a score - confirm or dispute</div>;
           })}
-          <button style={{...btn("#78350f","#fff",{fontSize:"13px",padding:"7px 16px",minHeight:"36px",marginTop:"8px"})}} onClick={()=>setTab("scores")}>Go to My Matches →</button>
+          <button style={{...btn("#78350f","#fff",{fontSize:"13px",padding:"7px 16px",minHeight:"36px",marginTop:"8px"})}} onClick={()=>setTab("scores")}>Go to My Matches -</button>
         </div>
       </div>
     );
@@ -1749,7 +1757,7 @@ return(
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"12px",marginBottom:"22px"}}>
     <div>
       <div style={{fontSize:mobile?"22px":"26px",fontWeight:"700",letterSpacing:"-.5px"}}>{myTeam?.name||"Dashboard"}</div>
-      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginTop:"2px"}}>{SEASON} · Week {CURRENT_WEEK} of {WEEKS} · Charlotte</div>
+      <div style={{fontSize:"11px",color:C.faint,textTransform:"uppercase",letterSpacing:".5px",marginTop:"2px"}}>{SEASON} - Week {CURRENT_WEEK} of {WEEKS} - Charlotte</div>
     </div>
     {myTeam?.approved&&<button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={()=>setTab("board")}>Request Match</button>}
   </div>
@@ -1761,7 +1769,7 @@ return(
       {n:myTeam.losses,l:"Losses",c:C.red},
       {n:myTeam.points,l:"Points",c:C.blue},
       {n:myReqs.length,l:"Open Requests",c:C.amber},
-      {n:myStreak>0?`${myStreak}🔥`:0,l:"Win Streak",c:myStreak>=3?C.orange:C.muted},
+      {n:myStreak>0?`${myStreak}-`:0,l:"Win Streak",c:myStreak>=3?C.orange:C.muted},
       {n:`${daysUntil}d`,l:"To Playoffs",c:C.purple},
     ].map((x,i)=>(
       <div key={i} style={{...card(),textAlign:"center",padding:"14px 8px"}}>
@@ -1795,11 +1803,11 @@ return(
     return hrs>48&&(r.responses?.length||0)===0;
   }).map(r=>(
     <Alert key={r.id} type="info" onDismiss={undefined}>
-      <strong>No responses yet</strong> on your {fmtDate(r.proposed_date)} request. Try posting a different time or court — more teams may be available.
+      <strong>No responses yet</strong> on your {fmtDate(r.proposed_date)} request. Try posting a different time or court - more teams may be available.
     </Alert>
   ))}
 
-  {/* Confirmed matches — full width, always on top */}
+  {/* Confirmed matches - full width, always on top */}
   <div style={{...card(),marginBottom:"14px"}}>
     <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"12px"}}>Confirmed matches</div>
     {myMatches.length===0
@@ -1811,16 +1819,16 @@ return(
           <div key={m.id} style={{padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"8px"}}>
               <div>
-                <div style={{fontWeight:"700",fontSize:"16px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" 🏓":""}</div>
+                <div style={{fontWeight:"700",fontSize:"16px",marginBottom:"2px"}}>vs {opp?.name}{matchToday?" -":""}</div>
                 <div style={{fontSize:"13px",color:C.muted,marginBottom:"2px"}}>{fmtDateTime(m.match_date,m.match_time)}</div>
                 <div style={{fontSize:"12px",color:C.muted}}>{m.court}</div>
-                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&ct!=="Now"&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginTop:"4px"}}>⏱ {ct} away</div>:null;})()}
+                {(()=>{const ct=countdown(m.match_date,m.match_time);return ct&&ct!=="Now"&&!matchToday?<div style={{fontSize:"12px",color:C.purple,fontWeight:"600",marginTop:"4px"}}>- {ct} away</div>:null;})()}
               </div>
               <Tag c={matchToday?"blue":"green"}>{matchToday?"Today":"Confirmed"}</Tag>
             </div>
             <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
-              <button style={btn(C.text,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>openChat(m)}>💬 Chat</button>
-              <button style={btn(C.amber,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>setTab("scores")}>📊 Score</button>
+              <button style={btn(C.text,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>openChat(m)}>- Chat</button>
+              <button style={btn(C.amber,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>setTab("scores")}>- Score</button>
               <button style={btn(C.red,"#fff",{fontSize:"13px",padding:"8px 0",minHeight:"40px",flex:1,minWidth:"80px"})} onClick={()=>openCancel(m)}>Cancel</button>
             </div>
           </div>
@@ -1829,7 +1837,7 @@ return(
     }
   </div>
 
-  {/* My open requests — full width below confirmed */}
+  {/* My open requests - full width below confirmed */}
   <div style={{...card(),marginBottom:"20px"}}>
     <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"12px"}}>My match requests</div>
     {myReqs.length===0
@@ -1840,7 +1848,7 @@ return(
             <div>
               <div style={{fontWeight:"700",fontSize:"15px",marginBottom:"2px"}}>{fmtDateTime(r.proposed_date,r.proposed_time)}</div>
               <div style={{fontSize:"12px",color:C.muted,marginBottom:"2px"}}>{r.proposed_court}</div>
-              <div style={{fontSize:"11px",color:C.faint}}>{r.responses?.length||0} response{(r.responses?.length||0)!==1?"s":""} · {timeAgo(r.created_at)}</div>
+              <div style={{fontSize:"11px",color:C.faint}}>{r.responses?.length||0} response{(r.responses?.length||0)!==1?"s":""} - {timeAgo(r.created_at)}</div>
             </div>
             <Tag c="blue">Open</Tag>
           </div>
@@ -1850,10 +1858,10 @@ return(
     }
   </div>
 
-  {/* Standings — locked to user's own division, admin can switch */}
+  {/* Standings - locked to user's own division, admin can switch */}
   <div style={card()}>
     <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px",flexWrap:"wrap"}}>
-      <div style={{fontSize:"15px",fontWeight:"700"}}>Division standings — {dL(myTeam?.division||division)}</div>
+      <div style={{fontSize:"15px",fontWeight:"700"}}>Division standings - {dL(myTeam?.division||division)}</div>
       <div style={{flex:1}}/>
       {!myTeam&&<>
         <Pill d="low"  active={division==="low"}  onClick={()=>setDivision("low")}/>
@@ -1871,7 +1879,7 @@ return(
               <tr key={t.id} style={{background:t.id===myTeam?.id?"#eff6ff":""}}>
                 <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"800",color:playoff?C.blue:"#ddd",fontSize:"18px",width:"40px"}}>{i+1}</td>
                 <td style={{padding:"10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"700"}}>
-                  {t.name}{streak>=3?` 🔥`:""}{" "}
+                  {t.name}{streak>=3?` -`:""}{" "}
                   {t.id===myTeam?.id&&<Tag sm c="blue">You</Tag>}{" "}
                   {i===0&&<Tag sm c="gray">Leader</Tag>}{" "}
                   {playoff&&<Tag sm c="blue">Playoffs</Tag>}
@@ -1893,13 +1901,13 @@ return(
 );
 }
 
-// ── MATCH BOARD ───────────────────────────────────────────────
-// RequestCard — outside MatchBoard so it never remounts on parent re-render
+// – MATCH BOARD ———————————————–
+// RequestCard - outside MatchBoard so it never remounts on parent re-render
 function RequestCard({ req, myTeam, teams, atLimit, setConfirmReq }) {
 const isOwn       = req.team_id===myTeam?.id;
 const isAcc       = req.status===“accepted”;
 const isCancelled = req.status===“cancelled”;
-// Anyone approved in this division can interact — including the poster (for replies)
+// Anyone approved in this division can interact - including the poster (for replies)
 const canInteract = myTeam&&myTeam.approved&&!isCancelled&&myTeam.division===req.division;
 const canAccept   = canInteract&&!isOwn&&!isAcc&&!atLimit(req.team_id);
 const canCounter  = canInteract&&!isOwn&&!isAcc; // own team cannot counter their own request
@@ -1908,7 +1916,7 @@ const responses   = req.responses||[];
 const poster      = teams.find(t=>t.id===req.team_id);
 const skillRange  = poster?`${poster.p1_skill}/${poster.p2_skill}`:””;
 
-// Local state — prevents parent re-render from stealing focus
+// Local state - prevents parent re-render from stealing focus
 const [formType, setFormType] = useState(null); // null | “comment” | “counter”
 const [msg,  setMsg]  = useState(””);
 const [cdate,setCdate]= useState(””);
@@ -1947,18 +1955,18 @@ return(
         {isOwn&&<Tag c="gray">Your request</Tag>}
       </div>
       <div style={{fontSize:"13px",color:"#555",display:"flex",gap:"14px",flexWrap:"wrap",marginBottom:"3px"}}>
-        <span>📅 {fmtDate(req.proposed_date)}</span>
-        <span>🕐 {fmtTime(req.proposed_time)}</span>
-        <span>📍 {req.proposed_court}</span>
+        <span>- {fmtDate(req.proposed_date)}</span>
+        <span>- {fmtTime(req.proposed_time)}</span>
+        <span>- {req.proposed_court}</span>
       </div>
       {req.notes&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{req.notes}</div>}
-      {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>💰 Fee: {req.location_fee}</div>}
-      <div style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>{timeAgo(req.created_at)} · {responses.length} response{responses.length!==1?"s":""}</div>
+      {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>- Fee: {req.location_fee}</div>}
+      <div style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>{timeAgo(req.created_at)} - {responses.length} response{responses.length!==1?"s":""}</div>
     </div>
     <Tag c={isCancelled?"gray":isAcc?"green":"blue"}>{isCancelled?"Cancelled":isAcc?"Matched":"Open"}</Tag>
   </div>
 
-  {/* Responses thread — full transparency, everyone sees all */}
+  {/* Responses thread - full transparency, everyone sees all */}
   {responses.length>0&&(
     <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"12px"}}>
       <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Thread ({responses.length})</div>
@@ -1972,7 +1980,7 @@ return(
           <div style={{fontSize:"13px",color:C.text,lineHeight:"1.5"}}>{r.message}</div>
           {r.type==="counter"&&r.counter_date&&(
             <div style={{fontSize:"12px",color:C.amber,marginTop:"4px",fontWeight:"500"}}>
-              Proposes: {fmtDateTime(r.counter_date, r.counter_time)}{r.counter_court?` · ${r.counter_court}`:""}
+              Proposes: {fmtDateTime(r.counter_date, r.counter_time)}{r.counter_court?` - ${r.counter_court}`:""}
             </div>
           )}
           {/* Request owner can accept any counter */}
@@ -1986,21 +1994,21 @@ return(
     </div>
   )}
 
-  {/* Action buttons — all approved division members can interact */}
+  {/* Action buttons - all approved division members can interact */}
   {canInteract&&!isCancelled&&!isAcc&&(
     <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:formType?"12px":"0"}}>
       {canAccept&&(
         <button style={btn(C.green,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>
-          ✓ Accept
+          - Accept
         </button>
       )}
       {overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team.</span>}
       <button style={btn(formType==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("comment")}>
-        💬 {formType==="comment"?"Close":"Comment"}
+        - {formType==="comment"?"Close":"Comment"}
       </button>
       {canCounter&&(
         <button style={btn(formType==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("counter")}>
-          ↩ {formType==="counter"?"Close":"Counter"}
+          - {formType==="counter"?"Close":"Counter"}
         </button>
       )}
       {isOwn&&(
@@ -2010,17 +2018,17 @@ return(
       )}
     </div>
   )}
-  {isOwn&&isAcc&&<p style={{fontSize:"12px",color:C.muted,marginBottom:"8px"}}>Match confirmed — open the match chat to coordinate details.</p>}
+  {isOwn&&isAcc&&<p style={{fontSize:"12px",color:C.muted,marginBottom:"8px"}}>Match confirmed - open the match chat to coordinate details.</p>}
 
-  {/* Comment / Counter inline form — local state keeps focus stable */}
+  {/* Comment / Counter inline form - local state keeps focus stable */}
   {formType&&(
     <div style={{background:formType==="counter"?"#fffbeb":"#eff6ff",border:`1.5px solid ${formType==="counter"?C.amber:C.blue}`,borderRadius:"10px",padding:"14px"}}>
       <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"10px",color:formType==="counter"?C.amber:C.blue}}>
-        {formType==="counter"?"Counter proposal — suggest a different time or court":"Add a comment"}
+        {formType==="counter"?"Counter proposal - suggest a different time or court":"Add a comment"}
       </div>
       <textarea
         style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px",background:"#fff"}}
-        placeholder={formType==="counter"?"e.g. That time doesn't work for us — can you do Saturday at 2pm at Freedom Park?":"e.g. We're interested! Is this an outdoor court? Let us check our schedule."}
+        placeholder={formType==="counter"?"e.g. That time doesn't work for us - can you do Saturday at 2pm at Freedom Park?":"e.g. We're interested! Is this an outdoor court? Let us check our schedule."}
         value={msg}
         onChange={e=>setMsg(e.target.value)}
         autoFocus
@@ -2109,7 +2117,7 @@ setBusy(false);
 const cancelReq=async(rid)=>{
 if(!window.confirm(“Cancel this match request? This cannot be undone.”))return;
 const{error}=await sb.from(“match_requests”).update({status:“cancelled”}).eq(“id”,rid);
-if(error){alert(“Could not cancel — check your connection and try again.”);return;}
+if(error){alert(“Could not cancel - check your connection and try again.”);return;}
 setRequests(p=>p.map(r=>r.id===rid?{…r,status:“cancelled”}:r));
 };
 
@@ -2118,7 +2126,7 @@ return(
 <div style={{display:“flex”,justifyContent:“space-between”,alignItems:“flex-start”,flexWrap:“wrap”,gap:“12px”,marginBottom:“8px”}}>
 <div>
 <div style={{fontSize:mobile?“22px”:“26px”,fontWeight:“700”,letterSpacing:”-.5px”}}>Match Board</div>
-<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>Request a match · Any team in your division can accept</div>
+<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>Request a match - Any team in your division can accept</div>
 </div>
 {myTeam?.approved&&<button style={btn(C.text,”#fff”,{minHeight:“44px”})} onClick={()=>setShowForm(s=>!s)}>{showForm?“Cancel”:“Request Match”}</button>}
 </div>
@@ -2141,8 +2149,8 @@ return(
     <input style={{...inp({width:"auto",flex:"1",minWidth:"120px",fontSize:"13px",padding:"8px 12px"}),maxWidth:"160px"}} placeholder="Filter by date..." value={filter.date} onChange={e=>setFilter(f=>({...f,date:e.target.value}))}/>
     <select style={{...inp({width:"auto",fontSize:"13px",padding:"8px 12px"}),appearance:"none"}} value={filter.timeOfDay} onChange={e=>setFilter(f=>({...f,timeOfDay:e.target.value}))}>
       <option value="">All times</option>
-      <option value="morning">Morning (6am–12pm)</option>
-      <option value="afternoon">Afternoon (12pm–6pm)</option>
+      <option value="morning">Morning (6am-12pm)</option>
+      <option value="afternoon">Afternoon (12pm-6pm)</option>
       <option value="evening">Evening (6pm+)</option>
     </select>
     {(filter.date||filter.timeOfDay)&&<button style={btn(C.gray,"#fff",{fontSize:"12px",padding:"8px 12px",minHeight:"40px"})} onClick={()=>setFilter({date:"",timeOfDay:""})}>Clear</button>}
@@ -2170,13 +2178,13 @@ return(
           <input style={{...inp(),marginBottom:"6px"}} placeholder="e.g. Freedom Park Courts" value={form.court} onChange={e=>upF("court",e.target.value)}/>
           <button style={{fontSize:"11px",color:C.blue,background:"none",border:"none",cursor:"pointer",marginBottom:"10px",padding:0}} onClick={()=>setShowCourts(s=>!s)}>{showCourts?"Hide":"Show"} Charlotte courts list</button>
           {showCourts&&<div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"10px",marginBottom:"10px"}}>
-            {CLT_COURTS.map(c=><div key={c} onClick={()=>{upF("court",c.split(" — ")[0]);setShowCourts(false);}} style={{fontSize:"12px",color:C.blue,cursor:"pointer",padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>{c}</div>)}
+            {CLT_COURTS.map(c=><div key={c} onClick={()=>{upF("court",c.split(" - ")[0]);setShowCourts(false);}} style={{fontSize:"12px",color:C.blue,cursor:"pointer",padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>{c}</div>)}
           </div>}
           <Lbl>Notes (optional)</Lbl><input style={inp()} placeholder="e.g. Flexible on time" value={form.notes} onChange={e=>upF("notes",e.target.value)}/>
         </div>
       </div>
       <Lbl>Location fee (optional)</Lbl>
-      <input style={{...inp(),marginBottom:"14px"}} placeholder="e.g. $5 guest fee — leave blank if free" value={form.fee} onChange={e=>upF("fee",e.target.value)}/>
+      <input style={{...inp(),marginBottom:"14px"}} placeholder="e.g. $5 guest fee - leave blank if free" value={form.fee} onChange={e=>upF("fee",e.target.value)}/>
       <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={postRequest} disabled={busy||!form.date||!form.time||!form.court}>Post Request</button>
     </div>
   )}
@@ -2192,12 +2200,12 @@ return(
 );
 }
 
-// ── SCORES ────────────────────────────────────────────────────
-// ── SCORE CONFIRM FLOW ────────────────────────────────────────
+// – SCORES ––––––––––––––––––––––––––
+// – SCORE CONFIRM FLOW ––––––––––––––––––––
 // Step 1: Confirm or Dispute buttons (with accidental hit protection)
 // Step 2a (Confirm): Second confirmation before locking
-// Step 2b (Dispute): Enter counter score → notify opponent
-// Step 3 (if counter disputed again): Auto-populate report → send to admin
+// Step 2b (Dispute): Enter counter score - notify opponent
+// Step 3 (if counter disputed again): Auto-populate report - send to admin
 function ScoreConfirmFlow({ match: m, myTeam, opp, setMatches, confirmScore }) {
 const [step, setStep]       = useState(“idle”); // idle | confirm_check | dispute_check | counter_entry | counter_pending | report
 const [cEntry, setCEntry]   = useState({});
@@ -2245,7 +2253,7 @@ alert(“Report sent to admin. They will review and resolve within 48 hours.”)
 setStep(“idle”);
 };
 
-// Step: idle — show initial buttons (scores shown once, cleanly)
+// Step: idle - show initial buttons (scores shown once, cleanly)
 if(step===“idle”) return(
 <div style={{background:C.bg,borderRadius:“12px”,padding:“14px”}}>
 <p style={{fontSize:“13px”,color:C.muted,marginBottom:“12px”,fontWeight:“500”}}>
@@ -2256,19 +2264,19 @@ if(step===“idle”) return(
 {m.games.map((g,i)=>(
 <div key={i} style={{textAlign:“center”,background:C.white,borderRadius:“10px”,padding:“10px 16px”,flex:1}}>
 <div style={{fontSize:“10px”,color:C.faint,fontWeight:“600”,textTransform:“uppercase”,marginBottom:“4px”}}>Game {i+1}</div>
-<div style={{fontSize:“22px”,fontWeight:“800”,letterSpacing:“2px”}}>{g.s1}<span style={{color:”#ccc”,padding:“0 4px”}}>—</span>{g.s2}</div>
+<div style={{fontSize:“22px”,fontWeight:“800”,letterSpacing:“2px”}}>{g.s1}<span style={{color:”#ccc”,padding:“0 4px”}}>-</span>{g.s2}</div>
 </div>
 ))}
 </div>
 )}
 <div style={{display:“flex”,gap:“8px”,flexWrap:“wrap”}}>
-<button style={btn(C.green,”#fff”,{minHeight:“46px”,flex:1,fontSize:“14px”,fontWeight:“700”})} onClick={()=>setStep(“confirm_check”)}>✓ Confirm</button>
-<button style={btn(C.red,”#fff”,{minHeight:“46px”,flex:1,fontSize:“14px”,fontWeight:“700”})} onClick={()=>setStep(“dispute_check”)}>✗ Dispute</button>
+<button style={btn(C.green,”#fff”,{minHeight:“46px”,flex:1,fontSize:“14px”,fontWeight:“700”})} onClick={()=>setStep(“confirm_check”)}>- Confirm</button>
+<button style={btn(C.red,”#fff”,{minHeight:“46px”,flex:1,fontSize:“14px”,fontWeight:“700”})} onClick={()=>setStep(“dispute_check”)}>- Dispute</button>
 </div>
 </div>
 );
 
-// Step: confirm_check — accidental hit protection
+// Step: confirm_check - accidental hit protection
 if(step===“confirm_check”) return(
 <div style={{background:C.greenBg,border:`1px solid ${C.green}30`,borderRadius:“10px”,padding:“14px”}}>
 <div style={{fontSize:“14px”,fontWeight:“700”,color:C.green,marginBottom:“8px”}}>Confirm this score?</div>
@@ -2280,7 +2288,7 @@ if(step===“confirm_check”) return(
 </div>
 );
 
-// Step: dispute_check — accidental hit protection
+// Step: dispute_check - accidental hit protection
 if(step===“dispute_check”) return(
 <div style={{background:C.redBg,border:`1px solid ${C.red}30`,borderRadius:“10px”,padding:“14px”}}>
 <div style={{fontSize:“14px”,fontWeight:“700”,color:C.red,marginBottom:“8px”}}>Dispute this score?</div>
@@ -2292,7 +2300,7 @@ if(step===“dispute_check”) return(
 </div>
 );
 
-// Step: counter_entry — enter correct winner + game scores
+// Step: counter_entry - enter correct winner + game scores
 if(step===“counter_entry”) return(
 <div style={{background:C.amberBg,border:`1px solid ${C.amber}30`,borderRadius:“10px”,padding:“14px”}}>
 <div style={{fontSize:“14px”,fontWeight:“700”,color:C.amber,marginBottom:“4px”}}>Enter the correct scores</div>
@@ -2318,9 +2326,9 @@ if(step===“counter_entry”) return(
       <div key={g} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:"8px",padding:"10px"}}>
         <Lbl>Game {g}{g===3?" (if needed)":""}</Lbl>
         <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
-          <input style={{...inp({width:"46px",textAlign:"center",fontSize:"16px"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={cEntry[`g${g}s1`]||""} onChange={e=>upC(`g${g}s1`,e.target.value)}/>
-          <span style={{color:"#ccc",fontSize:"18px"}}>–</span>
-          <input style={{...inp({width:"46px",textAlign:"center",fontSize:"16px"}),background:C.white}} type="number" min="0" max="25" placeholder="—" value={cEntry[`g${g}s2`]||""} onChange={e=>upC(`g${g}s2`,e.target.value)}/>
+          <input style={{...inp({width:"46px",textAlign:"center",fontSize:"16px"}),background:C.white}} type="number" min="0" max="25" placeholder="-" value={cEntry[`g${g}s1`]||""} onChange={e=>upC(`g${g}s1`,e.target.value)}/>
+          <span style={{color:"#ccc",fontSize:"18px"}}>-</span>
+          <input style={{...inp({width:"46px",textAlign:"center",fontSize:"16px"}),background:C.white}} type="number" min="0" max="25" placeholder="-" value={cEntry[`g${g}s2`]||""} onChange={e=>upC(`g${g}s2`,e.target.value)}/>
         </div>
       </div>
     ))}
@@ -2335,15 +2343,15 @@ if(step===“counter_entry”) return(
 
 );
 
-// Step: counter_pending — waiting on opponent
+// Step: counter_pending - waiting on opponent
 if(step===“counter_pending”) return(
-<Alert type="warn">Counter score submitted — {opp?.name} has been notified and must confirm or escalate to admin.</Alert>
+<Alert type="warn">Counter score submitted - {opp?.name} has been notified and must confirm or escalate to admin.</Alert>
 );
 
 return null;
 }
 
-// ── SCORE ENTRY (hoisted outside Scores to prevent focus loss) ─
+// – SCORE ENTRY (hoisted outside Scores to prevent focus loss) -
 function ScoreEntry({ mid, myTeam, opp, entry, setEntry }) {
 const s = entry[mid] || {};
 const upE = (k,v) => setEntry(e=>({…e,[mid]:{…(e[mid]||{}),[k]:v}}));
@@ -2367,7 +2375,7 @@ return(
 <span style={{fontSize:“11px”,color:C.faint,padding:“0 8px”}}>vs</span>
 <span style={{fontSize:“13px”,fontWeight:“700”,color:C.text,flex:1,textAlign:“right”}}>{opp?.name}</span>
 </div>
-{/* Game rows — compact */}
+{/* Game rows - compact */}
 {[1,2,3].map(g=>(
 <div key={g} style={{display:“flex”,alignItems:“center”,gap:“8px”,marginBottom:“8px”,background:C.bg,borderRadius:“10px”,padding:“8px 12px”}}>
 <span style={{fontSize:“11px”,color:C.muted,width:“54px”,flexShrink:0,fontWeight:“600”}}>{g===3?“Game 3*”:`Game ${g}`}</span>
@@ -2375,14 +2383,14 @@ return(
 <input type=“number” min=“0” max=“25” inputMode=“numeric” pattern=”[0-9]*”
 placeholder=“0” value={s[`g${g}s1`]||””}
 onChange={e=>upE(`g${g}s1`,e.target.value)} style={inputStyle(s[`g${g}s1`])}/>
-<span style={{fontSize:“16px”,color:”#ccc”,fontWeight:“300”}}>—</span>
+<span style={{fontSize:“16px”,color:”#ccc”,fontWeight:“300”}}>-</span>
 <input type=“number” min=“0” max=“25” inputMode=“numeric” pattern=”[0-9]*”
 placeholder=“0” value={s[`g${g}s2`]||””}
 onChange={e=>upE(`g${g}s2`,e.target.value)} style={inputStyle(s[`g${g}s2`])}/>
 </div>
 </div>
 ))}
-<p style={{fontSize:“11px”,color:C.faint,marginBottom:“12px”}}>* Game 3 only if needed · Left = {myTeam?.name}</p>
+<p style={{fontSize:“11px”,color:C.faint,marginBottom:“12px”}}>* Game 3 only if needed - Left = {myTeam?.name}</p>
 <button
 style={btn(hasEnough?C.text:”#ccc”,”#fff”,{minHeight:“44px”,fontSize:“14px”,fontWeight:“700”,cursor:hasEnough?“pointer”:“default”,width:“100%”,maxWidth:“480px”})}
 disabled={!hasEnough}
@@ -2392,7 +2400,7 @@ onClick={()=>hasEnough&&setEntry(e=>({…e,[`__confirm_${mid}`]:true}))}
 );
 }
 
-// ── SCORE CONFIRM MODAL (hoisted outside to prevent focus loss) ─
+// – SCORE CONFIRM MODAL (hoisted outside to prevent focus loss) -
 function ScoreConfirmModal({ mid, myTeam, teams, matches, entry, setEntry, setMatches, onClose }) {
 if(!mid)return null;
 const m = matches.find(x=>x.id===mid);
@@ -2416,7 +2424,7 @@ setEntry(e=>{const n={…e};delete n[mid];delete n[`__confirm_${mid}`];return n;
 sendEmail(“score_submitted”,{
 submitterName: myTeam.name, oppName: opp?.name, oppEmail: opp?.p1_email,
 matchDate: m.match_date, court: m.court,
-games: games.map((g,i)=>`Game ${i+1}: ${g.s1}–${g.s2}`).join(”, “)
+games: games.map((g,i)=>`Game ${i+1}: ${g.s1}-${g.s2}`).join(”, “)
 });
 onClose();
 setSub(false);
@@ -2435,12 +2443,12 @@ return(
 {games.map((g,i)=>(
 <div key={i} style={{display:“flex”,justifyContent:“space-between”,alignItems:“center”,padding:“8px 0”,borderTop:`1px solid ${C.border}`}}>
 <span style={{fontSize:“12px”,color:C.muted}}>Game {i+1}</span>
-<span style={{fontSize:“22px”,fontWeight:“800”,letterSpacing:“2px”}}>{g.s1} — {g.s2}</span>
+<span style={{fontSize:“22px”,fontWeight:“800”,letterSpacing:“2px”}}>{g.s1} - {g.s2}</span>
 </div>
 ))}
 <div style={{marginTop:“12px”,paddingTop:“12px”,borderTop:`2px solid ${C.border}`,textAlign:“center”}}>
 <span style={{fontSize:“13px”,color:C.muted}}>Winner: </span>
-<span style={{fontSize:“16px”,fontWeight:“800”,color:C.green}}>{winner} 🏆</span>
+<span style={{fontSize:“16px”,fontWeight:“800”,color:C.green}}>{winner} -</span>
 </div>
 </div>
 <div style={{display:“flex”,gap:“8px”}}>
@@ -2487,7 +2495,7 @@ matchDate:m.match_date, court:m.court
 return(
 <div>
 <div style={{fontSize:mobile?“22px”:“26px”,fontWeight:“700”,letterSpacing:”-.5px”,marginBottom:“2px”}}>My Matches</div>
-<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>Submit scores · Confirm results · Full history</div>
+<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>Submit scores - Confirm results - Full history</div>
 
 ```
   {active.length===0&&completed.length===0&&cancelled.length===0&&(
@@ -2508,9 +2516,9 @@ return(
           <div>
             <div style={{fontSize:"20px",fontWeight:"800",marginBottom:"6px",letterSpacing:"-.3px"}}>vs {opp?.name}</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:"6px",marginBottom:"2px"}}>
-              <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>📅 {fmtDate(m.match_date)}</span>
-              <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>🕐 {fmtTime(m.match_time)}</span>
-              <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>📍 {m.court}</span>
+              <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>- {fmtDate(m.match_date)}</span>
+              <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>- {fmtTime(m.match_time)}</span>
+              <span style={{background:C.bg,borderRadius:"6px",padding:"3px 8px",fontSize:"12px",fontWeight:"600",color:C.text}}>- {m.court}</span>
             </div>
           </div>
           <div style={{display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap"}}>
@@ -2520,7 +2528,7 @@ return(
           </div>
         </div>
         {canSubmit&&<ScoreEntry mid={m.id} myTeam={myTeam} opp={opp} entry={entry} setEntry={setEntry}/>}
-        {scoreSubmitted&&!canConfirm&&<Alert type="warn">Score submitted — waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
+        {scoreSubmitted&&!canConfirm&&<Alert type="warn">Score submitted - waiting for {opp?.name} to confirm. Auto-confirms in 24 hours.</Alert>}
         {canConfirm&&<ScoreConfirmFlow match={m} myTeam={myTeam} opp={opp} setMatches={setMatches} confirmScore={confirmScore}/>}
       </div>
     );
@@ -2539,11 +2547,11 @@ return(
               <div>
                 <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"4px"}}>vs {opp?.name}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:"4px",marginBottom:"3px"}}>
-                  <span style={{fontSize:"11px",color:C.muted}}>📅 {fmtDate(m.match_date)}</span>
-                  <span style={{fontSize:"11px",color:C.faint}}>·</span>
-                  <span style={{fontSize:"11px",color:C.muted}}>📍 {m.court}</span>
+                  <span style={{fontSize:"11px",color:C.muted}}>- {fmtDate(m.match_date)}</span>
+                  <span style={{fontSize:"11px",color:C.faint}}>-</span>
+                  <span style={{fontSize:"11px",color:C.muted}}>- {m.court}</span>
                 </div>
-                {m.games&&<div style={{fontSize:"12px",color:C.muted}}>{m.games.map(g=>`${g.s1}–${g.s2}`).join("  ")}</div>}
+                {m.games&&<div style={{fontSize:"12px",color:C.muted}}>{m.games.map(g=>`${g.s1}-${g.s2}`).join("  ")}</div>}
               </div>
               <Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag>
             </div>
@@ -2553,7 +2561,7 @@ return(
     </>
   )}
 
-  {/* Cancelled matches — collapsible section */}
+  {/* Cancelled matches - collapsible section */}
   {cancelled.length>0&&(
     <>
       <button
@@ -2587,8 +2595,8 @@ return(
 );
 }
 
-// ── STANDINGS ─────────────────────────────────────────────────
-// ── TEAM PROFILE MODAL ───────────────────────────────────────
+// – STANDINGS ———————————————––
+// – TEAM PROFILE MODAL —————————————
 function TeamProfileModal({ team, teams, matches, myTeam, onClose }) {
 const mobile = useMobile();
 if (!team) return null;
@@ -2627,15 +2635,15 @@ return (
     <div style={{padding:"20px 20px 16px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
         <div>
-          <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>{team.name}{streak>=3?` 🔥`:""}</div>
+          <div style={{fontSize:"22px",fontWeight:"800",marginBottom:"4px"}}>{team.name}{streak>=3?` -`:""}</div>
           <div style={{fontSize:"13px",color:C.muted,marginBottom:"8px"}}>{team.p1_name} &amp; {team.p2_name}</div>
           <div style={{display:"flex",gap:"6px",flexWrap:"wrap"}}>
             <Tag c={team.division==="low"?"gray":"blue"}>{dL(team.division)}</Tag>
             {team.id===myTeam?.id&&<Tag c="blue">Your team</Tag>}
-            {streak>=3&&<Tag c="orange">{streak} win streak 🔥</Tag>}
+            {streak>=3&&<Tag c="orange">{streak} win streak -</Tag>}
           </div>
         </div>
-        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"26px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:"26px",lineHeight:1,minWidth:"44px",minHeight:"44px",display:"flex",alignItems:"center",justifyContent:"center"}}>-</button>
       </div>
     </div>
 
@@ -2649,7 +2657,7 @@ return (
           {n:team.points,l:"Points",    c:C.blue},
           {n:`${pct}%`,  l:"Win Rate",  c:pct>=50?C.green:C.muted},
           {n:teamMatches.length,l:"Matches",c:C.purple},
-          {n:streak>0?`${streak}W`:"—",l:"Streak",c:streak>=3?C.orange:C.muted},
+          {n:streak>0?`${streak}W`:"-",l:"Streak",c:streak>=3?C.orange:C.muted},
         ].map((x,i)=>(
           <div key={i} style={{background:C.bg,borderRadius:"10px",padding:"12px",textAlign:"center"}}>
             <div style={{fontSize:"22px",fontWeight:"800",color:x.c,lineHeight:"1"}}>{x.n}</div>
@@ -2664,7 +2672,7 @@ return (
         {[
           ["Games won",`${totalGamesWon} of ${totalGames}`],
           ["Point differential",`${pointDiff>=0?"+":""}${pointDiff}`],
-          ["Skill ratings",`${team.p1_name}: ${team.p1_skill} · ${team.p2_name}: ${team.p2_skill}`],
+          ["Skill ratings",`${team.p1_name}: ${team.p1_skill} - ${team.p2_name}: ${team.p2_skill}`],
         ].map(([l,v])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
             <span style={{fontSize:"13px",color:C.muted}}>{l}</span>
@@ -2680,12 +2688,12 @@ return (
           {teamMatches.map(m=>{
             const opp = tName(m.t1_id===team.id?m.t2_id:m.t1_id);
             const won = m.winner_id===team.id;
-            const scores = m.games?.map(g=>m.t1_id===team.id?`${g.s1}-${g.s2}`:`${g.s2}-${g.s1}`).join("  ") || "—";
+            const scores = m.games?.map(g=>m.t1_id===team.id?`${g.s1}-${g.s2}`:`${g.s2}-${g.s1}`).join("  ") || "-";
             return(
               <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
                 <div>
                   <div style={{fontSize:"13px",fontWeight:"600"}}>vs {opp}</div>
-                  <div style={{fontSize:"11px",color:C.muted}}>{fmtDate(m.match_date)} · {scores}</div>
+                  <div style={{fontSize:"11px",color:C.muted}}>{fmtDate(m.match_date)} - {scores}</div>
                 </div>
                 <Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag>
               </div>
@@ -2716,7 +2724,7 @@ const mostActiveId=maxPlayed>0?teams.find(t=>totalPlayed(t.id)===maxPlayed)?.id:
 return(
 <div>
 <div style={{fontSize:mobile?“22px”:“26px”,fontWeight:“700”,letterSpacing:”-.5px”,marginBottom:“2px”}}>Standings</div>
-<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>{SEASON} · 2 pts per win · Top {PLAYOFFS} advance · Tap any team to view profile</div>
+<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>{SEASON} - 2 pts per win - Top {PLAYOFFS} advance - Tap any team to view profile</div>
 {/* Only admins can switch divisions */}
 {isAdmin?(
 <div style={{display:“flex”,gap:“8px”,marginBottom:“20px”,flexWrap:“wrap”}}>
@@ -2730,7 +2738,7 @@ return(
 </div>
 )}
 <div style={card()}>
-<div style={{fontSize:“15px”,fontWeight:“700”,marginBottom:“14px”}}>{dL(activeDivision)} — Full standings</div>
+<div style={{fontSize:“15px”,fontWeight:“700”,marginBottom:“14px”}}>{dL(activeDivision)} - Full standings</div>
 <div className="tscroll">
 <table style={{width:“100%”,borderCollapse:“collapse”,minWidth:“400px”}}>
 <thead><tr>{[“Rank”,“Team”,!mobile&&“Players”,“Win”,“Loss”,“Points”,“Played”,“Win%”,“Streak”].filter(Boolean).map(h=><th key={h} style={{textAlign:“left”,color:C.muted,fontSize:“11px”,fontWeight:“600”,letterSpacing:”.8px”,textTransform:“uppercase”,padding:“8px 10px”,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}</tr></thead>
@@ -2746,7 +2754,7 @@ return(
 <tr key={t.id} style={{background:isMe?”#eff6ff”:””,cursor:“pointer”}} onClick={()=>setProfileTeam(t)}>
 <td style={{padding:“10px”,borderBottom:`1px solid #f0f0ee`,fontWeight:“800”,color:playoff?C.blue:”#ddd”,fontSize:“20px”,width:“40px”}}>{i+1}</td>
 <td style={{padding:“10px”,borderBottom:`1px solid #f0f0ee`,fontWeight:“700”}}>
-<div style={{color:C.blue,textDecoration:“underline”,textDecorationStyle:“dotted”,textUnderlineOffset:“3px”}}>{t.name}{streak>=3?` 🔥`:””}</div>
+<div style={{color:C.blue,textDecoration:“underline”,textDecorationStyle:“dotted”,textUnderlineOffset:“3px”}}>{t.name}{streak>=3?` -`:””}</div>
 <div style={{display:“flex”,gap:“4px”,flexWrap:“wrap”,marginTop:“3px”}}>
 {isMe&&<Tag sm c="blue">You</Tag>}
 {i===0&&<Tag sm c="gray">Leader</Tag>}
@@ -2773,7 +2781,7 @@ return(
 );
 }
 
-// ── SEASON SCHEDULE ───────────────────────────────────────────
+// – SEASON SCHEDULE —————————————––
 function SeasonSchedule({ matches, teams, division, setDivision, myTeam, isAdmin }) {
 const mobile=useMobile();
 const tName=id=>teams.find(t=>t.id===id)?.name??“Unknown”;
@@ -2782,7 +2790,7 @@ const activeDivision = isAdmin ? division : (myTeam?.division || division);
 return(
 <div>
 <div style={{fontSize:mobile?“22px”:“26px”,fontWeight:“700”,letterSpacing:”-.5px”,marginBottom:“2px”}}>Season Schedule</div>
-<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>{SEASON} · 6 weeks + playoffs</div>
+<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>{SEASON} - 6 weeks + playoffs</div>
 {isAdmin?(
 <div style={{display:“flex”,gap:“8px”,marginBottom:“20px”,flexWrap:“wrap”}}>
 <Pill d=“low”  active={division===“low”}  onClick={()=>setDivision(“low”)}/>
@@ -2810,8 +2818,8 @@ return(
 {w.week>CURRENT_WEEK&&<Tag c="gray">Upcoming</Tag>}
 </div>
 </div>
-<div style={{fontSize:“12px”,color:C.amber,fontWeight:“500”,marginBottom:“8px”}}>⏰ Deadline: {w.deadline}</div>
-{w.week===6&&<div style={{background:C.purpleBg,border:`1px solid ${C.purple}30`,borderRadius:“8px”,padding:“10px”,fontSize:“13px”,color:C.purple,fontWeight:“500”}}>🏆 Playoffs — Top {PLAYOFFS} teams per division. Single elimination.</div>}
+<div style={{fontSize:“12px”,color:C.amber,fontWeight:“500”,marginBottom:“8px”}}>- Deadline: {w.deadline}</div>
+{w.week===6&&<div style={{background:C.purpleBg,border:`1px solid ${C.purple}30`,borderRadius:“8px”,padding:“10px”,fontSize:“13px”,color:C.purple,fontWeight:“500”}}>- Playoffs - Top {PLAYOFFS} teams per division. Single elimination.</div>}
 </div>
 );
 })}
@@ -2819,7 +2827,7 @@ return(
 );
 }
 
-// ── SETTINGS ─────────────────────────────────────────────────
+// – SETTINGS ———————————————––
 function Settings({ userId, userEmail, myTeam, teams, matches, signOut, openReport, notifications, setNotifications }) {
 const mobile=useMobile();
 const [editReq,setEditReq]=useState(false);
@@ -2889,7 +2897,7 @@ const notifGroups=[
 [“Email”,[[“email_enabled”,“Receive email notifications”]]],
 ];
 
-const notifIcons={match_confirmed:“✓”,score_submitted:“📊”,score_confirmed:“✅”,disputed:“⚠”,message:“💬”,match_message:“🏓”,admin_announcement:“📢”,match_cancelled:“❌”,match_reminder:“⏰”,match_today:“🏓”};
+const notifIcons={match_confirmed:”-”,score_submitted:”-”,score_confirmed:”-”,disputed:”-”,message:”-”,match_message:”-”,admin_announcement:”-”,match_cancelled:”-”,match_reminder:”-”,match_today:”-”};
 
 return(
 <div>
@@ -2902,11 +2910,11 @@ return(
     {myTeam?<>
       {[
         ["Team name",myTeam.name],
-        ["Your email",userEmail||"—"],
+        ["Your email",userEmail||"-"],
         ["Player 1",myTeam.p1_name],
         ["Player 2",myTeam.p2_name],
         ["Division",dL(myTeam.division)],
-        ["Status",myTeam.approved?"✅ Active":"⏳ Pending activation"],
+        ["Status",myTeam.approved?"- Active":"- Pending activation"],
         ["Record",`${myTeam.wins}W / ${myTeam.losses}L / ${myTeam.points} pts`],
       ].map(([l,v])=>(
         <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${C.border}`,flexWrap:"wrap",gap:"8px"}}>
@@ -2914,7 +2922,7 @@ return(
           <span style={{fontSize:"13px",fontWeight:"600",textAlign:"right"}}>{v}</span>
         </div>
       ))}
-      {/* Per-player payment status — pay button only for the viewing user */}
+      {/* Per-player payment status - pay button only for the viewing user */}
       <div style={{padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:"11px",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",fontWeight:"600",marginBottom:"8px"}}>Payment status</div>
         {[
@@ -2924,7 +2932,7 @@ return(
           const isMe = email?.toLowerCase()===userEmail?.toLowerCase();
           return(
             <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"6px"}}>
-              <span style={{fontSize:"13px"}}>{paid?"✅":"⏳"}</span>
+              <span style={{fontSize:"13px"}}>{paid?"-":"-"}</span>
               <span style={{fontSize:"13px",flex:1}}>{name}{isMe&&<span style={{fontSize:"11px",color:C.faint}}> (you)</span>}</span>
               <Tag c={paid?"green":"red"}>{paid?"$25 paid":"Unpaid"}</Tag>
               {!paid&&isMe&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"4px 10px",minHeight:"30px"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>Pay now</button>}
@@ -2940,9 +2948,9 @@ return(
           ? <div style={{display:"flex",alignItems:"center",gap:"10px",flexWrap:"wrap"}}>
               <span style={{fontSize:"13px",flex:1}}>{phoneData.number||"Not set"}</span>
               {phoneData.verified
-                ? <Tag c="green">✓ Verified</Tag>
+                ? <Tag c="green">- Verified</Tag>
                 : phoneData.number
-                  ? <Tag c="amber">⏳ Not verified</Tag>
+                  ? <Tag c="amber">- Not verified</Tag>
                   : null
               }
               <button style={btn(C.gray,"#555",{fontSize:"11px",padding:"5px 12px",minHeight:"30px"})} onClick={()=>{setNewPhone(phoneData.number);setEditPhone(true);}}>
@@ -2959,22 +2967,22 @@ return(
             </div>
         }
       </div>
-      {/* Join code — always visible so Player 1 can reshare */}
+      {/* Join code - always visible so Player 1 can reshare */}
       {myTeam.join_code&&(
         <div style={{marginTop:"14px",background:"#1d1d1f",borderRadius:"12px",padding:"14px",textAlign:"center"}}>
           <div style={{fontSize:"11px",fontWeight:"700",color:"rgba(255,255,255,.4)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"6px"}}>Partner join code</div>
           <div style={{fontSize:"32px",fontWeight:"900",color:"#00BFFF",letterSpacing:"6px",fontFamily:"monospace",marginBottom:"8px"}}>{myTeam.join_code}</div>
           <div style={{display:"flex",gap:"8px",marginBottom:"8px"}}>
             <button style={{...btn("#333","#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"36px"}),flex:1}} onClick={copyCode}>
-              {codeCopied?"✓ Copied!":"📋 Copy code"}
+              {codeCopied?"- Copied!":"- Copy code"}
             </button>
             <button style={{...btn("#00BFFF","#fff",{fontSize:"12px",padding:"7px 14px",minHeight:"36px"}),flex:1}} onClick={()=>{
-              const text=`Hey ${myTeam.p2_name}! Join our pickleball team.\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${myTeam.join_code}\n4. Create your account & pay $25 🏓`;
+              const text=`Hey ${myTeam.p2_name}! Join our pickleball team.\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${myTeam.join_code}\n4. Create your account & pay $25 -`;
               if(navigator.share)navigator.share({text});
               else{navigator.clipboard.writeText(text);}
-            }}>📤 Share with {myTeam.p2_name}</button>
+            }}>- Share with {myTeam.p2_name}</button>
           </div>
-          <div style={{fontSize:"11px",color:"rgba(255,255,255,.3)"}}>Share with {myTeam.p2_name} → app.ascendpb.com → "Join with team code"</div>
+          <div style={{fontSize:"11px",color:"rgba(255,255,255,.3)"}}>Share with {myTeam.p2_name} - app.ascendpb.com - "Join with team code"</div>
         </div>
       )}
       <div style={{marginTop:"14px"}}>
@@ -2990,9 +2998,9 @@ return(
             <button style={btn(C.gray,"#fff",{minHeight:"44px"})} onClick={()=>setEditReq(false)}>Cancel</button>
           </div>
         </>:
-        <button style={btn(C.gray,"#fff",{fontSize:"13px",width:"100%",minHeight:"44px"})} onClick={()=>setEditReq(true)}>✏ Request a team info or rating edit</button>}
+        <button style={btn(C.gray,"#fff",{fontSize:"13px",width:"100%",minHeight:"44px"})} onClick={()=>setEditReq(true)}>- Request a team info or rating edit</button>}
       </div>
-    </>:<p style={{fontSize:"13px",color:C.muted}}>Admin account — no team assigned.</p>}
+    </>:<p style={{fontSize:"13px",color:C.muted}}>Admin account - no team assigned.</p>}
   </div>
 
   {/* Notifications */}
@@ -3005,7 +3013,7 @@ return(
     <div style={{maxHeight:"280px",overflowY:"auto",marginBottom:"14px"}}>
       {notifications.slice(0,20).map(n=>(
         <div key={n.id} style={{padding:"10px 0",borderBottom:`1px solid ${C.border}`,display:"flex",gap:"10px",alignItems:"flex-start",background:n.read?"transparent":"#f0f9ff",borderRadius:"4px",paddingLeft:n.read?"0":"8px"}}>
-          <span style={{fontSize:"16px",flexShrink:0}}>{notifIcons[n.type]||"•"}</span>
+          <span style={{fontSize:"16px",flexShrink:0}}>{notifIcons[n.type]||"-"}</span>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontWeight:n.read?"500":"700",fontSize:"13px",marginBottom:"2px"}}>{n.title}</div>
             <div style={{fontSize:"12px",color:C.muted,lineHeight:"1.4"}}>{n.body}</div>
@@ -3032,7 +3040,7 @@ return(
           ))}
         </div>
       ))}
-      <button style={btn(prefsSaved?C.green:C.text,"#fff",{width:"100%",marginTop:"4px"})} onClick={savePrefs}>{prefsSaved?"Saved ✓":"Save notification preferences"}</button>
+      <button style={btn(prefsSaved?C.green:C.text,"#fff",{width:"100%",marginTop:"4px"})} onClick={savePrefs}>{prefsSaved?"Saved -":"Save notification preferences"}</button>
     </>}
   </div>
 
@@ -3051,7 +3059,7 @@ return(
                 <tr key={m.id}>
                   <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontWeight:"600"}}>{opp}</td>
                   <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}</td>
-                  <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"12px",color:C.muted}}>{m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"—"}</td>
+                  <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`,fontSize:"12px",color:C.muted}}>{m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"-"}</td>
                   <td style={{padding:"9px 10px",borderBottom:`1px solid #f0f0ee`}}><Tag c={won?"green":"red"}>{won?"Win":"Loss"}</Tag></td>
                 </tr>
               );
@@ -3067,14 +3075,14 @@ return(
     <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"14px"}}>Account</div>
     <button onClick={openReport} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",borderBottom:`1px solid ${C.border}`,textAlign:"left",minHeight:"44px"}}>
       <div><div style={{fontSize:"14px",fontWeight:"600",color:C.amber}}>Report a problem</div><div style={{fontSize:"12px",color:C.muted}}>Flag an issue to admin</div></div>
-      <span style={{color:C.muted,fontSize:"20px"}}>›</span>
+      <span style={{color:C.muted,fontSize:"20px"}}>-</span>
     </button>
     <button onClick={signOut} style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"12px 0",textAlign:"left",minHeight:"44px"}}>
       <div><div style={{fontSize:"14px",fontWeight:"600",color:C.red}}>Sign out</div><div style={{fontSize:"12px",color:C.muted}}>Log out of your account</div></div>
-      <span style={{color:C.muted,fontSize:"20px"}}>›</span>
+      <span style={{color:C.muted,fontSize:"20px"}}>-</span>
     </button>
     <div style={{paddingTop:"12px",textAlign:"center"}}>
-      <span style={{fontSize:"11px",color:C.faint}}>Ascend PB Flex League · {APP_VERSION} · {SEASON}</span>
+      <span style={{fontSize:"11px",color:C.faint}}>Ascend PB Flex League - {APP_VERSION} - {SEASON}</span>
     </div>
   </div>
 </div>
@@ -3083,8 +3091,8 @@ return(
 );
 }
 
-// ── ADMIN PANEL ───────────────────────────────────────────────
-// ── ADMIN INBOX ───────────────────────────────────────────────
+// – ADMIN PANEL ———————————————–
+// – ADMIN INBOX ———————————————–
 function AdminInbox({ userId, teams, matches }) {
 const [items, setItems] = useState([]);
 const [loading, setLoading] = useState(true);
@@ -3108,10 +3116,10 @@ load();
 },[]);
 
 const iconMap = {
-“Player report”:“🚩”,
-“Score dispute escalated”:“⚠”,
-“Team edit request”:“✏”,
-“Match cancelled”:“❌”,
+“Player report”:”-”,
+“Score dispute escalated”:”-”,
+“Team edit request”:”-”,
+“Match cancelled”:”-”,
 };
 
 const colorMap = {
@@ -3124,13 +3132,13 @@ const colorMap = {
 return(
 <div>
 <div style={{fontSize:“16px”,fontWeight:“700”,marginBottom:“4px”}}>Admin Inbox</div>
-<p style={{fontSize:“13px”,color:C.muted,marginBottom:“16px”}}>Player reports, edit requests, score disputes, and match cancellations — all in one place.</p>
+<p style={{fontSize:“13px”,color:C.muted,marginBottom:“16px”}}>Player reports, edit requests, score disputes, and match cancellations - all in one place.</p>
 {loading&&<p style={{fontSize:“13px”,color:C.muted}}>Loading…</p>}
 {!loading&&items.length===0&&<p style={{fontSize:“13px”,color:C.muted}}>Inbox is empty. All clear!</p>}
 {items.map((item,i)=>(
 <div key={i} style={{padding:“12px 0”,borderBottom:`1px solid ${C.border}`}}>
 <div style={{display:“flex”,gap:“10px”,alignItems:“flex-start”}}>
-<span style={{fontSize:“18px”,flexShrink:0}}>{iconMap[item.action]||”•”}</span>
+<span style={{fontSize:“18px”,flexShrink:0}}>{iconMap[item.action]||”-”}</span>
 <div style={{flex:1,minWidth:0}}>
 <div style={{display:“flex”,justifyContent:“space-between”,alignItems:“flex-start”,gap:“8px”,flexWrap:“wrap”}}>
 <span style={{fontSize:“13px”,fontWeight:“700”,color:colorMap[item.action]||C.text}}>{item.action}</span>
@@ -3145,7 +3153,7 @@ return(
 );
 }
 
-// Small helper — fetches and shows phone number for a player by email (admin use)
+// Small helper - fetches and shows phone number for a player by email (admin use)
 function PhoneDisplay({ email }) {
 const [phone, setPhone] = useState(null);
 useEffect(()=>{
@@ -3157,9 +3165,9 @@ if(data?.phone_number) setPhone({number:data.phone_number, verified:data.phone_v
 if(!phone) return null;
 return(
 <div style={{fontSize:“11px”,color:”#555”,marginTop:“2px”,display:“flex”,alignItems:“center”,gap:“4px”}}>
-📱 {phone.number}
+- {phone.number}
 {phone.verified
-? <span style={{color:”#16a34a”,fontWeight:“700”}}>✓</span>
+? <span style={{color:”#16a34a”,fontWeight:“700”}}>-</span>
 : <span style={{color:”#d97706”}}>unverified</span>
 }
 </div>
@@ -3279,7 +3287,7 @@ if(!window.confirm(“Permanently delete this match? Standings will be updated i
 const m=matches.find(x=>x.id===mid);
 
 ```
-// Optimistic — remove immediately from all views
+// Optimistic - remove immediately from all views
 if(window.__deletedMatchIds)window.__deletedMatchIds.add(mid);
 setMatches(p=>p.filter(x=>x.id!==mid));
 
@@ -3325,7 +3333,7 @@ if(!isNaN(s1)&&!isNaN(s2)&&newMatch[`g${i}s1`])games.push({s1,s2});
 const insertData={
 t1_id:newMatch.t1,t2_id:newMatch.t2,division:newMatch.div,
 match_date:newMatch.date,match_time:newMatch.time,
-court:newMatch.court||“TBD — Charlotte area”,
+court:newMatch.court||“TBD - Charlotte area”,
 status:isCompleted?“completed”:“confirmed”,
 };
 if(isCompleted&&newMatch.winner){
@@ -3371,19 +3379,19 @@ setDmTeam(””);setDmSubj(””);setDmBody(””);
 alert(“Message sent to team.”);
 };
 
-const saveBanner=()=>{ setAdminBanner(bannerDraft||null); alert(bannerDraft?“Banner set — visible to all players on dashboard.”:“Banner cleared.”); };
+const saveBanner=()=>{ setAdminBanner(bannerDraft||null); alert(bannerDraft?“Banner set - visible to all players on dashboard.”:“Banner cleared.”); };
 const saveDeadline=()=>{ setWeekDeadline(deadlineDraft||null); alert(deadlineDraft?“Deadline set.”:“Deadline cleared.”); };
 
-const tabs=[[“summary”,“📊 Summary”],[“pending”,`📋 Pending (${pending.length})`],[“disputes”,`⚠ Disputes (${disputes.length})`],[“inbox”,“📥 Inbox”],[“teams”,“👥 Teams”],[“matches”,“🏓 Matches”],[“payments”,“💰 Payments”],[“dm”,“✉ Message”],[“announce”,“📢 Announce”],[“controls”,“⚙ Controls”],[“log”,“📝 Log”]];
+const tabs=[[“summary”,”- Summary”],[“pending”,`- Pending (${pending.length})`],[“disputes”,`- Disputes (${disputes.length})`],[“inbox”,”- Inbox”],[“teams”,”- Teams”],[“matches”,”- Matches”],[“payments”,”- Payments”],[“dm”,”- Message”],[“announce”,”- Announce”],[“controls”,”- Controls”],[“log”,”- Log”]];
 const tdS=(s={})=>({padding:“9px 10px”,borderBottom:`1px solid #f0f0ee`,fontSize:“13px”,…s});
 
 return(
 <div>
 <div style={{display:“flex”,alignItems:“center”,gap:“10px”,marginBottom:“4px”,flexWrap:“wrap”}}>
 <div style={{fontSize:mobile?“22px”:“26px”,fontWeight:“700”,letterSpacing:”-.5px”}}>Admin Panel</div>
-<Tag c="amber">Jimmie · Ascend PB</Tag>
+<Tag c="amber">Jimmie - Ascend PB</Tag>
 </div>
-<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>{SEASON} · Full access</div>
+<div style={{fontSize:“11px”,color:C.faint,textTransform:“uppercase”,letterSpacing:”.5px”,marginBottom:“20px”}}>{SEASON} - Full access</div>
 <div style={{display:“flex”,gap:“6px”,flexWrap:“wrap”,marginBottom:“20px”}}>
 {tabs.map(([id,lbl])=><button key={id} style={btn(tab===id?C.text:C.gray,”#fff”,{fontSize:“12px”,padding:“7px 13px”,minHeight:“40px”})} onClick={()=>setTab(id)}>{lbl}</button>)}
 </div>
@@ -3424,7 +3432,7 @@ return(
               <div style={{fontSize:"12px",color:C.muted}}>{dL(t.division)}</div>
             </div>
             <div style={{display:"flex",gap:"6px"}}>
-              <button style={btn(C.green,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>approve(t.id)}>✓ Approve</button>
+              <button style={btn(C.green,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>approve(t.id)}>- Approve</button>
               <button style={btn(C.red,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"36px"})} onClick={()=>removeTeam(t.id)}>Remove</button>
             </div>
           </div>
@@ -3435,12 +3443,12 @@ return(
           ].map(({name,email,paid,onMark,label})=>(
             <div key={label} style={{display:"flex",alignItems:"center",gap:"10px",padding:"8px 10px",background:C.white,borderRadius:"8px",marginBottom:"6px",flexWrap:"wrap"}}>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:"13px",fontWeight:"600"}}>{label}: {name||"—"}</div>
-                <div style={{fontSize:"11px",color:C.faint}}>{email||"—"}</div>
+                <div style={{fontSize:"13px",fontWeight:"600"}}>{label}: {name||"-"}</div>
+                <div style={{fontSize:"11px",color:C.faint}}>{email||"-"}</div>
                 {/* Phone number from profiles */}
                 <PhoneDisplay email={email}/>
               </div>
-              <Tag c={paid?"green":"red"}>{paid?"✓ Paid $25":"Unpaid"}</Tag>
+              <Tag c={paid?"green":"red"}>{paid?"- Paid $25":"Unpaid"}</Tag>
               {!paid&&<button style={btn(C.amber,"#fff",{fontSize:"11px",padding:"5px 10px",minHeight:"34px"})} onClick={onMark}>Mark paid</button>}
             </div>
           ))}
@@ -3458,7 +3466,7 @@ return(
       disputes.map(m=>(
         <div key={m.id} style={{padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
           <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"3px"}}>{tName(m.t1_id)} vs {tName(m.t2_id)}</div>
-          <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>{fmtDate(m.match_date)} · {m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"No scores"}</div>
+          <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>{fmtDate(m.match_date)} - {m.games?.map(g=>`${g.s1}-${g.s2}`).join("  ")||"No scores"}</div>
           <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
             <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>resolveDispute(m.id,m.t1_id,m.t2_id)}>{tName(m.t1_id)} won</button>
             <button style={btn(C.green,"#fff",{minHeight:"44px"})} onClick={()=>resolveDispute(m.id,m.t2_id,m.t1_id)}>{tName(m.t2_id)} won</button>
@@ -3478,7 +3486,7 @@ return(
           <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:"8px",marginBottom:"8px"}}>
             <div>
               <div style={{fontSize:"15px",fontWeight:"700"}}>{t.name}</div>
-              <div style={{fontSize:"12px",color:C.muted}}>{t.p1_name} ({t.p1_skill}) &amp; {t.p2_name} ({t.p2_skill}) · {t.p1_email}</div>
+              <div style={{fontSize:"12px",color:C.muted}}>{t.p1_name} ({t.p1_skill}) &amp; {t.p2_name} ({t.p2_skill}) - {t.p1_email}</div>
               <div style={{display:"flex",gap:"5px",marginTop:"5px",flexWrap:"wrap"}}>
                 <Tag c={t.division==="low"?"gray":"blue"}>{dL(t.division)}</Tag>
                 <Tag c={t.paid?"green":"red"}>{t.paid?"Paid":"Unpaid"}</Tag>
@@ -3498,7 +3506,7 @@ return(
                 {[["name","Team name"],["p1_name","Player 1 name"],["p1_skill","P1 skill"],["p2_name","Player 2 name"],["p2_skill","P2 skill"],["wins","Wins"],["losses","Losses"],["points","Points"]].map(([k,l])=>(
                   <div key={k}><Lbl>{l}</Lbl><input style={inp()} value={editM[k]||""} onChange={e=>setEditM(m=>({...m,[k]:e.target.value}))}/></div>
                 ))}
-                <div><Lbl>Division</Lbl><select style={{...inp(),appearance:"none"}} value={editM.division} onChange={e=>setEditM(m=>({...m,division:e.target.value}))}><option value="low">3.0–3.5</option><option value="high">3.5–4.0</option></select></div>
+                <div><Lbl>Division</Lbl><select style={{...inp(),appearance:"none"}} value={editM.division} onChange={e=>setEditM(m=>({...m,division:e.target.value}))}><option value="low">3.0-3.5</option><option value="high">3.5-4.0</option></select></div>
                 <div><Lbl>Paid</Lbl><select style={{...inp(),appearance:"none"}} value={editM.paid?"true":"false"} onChange={e=>setEditM(m=>({...m,paid:e.target.value==="true"}))}><option value="true">Yes</option><option value="false">No</option></select></div>
                 <div><Lbl>Approved</Lbl><select style={{...inp(),appearance:"none"}} value={editM.approved?"true":"false"} onChange={e=>setEditM(m=>({...m,approved:e.target.value==="true"}))}><option value="true">Yes</option><option value="false">No</option></select></div>
               </div>
@@ -3520,7 +3528,7 @@ return(
       <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:"10px",marginBottom:"12px"}}>
         <div><Lbl>Team 1</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.t1} onChange={e=>setNewMatch(m=>({...m,t1:e.target.value}))}><option value="">Select...</option>{teams.filter(t=>t.approved).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
         <div><Lbl>Team 2</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.t2} onChange={e=>setNewMatch(m=>({...m,t2:e.target.value}))}><option value="">Select...</option>{teams.filter(t=>t.approved).map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-        <div><Lbl>Division</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.div} onChange={e=>setNewMatch(m=>({...m,div:e.target.value}))}><option value="low">3.0–3.5</option><option value="high">3.5–4.0</option></select></div>
+        <div><Lbl>Division</Lbl><select style={{...inp(),appearance:"none"}} value={newMatch.div} onChange={e=>setNewMatch(m=>({...m,div:e.target.value}))}><option value="low">3.0-3.5</option><option value="high">3.5-4.0</option></select></div>
         <div><Lbl>Date</Lbl><input type="date" style={inp()} value={newMatch.date} onChange={e=>setNewMatch(m=>({...m,date:e.target.value}))}/></div>
         <div><Lbl>Time</Lbl><input type="time" style={inp()} value={newMatch.time} onChange={e=>setNewMatch(m=>({...m,time:e.target.value}))}/></div>
         <div><Lbl>Court</Lbl><input style={inp()} placeholder="Court name" value={newMatch.court} onChange={e=>setNewMatch(m=>({...m,court:e.target.value}))}/></div>
@@ -3548,7 +3556,7 @@ return(
           {!newMatch.t1&&!newMatch.t2&&<p style={{fontSize:"12px",color:C.muted}}>Select both teams above first.</p>}
         </div>
 
-        <Lbl>Game scores — {tName(newMatch.t1)||"Team 1"} vs {tName(newMatch.t2)||"Team 2"}</Lbl>
+        <Lbl>Game scores - {tName(newMatch.t1)||"Team 1"} vs {tName(newMatch.t2)||"Team 2"}</Lbl>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:"8px",padding:"0 2px"}}>
           <span style={{fontSize:"13px",fontWeight:"700",color:C.text}}>{tName(newMatch.t1)||"Team 1"}</span>
           <span style={{fontSize:"13px",color:C.faint}}>vs</span>
@@ -3565,7 +3573,7 @@ return(
                 onChange={e=>setNewMatch(m=>({...m,[`g${g}s1`]:e.target.value}))}
                 style={{width:"0",flex:1,textAlign:"center",fontSize:"26px",fontWeight:"800",background:"#f9f9f9",border:`2px solid ${newMatch[`g${g}s1`]?"#111":C.border}`,borderRadius:"12px",padding:"10px 4px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0",color:C.text,WebkitAppearance:"none",MozAppearance:"textfield"}}
               />
-              <span style={{fontSize:"20px",color:"#ccc",flexShrink:0}}>—</span>
+              <span style={{fontSize:"20px",color:"#ccc",flexShrink:0}}>-</span>
               <input
                 type="number" min="0" max="25" inputMode="numeric"
                 placeholder="0"
@@ -3576,7 +3584,7 @@ return(
             </div>
           </div>
         ))}
-        <p style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>* Game 3 only if needed · Left = {tName(newMatch.t1)||"Team 1"} · Right = {tName(newMatch.t2)||"Team 2"}</p>
+        <p style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>* Game 3 only if needed - Left = {tName(newMatch.t1)||"Team 1"} - Right = {tName(newMatch.t2)||"Team 2"}</p>
       </div>}
 
       <button style={btn(newMatch.asCompleted?C.green:C.text,"#fff",{minHeight:"44px",marginBottom:"24px",minWidth:"180px"})} onClick={createMatch} disabled={!newMatch.t1||!newMatch.t2||(newMatch.asCompleted&&!newMatch.winner)}>
@@ -3585,7 +3593,7 @@ return(
 
       <div style={{height:"1px",background:C.border,marginBottom:"20px"}}/>
 
-      {/* ALL MATCHES — edit, delete */}
+      {/* ALL MATCHES - edit, delete */}
       <div style={{fontSize:"15px",fontWeight:"700",marginBottom:"4px"}}>All matches</div>
       <p style={{fontSize:"13px",color:C.muted,marginBottom:"14px"}}>Edit scores or delete any match. Deleting a completed match rolls back standings.</p>
       {matches.filter(m=>!m.cancelled).slice(0,40).map(m=>(
@@ -3593,7 +3601,7 @@ return(
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px"}}>
             <div>
               <div style={{fontWeight:"700",fontSize:"14px"}}>{tName(m.t1_id)} vs {tName(m.t2_id)}</div>
-              <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}{m.games?.length>0?` · ${m.games.map(g=>`${g.s1}-${g.s2}`).join("  ")}`:""}</div>
+              <div style={{fontSize:"12px",color:C.muted}}>{fmtDate(m.match_date)}{m.games?.length>0?` - ${m.games.map(g=>`${g.s1}-${g.s2}`).join("  ")}`:""}</div>
               <Tag c={m.status==="completed"?"gray":m.status==="confirmed"?"green":m.status==="disputed"?"red":"amber"}>{m.status}</Tag>
             </div>
             <div style={{display:"flex",gap:"6px"}}>
@@ -3624,7 +3632,7 @@ return(
                         onChange={e=>setEditScores(s=>({...s,[m.id]:{...(s[m.id]||{}),t1_id:m.t1_id,t2_id:m.t2_id,[`g${g}s1`]:e.target.value}}))}
                         style={{width:"0",flex:1,textAlign:"center",fontSize:"22px",fontWeight:"800",background:"#f9f9f9",border:`2px solid ${(editScores[m.id]||{})[`g${g}s1`]?"#111":C.border}`,borderRadius:"8px",padding:"8px 4px",outline:"none",fontFamily:"'DM Sans',sans-serif",minWidth:"0",color:C.text,WebkitAppearance:"none",MozAppearance:"textfield"}}
                       />
-                      <span style={{fontSize:"18px",color:"#ccc",flexShrink:0}}>—</span>
+                      <span style={{fontSize:"18px",color:"#ccc",flexShrink:0}}>-</span>
                       <input
                         type="number" min="0" max="25" inputMode="numeric"
                         placeholder="0"
@@ -3675,11 +3683,11 @@ return(
               </td>
               <td style={tdS()}><Tag c={t.division==="low"?"gray":"blue"}>{dL(t.division)}</Tag></td>
               <td style={tdS()}>
-                <Tag c={t.p1_paid?"green":"red"}>{t.p1_paid?"✓ Paid":"Unpaid"}</Tag>
+                <Tag c={t.p1_paid?"green":"red"}>{t.p1_paid?"- Paid":"Unpaid"}</Tag>
                 <div style={{fontSize:"10px",color:C.faint,marginTop:"2px"}}>{t.p1_name}</div>
               </td>
               <td style={tdS()}>
-                <Tag c={t.p2_paid?"green":"red"}>{t.p2_paid?"✓ Paid":"Unpaid"}</Tag>
+                <Tag c={t.p2_paid?"green":"red"}>{t.p2_paid?"- Paid":"Unpaid"}</Tag>
                 <div style={{fontSize:"10px",color:C.faint,marginTop:"2px"}}>{t.p2_name||"P2 not joined"}</div>
               </td>
               <td style={tdS()}>
@@ -3717,7 +3725,7 @@ return(
       <div style={{fontSize:"16px",fontWeight:"700",marginBottom:"16px"}}>League controls</div>
       <div style={{marginBottom:"20px"}}>
         <Lbl>Pinned banner (shows on all dashboards)</Lbl>
-        <input style={{...inp(),marginBottom:"10px"}} placeholder="e.g. Week 4 closes Sunday midnight — get your matches in!" value={bannerDraft} onChange={e=>setBannerDraft(e.target.value)}/>
+        <input style={{...inp(),marginBottom:"10px"}} placeholder="e.g. Week 4 closes Sunday midnight - get your matches in!" value={bannerDraft} onChange={e=>setBannerDraft(e.target.value)}/>
         <div style={{display:"flex",gap:"8px"}}>
           <button style={btn(C.text,"#fff",{minHeight:"44px"})} onClick={saveBanner}>Set Banner</button>
           {adminBanner&&<button style={btn(C.red,"#fff",{minHeight:"44px"})} onClick={()=>{setBannerDraft("");setAdminBanner(null);}}>Clear Banner</button>}
@@ -3753,7 +3761,7 @@ return(
 );
 }
 
-// ── BOTTOM NAV ────────────────────────────────────────────────
+// – BOTTOM NAV ————————————————
 function BottomNav({ tab, setTab, isAdmin, unreadCount, openRequestCount }) {
 const navTabs=isAdmin
 ?[[“dashboard”,“Home”],[“board”,“Board”],[“scores”,“Scores”],[“standings”,“Ranks”],[“chat”,“Chat”],[“admin”,“Admin”]]
@@ -3772,7 +3780,7 @@ return(
 );
 }
 
-// ── ROOT APP ──────────────────────────────────────────────────
+// – ROOT APP –––––––––––––––––––––––––
 export default function App() {
 useFonts();
 const mobile=useMobile();
@@ -3804,17 +3812,17 @@ const unread   =notifications.filter(n=>!n.read).length;
 const msgUnread=notifications.filter(n=>!n.read&&[“message”,“match_message”,“division_message”].includes(n.type)).length;
 const openRequestCount=requests.filter(r=>r.status===“open”&&r.division===(myTeam?.division||“low”)).length;
 
-// Ref shadow of registering state — lets onAuthStateChange read it without stale closure
+// Ref shadow of registering state - lets onAuthStateChange read it without stale closure
 const registeringRef = useRef(false);
 const setRegisteringSync = (v) => { registeringRef.current = v; setRegistering(v); };
-// Only true when user actively clicked Google sign-in — prevents stale sessions from routing to registration
+// Only true when user actively clicked Google sign-in - prevents stale sessions from routing to registration
 const freshOAuthRef = useRef(false);
 
 useEffect(()=>{
 let initialLoad = true;
 sb.auth.getSession().then(({data})=>{
 setSession(data.session);
-if(data.session) loadUser(data.session.user.id, false); // page load — NOT a fresh OAuth
+if(data.session) loadUser(data.session.user.id, false); // page load - NOT a fresh OAuth
 else setLoading(false);
 // Mark initial load done after a tick so onAuthStateChange can detect new vs existing
 setTimeout(()=>{ initialLoad = false; }, 500);
@@ -3845,7 +3853,7 @@ setUserEmail(email);
 const{data:profile}=await sb.from(“profiles”).select(”*”).eq(“id”,uid).single();
 
 ```
-// No profile — brand new user
+// No profile - brand new user
 if(!profile){
   const name=authUser?.user_metadata?.full_name||authUser?.user_metadata?.name||"";
   try{await sb.from("profiles").upsert({id:uid,email});}catch(e){}
@@ -3863,7 +3871,7 @@ if(!profile){
     setLoading(false);
     return;
   } else {
-    // Stale session with no team — sign out cleanly, show login
+    // Stale session with no team - sign out cleanly, show login
     await sb.auth.signOut();
     setLoading(false);
     return;
@@ -3881,13 +3889,13 @@ if(!profile){
     }
     setMyTeam(foundTeam);setDivision(foundTeam.division);
   } else if(isFresh){
-    // Fresh OAuth with no team — route to registration
+    // Fresh OAuth with no team - route to registration
     const name=authUser?.user_metadata?.full_name||authUser?.user_metadata?.name||"";
     setNeedsRegistration({uid, email, name});
     setLoading(false);
     return;
   } else {
-    // Stale session, profile exists but no team — sign out cleanly
+    // Stale session, profile exists but no team - sign out cleanly
     await sb.auth.signOut();
     setLoading(false);
     return;
@@ -3898,7 +3906,7 @@ if(!profile){
     const{data:team}=await sb.from("teams").select("*").eq("id",profile.team_id).single();
     if(team){setMyTeam(team);setDivision(team.division);}
   } else {
-    // No team_id — try to find team by email (covers admin users who also have a team)
+    // No team_id - try to find team by email (covers admin users who also have a team)
     const email=profile.email||"";
     const[{data:asP1},{data:asP2}]=await Promise.all([
       sb.from("teams").select("*").eq("p1_email",email).maybeSingle(),
@@ -3932,7 +3940,7 @@ sb.from(“match_requests”).select(”*,responses:request_responses(*)”).ord
 if(t)setTeams(t);if(m)setMatches(m);if(r)setRequests(r);
 },[]);
 
-// Real-time subscriptions — auto-update without refresh
+// Real-time subscriptions - auto-update without refresh
 useEffect(()=>{
 if(!session)return;
 const teamsCh=sb.channel(“rt-teams”)
@@ -4002,7 +4010,7 @@ return()=>{
 },[session]);
 
 const signOut=async()=>{
-// Full hard reset — clears Supabase session, localStorage tokens, and all app state
+// Full hard reset - clears Supabase session, localStorage tokens, and all app state
 await sb.auth.signOut({scope:“global”});
 // Clear any lingering Supabase tokens from localStorage
 Object.keys(localStorage).forEach(k=>{
@@ -4022,7 +4030,7 @@ setRequests([]);
 setNotifications([]);
 };
 
-// Shared helper — fetch fresh matches and teams from DB
+// Shared helper - fetch fresh matches and teams from DB
 const refreshMatchesAndTeams=async()=>{
 const[{data:m},{data:t}]=await Promise.all([
 sb.from(“matches”).select(”*”).order(“created_at”,{ascending:false}),
@@ -4034,7 +4042,7 @@ if(t)setTeams(t);
 
 const handleCancelMatch=async(match,reason)=>{
 setCancelMatch(null);
-// Optimistic — remove from active view immediately
+// Optimistic - remove from active view immediately
 setMatches(p=>p.map(m=>m.id===match.id?{…m,cancelled:true,cancel_reason:reason}:m));
 // Write to DB
 const{error}=await sb.from(“matches”).update({
@@ -4073,11 +4081,11 @@ e.target.style.filter=“invert(1) sepia(1) saturate(5) hue-rotate(175deg)”;
 </div>
 );
 
-// Code modal renderer — used at every render gate
+// Code modal renderer - used at every render gate
 const CodeModal = pendingCode ? (
 <div style={{position:“fixed”,inset:0,background:“rgba(0,0,0,.75)”,zIndex:999,display:“flex”,alignItems:“center”,justifyContent:“center”,padding:“20px”,fontFamily:”‘DM Sans’,sans-serif”}}>
 <div style={{…card(),width:“100%”,maxWidth:“420px”,textAlign:“center”,animation:“fadeIn .2s ease”}}>
-<div style={{fontSize:“36px”,marginBottom:“8px”}}>🏓</div>
+<div style={{fontSize:“36px”,marginBottom:“8px”}}>-</div>
 <div style={{fontSize:“22px”,fontWeight:“800”,marginBottom:“4px”}}>You’re registered!</div>
 <p style={{fontSize:“13px”,color:C.muted,marginBottom:“18px”,lineHeight:“1.6”}}>
 Share this code with <strong>{pendingCode.p2Name}</strong> so they can create their account and join the team.
@@ -4085,7 +4093,7 @@ Share this code with <strong>{pendingCode.p2Name}</strong> so they can create th
 <div style={{background:”#1d1d1f”,borderRadius:“14px”,padding:“20px”,marginBottom:“14px”}}>
 <div style={{fontSize:“11px”,fontWeight:“700”,color:“rgba(255,255,255,.4)”,textTransform:“uppercase”,letterSpacing:“1.5px”,marginBottom:“10px”}}>Team join code</div>
 <div style={{fontSize:“48px”,fontWeight:“900”,color:”#00BFFF”,letterSpacing:“10px”,fontFamily:“monospace”,lineHeight:“1”}}>{pendingCode.code}</div>
-<div style={{fontSize:“12px”,color:“rgba(255,255,255,.4)”,marginTop:“10px”}}>app.ascendpb.com → “Join with team code”</div>
+<div style={{fontSize:“12px”,color:“rgba(255,255,255,.4)”,marginTop:“10px”}}>app.ascendpb.com - “Join with team code”</div>
 </div>
 <div style={{background:C.bg,borderRadius:“10px”,padding:“12px 14px”,marginBottom:“12px”,textAlign:“left”,fontSize:“13px”,color:C.text,lineHeight:“1.8”}}>
 <strong>Send {pendingCode.p2Name} these steps:</strong><br/>
@@ -4095,20 +4103,20 @@ Share this code with <strong>{pendingCode.p2Name}</strong> so they can create th
 4. Create their account & pay $25
 </div>
 <div style={{background:”#eff6ff”,borderRadius:“8px”,padding:“10px 12px”,marginBottom:“16px”,fontSize:“12px”,color:C.blue,textAlign:“left”}}>
-💡 You can always find this code in <strong>Settings</strong> if you need to reshare it later.
+- You can always find this code in <strong>Settings</strong> if you need to reshare it later.
 </div>
 <button style={btn(C.blue,”#fff”,{width:“100%”,marginBottom:“10px”,minHeight:“46px”,fontWeight:“700”})} onClick={()=>{
-const text=`Hey ${pendingCode.p2Name}! I registered us for the Ascend PB Flex League 🏓\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${pendingCode.code}\n4. Create your account & pay $25\n\nSee you on the courts!`;
+const text=`Hey ${pendingCode.p2Name}! I registered us for the Ascend PB Flex League -\n\n1. Go to app.ascendpb.com\n2. Tap "Join with team code"\n3. Enter: ${pendingCode.code}\n4. Create your account & pay $25\n\nSee you on the courts!`;
 if(navigator.share)navigator.share({text});
 else{navigator.clipboard.writeText(text);alert(“Copied to clipboard!”);}
-}}>📤 Share with {pendingCode.p2Name}</button>
+}}>- Share with {pendingCode.p2Name}</button>
 <button style={btn(C.text,”#fff”,{width:“100%”,minHeight:“44px”})} onClick={async()=>{
 const uid=pendingCode.uid;
 setPendingCode(null);
 setRegisteringSync(false);
 if(uid) await loadUser(uid);
 else{const{data:{session:s}}=await sb.auth.getSession();if(s)await loadUser(s.user.id);}
-}}>Go to my dashboard →</button>
+}}>Go to my dashboard -</button>
 </div>
 </div>
 ) : null;
@@ -4151,7 +4159,7 @@ return(
   {CodeModal}
 
   {/* Week deadline banner */}
-  {weekDeadline&&<div style={{background:C.amber,color:"#fff",textAlign:"center",padding:"8px 16px",fontSize:"13px",fontWeight:"600"}}>⏰ {weekDeadline}</div>}
+  {weekDeadline&&<div style={{background:C.amber,color:"#fff",textAlign:"center",padding:"8px 16px",fontSize:"13px",fontWeight:"600"}}>- {weekDeadline}</div>}
 
   {/* Top nav */}
   <nav style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:"0 16px",display:"flex",alignItems:"center",gap:"2px",position:"sticky",top:0,zIndex:100,height:"52px"}}>
@@ -4178,7 +4186,7 @@ return(
   {/* Page */}
   <div style={{padding:mobile?"16px 14px":"28px 20px",maxWidth:"960px",margin:"0 auto"}}>
 
-    {/* PAYMENT PENDING — shows on every tab until team is approved */}
+    {/* PAYMENT PENDING - shows on every tab until team is approved */}
     {myTeam&&!myTeam.approved&&(()=>{
       const p1Paid=myTeam.p1_paid;
       const p2Paid=myTeam.p2_paid;
@@ -4188,15 +4196,15 @@ return(
       const myPaid=iAmP1?p1Paid:iAmP2?p2Paid:false;
       return(
         <div style={{background:"#fffbeb",border:"1.5px solid #fde68a",borderRadius:"12px",padding:"16px",marginBottom:"18px"}}>
-          <div style={{fontSize:"14px",fontWeight:"700",color:"#78350f",marginBottom:"10px"}}>⏳ Team pending activation</div>
+          <div style={{fontSize:"14px",fontWeight:"700",color:"#78350f",marginBottom:"10px"}}>- Team pending activation</div>
           <div style={{display:"flex",flexDirection:"column",gap:"6px",marginBottom:"12px"}}>
             {[
               {name:myTeam.p1_name,paid:p1Paid,label:"Player 1"},
               {name:myTeam.p2_name,paid:p2Paid,label:"Player 2"},
             ].map(({name,paid,label})=>(
               <div key={label} style={{display:"flex",alignItems:"center",gap:"8px",background:"rgba(0,0,0,.04)",borderRadius:"8px",padding:"8px 10px"}}>
-                <span style={{fontSize:"14px"}}>{paid?"✅":"⏳"}</span>
-                <span style={{fontSize:"13px",flex:1,color:"#78350f"}}><strong>{label}:</strong> {name} — {paid?"$25 paid":"payment pending"}</span>
+                <span style={{fontSize:"14px"}}>{paid?"-":"-"}</span>
+                <span style={{fontSize:"13px",flex:1,color:"#78350f"}}><strong>{label}:</strong> {name} - {paid?"$25 paid":"payment pending"}</span>
               </div>
             ))}
           </div>
@@ -4205,10 +4213,10 @@ return(
             :<>
               <p style={{fontSize:"12px",color:"#78350f",marginBottom:myPaid?"0":"10px",lineHeight:"1.6"}}>
                 {myPaid
-                  ?"Your payment is confirmed — waiting on your partner's payment."
+                  ?"Your payment is confirmed - waiting on your partner's payment."
                   :"Your team won't be active until both players have paid $25 and admin has approved."}
               </p>
-              {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>💳 Pay my $25 now →</button>}
+              {!myPaid&&<button style={btn("#78350f","#fff",{width:"100%",minHeight:"42px",fontSize:"13px",fontWeight:"700"})} onClick={()=>window.open(SHOPIFY_URL,"_blank")}>- Pay my $25 now -</button>}
             </>
           }
         </div>
