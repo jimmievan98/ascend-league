@@ -13,7 +13,7 @@ const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/objec
 const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/logo/Black%20Modern%20Initials%20AP%20Logo%20(10).png";
 const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
 const CONTACT_EMAIL = "league@ascendpb.com";
-const APP_VERSION   = "v2.5.0";
+const APP_VERSION   = "v2.5.1";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // Helper — send email via Resend edge function (dormant until API key added)
@@ -945,6 +945,9 @@ const friendlyError = (msg) => {
   return msg;
 };
 
+// Standalone Err — must be outside any component to prevent focus loss on re-render
+const Err = ({e})=>e?<Alert type="error">{e}</Alert>:null;
+
 // ── PHONE VERIFY UI — defined outside AuthScreen to prevent remount on keystroke ──
 function PhoneVerifyUI({ phoneStep, setPhoneStep, phoneNum, setPhoneNum, phoneCode, setPhoneCode,
   phoneErr, setPhoneErr, phoneChannel, phoneBusy, resendTimer, sendPhoneCode, checkPhoneCode }) {
@@ -1317,7 +1320,6 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     setJoinStep(4);
   };
 
-  const Err = ({e})=>e?<Alert type="error">{e}</Alert>:null;
   const stepLabels = ["","Create Account","Verify Phone","Your Info","Your Partner","Rules & Waiver","Review & Pay"];
   const totalSteps = isOAuth ? 5 : 6; // includes phone step for all paths
   const displayStep = isOAuth ? step : step; // phone step is always shown
@@ -1810,6 +1812,157 @@ function Dashboard({ myTeam, teams, matches, requests, division, setDivision, se
 }
 
 // ── MATCH BOARD ───────────────────────────────────────────────
+// RequestCard — outside MatchBoard so it never remounts on parent re-render
+function RequestCard({ req, myTeam, teams, atLimit, setConfirmReq }) {
+  const isOwn       = req.team_id===myTeam?.id;
+  const isAcc       = req.status==="accepted";
+  const isCancelled = req.status==="cancelled";
+  // Anyone approved in this division can interact — including the poster (for replies)
+  const canInteract = myTeam&&myTeam.approved&&!isCancelled&&myTeam.division===req.division;
+  const canAccept   = canInteract&&!isOwn&&!isAcc&&!atLimit(req.team_id);
+  const canCounter  = canInteract&&!isOwn&&!isAcc; // own team cannot counter their own request
+  const overLimit   = canInteract&&!isOwn&&atLimit(req.team_id);
+  const responses   = req.responses||[];
+  const poster      = teams.find(t=>t.id===req.team_id);
+  const skillRange  = poster?`${poster.p1_skill}/${poster.p2_skill}`:"";
+
+  // Local state — prevents parent re-render from stealing focus
+  const [formType, setFormType] = useState(null); // null | "comment" | "counter"
+  const [msg,  setMsg]  = useState("");
+  const [cdate,setCdate]= useState("");
+  const [ctime,setCtime]= useState("");
+  const [ccourt,setCcourt]=useState("");
+  const [submitting, setSubmitting]=useState(false);
+
+  const openForm=(type)=>{ setFormType(f=>f===type?null:type); setMsg(""); setCdate(""); setCtime(""); setCcourt(""); };
+  const closeForm=()=>{ setFormType(null); setMsg(""); setCdate(""); setCtime(""); setCcourt(""); };
+
+  const submitComment=async()=>{
+    if(!msg.trim()||submitting)return;
+    setSubmitting(true);
+    const{data,error}=await sb.from("request_responses").insert({
+      request_id:req.id,team_id:myTeam.id,team_name:myTeam.name,
+      type:formType,message:msg,
+      counter_date:cdate||"",counter_time:ctime||"",counter_court:ccourt||""
+    }).select().single();
+    if(!error){
+      setRequests(p=>p.map(r=>r.id===req.id?{...r,responses:[...(r.responses||[]),data]}:r));
+      closeForm();
+    }
+    setSubmitting(false);
+  };
+
+  return(
+    <div style={{...card(),marginBottom:"12px",borderLeft:`4px solid ${isCancelled?"#ccc":isAcc?C.green:C.blue}`,opacity:isCancelled?0.5:isAcc?0.75:1}}>
+
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"12px"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"5px",flexWrap:"wrap"}}>
+            <span style={{fontSize:"17px",fontWeight:"700"}}>{tName(req.team_id)}</span>
+            {skillRange&&<Tag sm c="gray">{skillRange}</Tag>}
+            {isOwn&&<Tag c="gray">Your request</Tag>}
+          </div>
+          <div style={{fontSize:"13px",color:"#555",display:"flex",gap:"14px",flexWrap:"wrap",marginBottom:"3px"}}>
+            <span>📅 {fmtDate(req.proposed_date)}</span>
+            <span>🕐 {fmtTime(req.proposed_time)}</span>
+            <span>📍 {req.proposed_court}</span>
+          </div>
+          {req.notes&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{req.notes}</div>}
+          {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>💰 Fee: {req.location_fee}</div>}
+          <div style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>{timeAgo(req.created_at)} · {responses.length} response{responses.length!==1?"s":""}</div>
+        </div>
+        <Tag c={isCancelled?"gray":isAcc?"green":"blue"}>{isCancelled?"Cancelled":isAcc?"Matched":"Open"}</Tag>
+      </div>
+
+      {/* Responses thread — full transparency, everyone sees all */}
+      {responses.length>0&&(
+        <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"12px"}}>
+          <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Thread ({responses.length})</div>
+          {responses.map(r=>(
+            <div key={r.id} style={{padding:"9px 0",borderBottom:`1px solid #eee`}}>
+              <div style={{display:"flex",alignItems:"center",gap:"7px",marginBottom:"4px",flexWrap:"wrap"}}>
+                <span style={{fontWeight:"700",fontSize:"13px"}}>{r.team_name}</span>
+                <Tag c={r.type==="counter"?"amber":"blue"}>{r.type==="counter"?"Counter":"Comment"}</Tag>
+                <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(r.created_at)}</span>
+              </div>
+              <div style={{fontSize:"13px",color:C.text,lineHeight:"1.5"}}>{r.message}</div>
+              {r.type==="counter"&&r.counter_date&&(
+                <div style={{fontSize:"12px",color:C.amber,marginTop:"4px",fontWeight:"500"}}>
+                  Proposes: {fmtDateTime(r.counter_date, r.counter_time)}{r.counter_court?` · ${r.counter_court}`:""}
+                </div>
+              )}
+              {/* Request owner can accept any counter */}
+              {isOwn&&r.type==="counter"&&!isAcc&&(
+                <button style={btn(C.green,"#fff",{marginTop:"8px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>setConfirmReq({req,isCounter:true,counterData:r})}>
+                  Accept this counter
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Action buttons — all approved division members can interact */}
+      {canInteract&&!isCancelled&&!isAcc&&(
+        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:formType?"12px":"0"}}>
+          {canAccept&&(
+            <button style={btn(C.green,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>
+              ✓ Accept
+            </button>
+          )}
+          {overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team.</span>}
+          <button style={btn(formType==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("comment")}>
+            💬 {formType==="comment"?"Close":"Comment"}
+          </button>
+          {canCounter&&(
+            <button style={btn(formType==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("counter")}>
+              ↩ {formType==="counter"?"Close":"Counter"}
+            </button>
+          )}
+          {isOwn&&(
+            <button style={btn(C.red,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>cancelReq(req.id)}>
+              Cancel
+            </button>
+          )}
+        </div>
+      )}
+      {isOwn&&isAcc&&<p style={{fontSize:"12px",color:C.muted,marginBottom:"8px"}}>Match confirmed — open the match chat to coordinate details.</p>}
+
+      {/* Comment / Counter inline form — local state keeps focus stable */}
+      {formType&&(
+        <div style={{background:formType==="counter"?"#fffbeb":"#eff6ff",border:`1.5px solid ${formType==="counter"?C.amber:C.blue}`,borderRadius:"10px",padding:"14px"}}>
+          <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"10px",color:formType==="counter"?C.amber:C.blue}}>
+            {formType==="counter"?"Counter proposal — suggest a different time or court":"Add a comment"}
+          </div>
+          <textarea
+            style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px",background:"#fff"}}
+            placeholder={formType==="counter"?"e.g. That time doesn't work for us — can you do Saturday at 2pm at Freedom Park?":"e.g. We're interested! Is this an outdoor court? Let us check our schedule."}
+            value={msg}
+            onChange={e=>setMsg(e.target.value)}
+            autoFocus
+          />
+          {formType==="counter"&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
+              <div><Lbl>Alt date</Lbl><input type="date" style={{...inp(),background:"#fff"}} value={cdate} onChange={e=>setCdate(e.target.value)}/></div>
+              <div><Lbl>Alt time</Lbl><input type="time" style={{...inp(),background:"#fff"}} value={ctime} onChange={e=>setCtime(e.target.value)}/></div>
+              <div><Lbl>Alt court</Lbl><input style={{...inp(),background:"#fff"}} placeholder="Court name" value={ccourt} onChange={e=>setCcourt(e.target.value)}/></div>
+            </div>
+          )}
+          <div style={{display:"flex",gap:"8px"}}>
+            <button style={btn(formType==="counter"?C.amber:C.text,"#fff",{minHeight:"44px",flex:1})} onClick={submitComment} disabled={!msg.trim()||submitting}>
+              {submitting?"Sending...":(formType==="counter"?"Send counter":"Post comment")}
+            </button>
+            <button style={btn(C.gray,"#fff",{minHeight:"44px",padding:"10px 18px"})} onClick={closeForm}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, setDivision, isAdmin, globalSetTab }) {
   const mobile = useMobile();
   // Non-admins always see their own division
@@ -1875,156 +2028,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
     setRequests(p=>p.map(r=>r.id===rid?{...r,status:"cancelled"}:r));
   };
 
-  // RequestCard — self-contained state so typing never loses focus
-  const RequestCard=({req})=>{
-    const isOwn       = req.team_id===myTeam?.id;
-    const isAcc       = req.status==="accepted";
-    const isCancelled = req.status==="cancelled";
-    // Anyone approved in this division can interact — including the poster (for replies)
-    const canInteract = myTeam&&myTeam.approved&&!isCancelled&&myTeam.division===req.division;
-    const canAccept   = canInteract&&!isOwn&&!isAcc&&!atLimit(req.team_id);
-    const canCounter  = canInteract&&!isOwn&&!isAcc; // own team cannot counter their own request
-    const overLimit   = canInteract&&!isOwn&&atLimit(req.team_id);
-    const responses   = req.responses||[];
-    const poster      = teams.find(t=>t.id===req.team_id);
-    const skillRange  = poster?`${poster.p1_skill}/${poster.p2_skill}`:"";
 
-    // Local state — prevents parent re-render from stealing focus
-    const [formType, setFormType] = useState(null); // null | "comment" | "counter"
-    const [msg,  setMsg]  = useState("");
-    const [cdate,setCdate]= useState("");
-    const [ctime,setCtime]= useState("");
-    const [ccourt,setCcourt]=useState("");
-    const [submitting, setSubmitting]=useState(false);
-
-    const openForm=(type)=>{ setFormType(f=>f===type?null:type); setMsg(""); setCdate(""); setCtime(""); setCcourt(""); };
-    const closeForm=()=>{ setFormType(null); setMsg(""); setCdate(""); setCtime(""); setCcourt(""); };
-
-    const submitComment=async()=>{
-      if(!msg.trim()||submitting)return;
-      setSubmitting(true);
-      const{data,error}=await sb.from("request_responses").insert({
-        request_id:req.id,team_id:myTeam.id,team_name:myTeam.name,
-        type:formType,message:msg,
-        counter_date:cdate||"",counter_time:ctime||"",counter_court:ccourt||""
-      }).select().single();
-      if(!error){
-        setRequests(p=>p.map(r=>r.id===req.id?{...r,responses:[...(r.responses||[]),data]}:r));
-        closeForm();
-      }
-      setSubmitting(false);
-    };
-
-    return(
-      <div style={{...card(),marginBottom:"12px",borderLeft:`4px solid ${isCancelled?"#ccc":isAcc?C.green:C.blue}`,opacity:isCancelled?0.5:isAcc?0.75:1}}>
-
-        {/* Header */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:"8px",marginBottom:"12px"}}>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"5px",flexWrap:"wrap"}}>
-              <span style={{fontSize:"17px",fontWeight:"700"}}>{tName(req.team_id)}</span>
-              {skillRange&&<Tag sm c="gray">{skillRange}</Tag>}
-              {isOwn&&<Tag c="gray">Your request</Tag>}
-            </div>
-            <div style={{fontSize:"13px",color:"#555",display:"flex",gap:"14px",flexWrap:"wrap",marginBottom:"3px"}}>
-              <span>📅 {fmtDate(req.proposed_date)}</span>
-              <span>🕐 {fmtTime(req.proposed_time)}</span>
-              <span>📍 {req.proposed_court}</span>
-            </div>
-            {req.notes&&<div style={{fontSize:"12px",color:C.muted,marginTop:"2px"}}>{req.notes}</div>}
-            {req.location_fee&&<div style={{fontSize:"12px",color:C.amber,fontWeight:"500",marginTop:"2px"}}>💰 Fee: {req.location_fee}</div>}
-            <div style={{fontSize:"11px",color:C.faint,marginTop:"4px"}}>{timeAgo(req.created_at)} · {responses.length} response{responses.length!==1?"s":""}</div>
-          </div>
-          <Tag c={isCancelled?"gray":isAcc?"green":"blue"}>{isCancelled?"Cancelled":isAcc?"Matched":"Open"}</Tag>
-        </div>
-
-        {/* Responses thread — full transparency, everyone sees all */}
-        {responses.length>0&&(
-          <div style={{background:C.bg,borderRadius:"8px",padding:"12px",marginBottom:"12px"}}>
-            <div style={{fontSize:"11px",fontWeight:"700",color:C.muted,textTransform:"uppercase",letterSpacing:".8px",marginBottom:"8px"}}>Thread ({responses.length})</div>
-            {responses.map(r=>(
-              <div key={r.id} style={{padding:"9px 0",borderBottom:`1px solid #eee`}}>
-                <div style={{display:"flex",alignItems:"center",gap:"7px",marginBottom:"4px",flexWrap:"wrap"}}>
-                  <span style={{fontWeight:"700",fontSize:"13px"}}>{r.team_name}</span>
-                  <Tag c={r.type==="counter"?"amber":"blue"}>{r.type==="counter"?"Counter":"Comment"}</Tag>
-                  <span style={{fontSize:"11px",color:C.faint}}>{timeAgo(r.created_at)}</span>
-                </div>
-                <div style={{fontSize:"13px",color:C.text,lineHeight:"1.5"}}>{r.message}</div>
-                {r.type==="counter"&&r.counter_date&&(
-                  <div style={{fontSize:"12px",color:C.amber,marginTop:"4px",fontWeight:"500"}}>
-                    Proposes: {fmtDateTime(r.counter_date, r.counter_time)}{r.counter_court?` · ${r.counter_court}`:""}
-                  </div>
-                )}
-                {/* Request owner can accept any counter */}
-                {isOwn&&r.type==="counter"&&!isAcc&&(
-                  <button style={btn(C.green,"#fff",{marginTop:"8px",fontSize:"12px",padding:"6px 14px",minHeight:"36px"})} onClick={()=>setConfirmReq({req,isCounter:true,counterData:r})}>
-                    Accept this counter
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Action buttons — all approved division members can interact */}
-        {canInteract&&!isCancelled&&!isAcc&&(
-          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:formType?"12px":"0"}}>
-            {canAccept&&(
-              <button style={btn(C.green,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>setConfirmReq({req,isCounter:false,counterData:null})}>
-                ✓ Accept
-              </button>
-            )}
-            {overLimit&&<span style={{fontSize:"12px",color:C.faint,alignSelf:"center"}}>Max {MAX_VS} matches vs this team.</span>}
-            <button style={btn(formType==="comment"?C.blue:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("comment")}>
-              💬 {formType==="comment"?"Close":"Comment"}
-            </button>
-            {canCounter&&(
-              <button style={btn(formType==="counter"?C.amber:C.gray,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>openForm("counter")}>
-                ↩ {formType==="counter"?"Close":"Counter"}
-              </button>
-            )}
-            {isOwn&&(
-              <button style={btn(C.red,"#fff",{minHeight:"44px",flex:"1",minWidth:"90px"})} onClick={()=>cancelReq(req.id)}>
-                Cancel
-              </button>
-            )}
-          </div>
-        )}
-        {isOwn&&isAcc&&<p style={{fontSize:"12px",color:C.muted,marginBottom:"8px"}}>Match confirmed — open the match chat to coordinate details.</p>}
-
-        {/* Comment / Counter inline form — local state keeps focus stable */}
-        {formType&&(
-          <div style={{background:formType==="counter"?"#fffbeb":"#eff6ff",border:`1.5px solid ${formType==="counter"?C.amber:C.blue}`,borderRadius:"10px",padding:"14px"}}>
-            <div style={{fontSize:"14px",fontWeight:"700",marginBottom:"10px",color:formType==="counter"?C.amber:C.blue}}>
-              {formType==="counter"?"Counter proposal — suggest a different time or court":"Add a comment"}
-            </div>
-            <textarea
-              style={{...inp({minHeight:"80px",resize:"vertical"}),marginBottom:"10px",background:"#fff"}}
-              placeholder={formType==="counter"?"e.g. That time doesn't work for us — can you do Saturday at 2pm at Freedom Park?":"e.g. We're interested! Is this an outdoor court? Let us check our schedule."}
-              value={msg}
-              onChange={e=>setMsg(e.target.value)}
-              autoFocus
-            />
-            {formType==="counter"&&(
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"12px"}}>
-                <div><Lbl>Alt date</Lbl><input type="date" style={{...inp(),background:"#fff"}} value={cdate} onChange={e=>setCdate(e.target.value)}/></div>
-                <div><Lbl>Alt time</Lbl><input type="time" style={{...inp(),background:"#fff"}} value={ctime} onChange={e=>setCtime(e.target.value)}/></div>
-                <div><Lbl>Alt court</Lbl><input style={{...inp(),background:"#fff"}} placeholder="Court name" value={ccourt} onChange={e=>setCcourt(e.target.value)}/></div>
-              </div>
-            )}
-            <div style={{display:"flex",gap:"8px"}}>
-              <button style={btn(formType==="counter"?C.amber:C.text,"#fff",{minHeight:"44px",flex:1})} onClick={submitComment} disabled={!msg.trim()||submitting}>
-                {submitting?"Sending...":(formType==="counter"?"Send counter":"Post comment")}
-              </button>
-              <button style={btn(C.gray,"#fff",{minHeight:"44px",padding:"10px 18px"})} onClick={closeForm}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return(
     <div>
@@ -2094,7 +2098,7 @@ function MatchBoard({ myTeam, teams, requests, setRequests, matches, division, s
       )}
 
       {divReqs.length===0&&<div style={{...card(),textAlign:"center",padding:"48px 20px"}}><p style={{color:C.faint}}>No match requests yet in this division. Be the first!</p></div>}
-      {divReqs.map(req=><RequestCard key={req.id} req={req}/>)}
+      {divReqs.map(req=><RequestCard key={req.id} req={req} myTeam={myTeam} teams={teams} atLimit={atLimit} setConfirmReq={setConfirmReq}/>)}
 
       {/* Confirm modal */}
       {confirmReq&&<MatchConfirmModal req={confirmReq.req} respondingAs={myTeam} teams={teams} isCounter={confirmReq.isCounter} counterData={confirmReq.counterData} onConfirm={()=>doAccept(confirmReq.req,confirmReq.isCounter,confirmReq.counterData)} onClose={()=>setConfirmReq(null)}/>}
