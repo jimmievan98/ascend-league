@@ -13,7 +13,7 @@ const LOGO_URL      = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/objec
 const LOGO_BLUE_URL = "https://egacieyresiwkwwomesi.supabase.co/storage/v1/object/public/logo/Black%20Modern%20Initials%20AP%20Logo%20(10).png";
 const FUNCTIONS_URL = "https://egacieyresiwkwwomesi.supabase.co/functions/v1";
 const CONTACT_EMAIL = "league@ascendpb.com";
-const APP_VERSION   = "v2.6.4";
+const APP_VERSION   = "v2.6.5";
 
 // Cities config - matches Supabase cities table seed data
 const CITIES = [
@@ -1243,9 +1243,10 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
     }
     if(step===5){
       if(!form.p2Name.trim()){setErr("Please enter your partner's name.");return;}
-      if(!form.p2Email.trim()){setErr("Please enter your partner's email address.");return;}
-      if(!/\S+@\S+\.\S+/.test(form.p2Email)){setErr("That doesn't look like a valid email for your partner.");return;}
-      if(form.p2Email.toLowerCase()===form.email.toLowerCase()){setErr("Your partner's email can't be the same as yours.");return;}
+      if(!form.p2Phone?.trim()){setErr("Please enter your partner's mobile number.");return;}
+      // email is optional - only validate format if provided
+      if(form.p2Email.trim()&&!/\S+@\S+\.\S+/.test(form.p2Email)){setErr("That doesn't look like a valid email for your partner.");return;}
+      if(form.p2Email.toLowerCase()===form.email.toLowerCase()&&form.p2Email.trim()){setErr("Your partner's email can't be the same as yours.");return;}
     }
     if(step===6){
       if(!form.agreed){setErr("You need to agree to the rules and waiver to continue.");return;}
@@ -1595,11 +1596,12 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
             </p>
             <Lbl>Partner's full name <span style={{color:C.red,fontWeight:"700"}}>*</span></Lbl>
             <input style={{...inp(),marginBottom:"12px"}} placeholder="Their first and last name" value={form.p2Name} onChange={e=>up("p2Name",e.target.value)}/>
-            <Lbl>Partner's email <span style={{color:C.red,fontWeight:"700"}}>*</span></Lbl>
-            <input style={{...inp(),marginBottom:"12px"}} type="email" placeholder="their@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
             <Lbl>Partner's mobile number <span style={{color:C.red,fontWeight:"700"}}>*</span></Lbl>
             <input style={{...inp(),marginBottom:"6px"}} type="tel" placeholder="(704) 555-0000" value={form.p2Phone||""} onChange={e=>up("p2Phone",e.target.value)}/>
-            <p style={{fontSize:"11px",color:C.muted,marginBottom:"0px",lineHeight:"1.5"}}>US numbers only. We'll text them their join code and invite link automatically.</p>
+            <p style={{fontSize:"11px",color:C.muted,marginBottom:"12px",lineHeight:"1.5"}}>US numbers only. We'll text them their join code and invite link automatically.</p>
+            <Lbl>Partner's email <span style={{fontSize:"10px",color:C.faint,fontWeight:"400",textTransform:"none",letterSpacing:0}}>(optional)</span></Lbl>
+            <input style={{...inp(),marginBottom:"6px"}} type="email" placeholder="their@email.com" value={form.p2Email} onChange={e=>up("p2Email",e.target.value)}/>
+            <p style={{fontSize:"11px",color:C.muted,marginBottom:"0px",lineHeight:"1.5"}}>Used to identify your partner in the admin panel.</p>
           </>}
 
           {/* Step 6 - Waiver */}
@@ -1647,7 +1649,7 @@ function AuthScreen({ oauthUser=null, onRegistered=null, onRegistrationStart=nul
                 });}}>← Back</button>
               : <span/>
             }
-            {step<6&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue →</button>}
+            {step<7&&step!==1.5&&<button style={btn(C.text,"#fff",{padding:"10px 22px"})} onClick={nextStep}>Continue →</button>}
           </div>}
           {step===(isOAuth?2:1)&&<div style={{textAlign:"center",marginTop:"14px",fontSize:"13px",color:C.muted}}>
             Already registered? <span style={{color:C.blue,cursor:"pointer"}} onClick={()=>{setMode("login");setErr("");}}>Sign in</span>
